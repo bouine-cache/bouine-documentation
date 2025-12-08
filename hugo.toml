@@ -1,0 +1,41 @@
+baseURL = 'https://bouine.dev/'
+title = 'bouine'
+theme = 'hugo-book'
+defaultContentLanguage = 'en'
+enableGitInfo = true
+
+[params]
+  BookTheme = 'auto'
+  BookToC = true
+  BookSection = 'docs'
+  BookLogo = '/logo.png'
+  BookMenuBundle = '/menu'
+  BookRepo = 'https://github.com/thylong/bouine'
+  BookEditPath = 'edit/main/docs/'
+  BookSearch = true
+  BookComments = false
+  BookDateFormat = 'Jan 2, 2006'
+
+[markup]
+  [markup.highlight]
+    style = 'dracula'
+    lineNos = false
+    guessSyntax = true
+  [markup.goldmark.renderer]
+    unsafe = true
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 4
+
+[outputs]
+  home = ['HTML', 'RSS']
+
+[menu]
+  [[menu.after]]
+    name = "GitHub"
+    url = "https://github.com/thylong/bouine"
+    weight = 1
+  [[menu.after]]
+    name = "Docker Hub"
+    url = "https://hub.docker.com/r/thylong/bouine"
+    weight = 2
