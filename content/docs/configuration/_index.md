@@ -1,7 +1,7 @@
 ---
 title: "Configuration"
 weight: 2
-bookCollapseSection: false
+description: "Reference for bouine YAML configuration: listeners, storage, routes, cache policy, clustering, and health checks."
 ---
 
 # Configuration reference

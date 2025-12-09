@@ -1,20 +1,66 @@
 baseURL = 'https://bouine.dev/'
 title = 'bouine'
-theme = 'hugo-book'
+theme = 'doks'
 defaultContentLanguage = 'en'
 enableGitInfo = true
+enableEmoji = true
+enableRobotsTXT = true
+locale = 'en-US'
+disableLanguages = ['de', 'nl']
+summarylength = 30
+
+[build.buildStats]
+  enable = true
 
 [params]
-  BookTheme = 'auto'
-  BookToC = true
-  BookSection = 'docs'
-  BookLogo = '/logo.png'
-  BookMenuBundle = '/menu'
-  BookRepo = 'https://github.com/thylong/bouine'
-  BookEditPath = 'edit/main/docs/'
-  BookSearch = true
-  BookComments = false
-  BookDateFormat = 'Jan 2, 2006'
+  title = 'bouine'
+  description = 'Documentation for bouine, a Kubernetes-native reverse-proxy cache.'
+  images = ['logo.png']
+  mainSections = ['docs']
+
+  [params.doks]
+    colorMode = 'auto'
+    colorModeToggler = true
+    navbarSticky = true
+    containerBreakpoint = 'fluid'
+    navBarButton = true
+    navBarButtonUrl = '/docs/getting-started/'
+    navBarButtonText = 'Get started'
+    flexSearch = true
+    searchExclKinds = []
+    searchExclTypes = []
+    showSearch = []
+    indexSummary = false
+    showSummary = true
+    searchLimit = 20
+    sectionSwitcher = false
+    sectionNav = ['docs']
+    toTopButton = true
+    breadcrumbTrail = true
+    headlineHash = true
+    scrollSpy = true
+    headerBar = true
+    backgroundDots = true
+    aiButtons = false
+    editPage = true
+    lastMod = true
+    repoHost = 'GitHub'
+    docsRepo = 'https://github.com/thylong/bouine-documentation'
+    docsRepoBranch = 'main'
+    docsRepoSubPath = ''
+
+  [params.seo]
+    [params.seo.title]
+      separator = '|'
+      suffix = 'bouine'
+    [params.seo.description]
+      summaryFallback = 'Documentation for bouine, a Kubernetes-native reverse-proxy cache.'
+    [params.seo.schemas]
+      type = 'Organization'
+      name = 'bouine'
+      logo = 'logo.png'
+      sameAs = ['https://github.com/thylong/bouine', 'https://hub.docker.com/r/thylong/bouine']
+      images = ['logo.png']
 
 [markup]
   [markup.highlight]
@@ -28,14 +74,55 @@ enableGitInfo = true
     endLevel = 4
 
 [outputs]
-  home = ['HTML', 'RSS']
+  home = ['HTML', 'RSS', 'sitemap', 'searchIndex', 'llms']
+  page = ['HTML', 'markdown']
+  section = ['HTML', 'RSS', 'sitemap']
+
+[outputFormats.searchIndex]
+  mediaType = 'application/json'
+  baseName = 'search-index'
+  isPlainText = true
+  notAlternative = true
+
+[outputFormats.markdown]
+  baseName = 'index'
+  isHTML = false
+  isPlainText = true
+  mediaType = 'text/markdown'
+
+[outputFormats.llms]
+  baseName = 'llms'
+  isHTML = false
+  isPlainText = true
+  mediaType = 'text/plain'
+
+[outputFormats.sitemap]
+  mediaType = 'application/xml'
+  baseName = 'sitemap'
+  isHTML = false
+  isPlainText = true
+  noUgly = true
+  rel  = 'sitemap'
 
 [menu]
-  [[menu.after]]
-    name = "GitHub"
-    url = "https://github.com/thylong/bouine"
-    weight = 1
-  [[menu.after]]
-    name = "Docker Hub"
-    url = "https://hub.docker.com/r/thylong/bouine"
-    weight = 2
+  [[menu.main]]
+    name = 'Docs'
+    url = '/docs/getting-started/'
+    weight = 10
+  [[menu.main]]
+    name = 'Configuration'
+    url = '/docs/configuration/'
+    weight = 20
+  [[menu.main]]
+    name = 'Operations'
+    url = '/docs/operations/'
+    weight = 30
+  [[menu.main]]
+    name = 'GitHub'
+    url = 'https://github.com/thylong/bouine'
+    weight = 40
+  [[menu.social]]
+    name = 'GitHub'
+    pre = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>'
+    url = 'https://github.com/thylong/bouine'
+    weight = 10

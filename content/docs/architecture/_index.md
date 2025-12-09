@@ -1,7 +1,7 @@
 ---
 title: "Architecture"
 weight: 4
-bookCollapseSection: false
+description: "How bouine is structured internally: listeners, pipeline, storage, cache engine, origin pools, clustering, and observability."
 ---
 
 # Architecture

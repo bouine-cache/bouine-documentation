@@ -1,6 +1,7 @@
 ---
 title: "Migration from NGINX"
 weight: 5
+description: "Migrate from NGINX proxy_cache to bouine by mapping directives, cache keys, stale serving, and observability concepts."
 ---
 
 # Migrating from NGINX
