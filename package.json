@@ -4,7 +4,7 @@
   "private": true,
   "description": "Documentation website for bouine.",
   "scripts": {
-    "dev": "hugo server --disableFastRender --noHTTPCache",
+    "dev": "hugo server --disableFastRender --noHTTPCache --baseURL http://localhost:1313/",
     "build": "hugo --minify --gc",
     "clean": "rm -rf public resources"
   },
