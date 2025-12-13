@@ -11,15 +11,32 @@ description: "Documentation for bouine, a Kubernetes-native HTTP reverse-proxy c
 
 **bouine** is a Kubernetes-native HTTP reverse-proxy cache for teams that want Varnish/NGINX-style caching without running an external cache service.
 
-It is built for:
-
-- **End users and operators** who need a reliable, observable cache in front of APIs, static sites, or SSR applications.
-- **Platform teams** who need horizontal scaling, safe invalidation, and Kubernetes-first deployment patterns.
-- **Contributors** who want a small, layered Go codebase with clear performance and correctness gates.
-
-> **Current status**
->
-> The implementation has completed phases 0–7 and has been validated on k3s with a 3-node gossip cluster. The project is release-candidate quality, but production users should still treat it as young software and deploy progressively.
+<div class="row g-4 my-4">
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">End users &amp; operators</h5>
+        <p class="card-text">A reliable, observable cache in front of APIs, static sites, or SSR applications — with Prometheus metrics, structured logs, and a purge API.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Platform teams</h5>
+        <p class="card-text">Horizontal scaling via gossip clustering and consistent hashing, safe invalidation propagation, and a Helm chart for Kubernetes-first deployment.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Contributors</h5>
+        <p class="card-text">A small, layered Go codebase with strict layer boundaries, benchmark-gated CI, RFC 9111 conformance tests, and clear per-package ownership.</p>
+      </div>
+    </div>
+  </div>
+</div>
 
 ## Why bouine?
 
@@ -47,12 +64,3 @@ cd bouine
 make build
 ./bin/bouine version
 ```
-
-## Documentation map
-
-- [Getting started](docs/getting-started/) — install bouine and cache your first response.
-- [Configuration](docs/configuration/) — learn the YAML schema and cache policy knobs.
-- [Operations](docs/operations/) — run, monitor, reload, purge, ban, and troubleshoot bouine.
-- [Architecture](docs/architecture/) — understand the cache engine, storage, clustering, and performance model.
-- [Migration](docs/migration/) — map NGINX `proxy_cache` concepts to bouine.
-- [Contributing](docs/contributing/) — setup, workflow, code standards, and security.
