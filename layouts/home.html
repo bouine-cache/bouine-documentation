@@ -7,7 +7,7 @@
     <div class="col-lg-8 col-xl-7 text-center">
       <p class="lead">{{ .Params.lead | safeHTML }}</p>
       <div class="d-flex justify-content-center gap-3 flex-wrap my-4">
-        <a class="btn btn-primary btn-cta rounded-pill btn-lg px-4" href="/docs/getting-started/" role="button">Get started</a>
+        <a class="btn btn-primary btn-cta rounded-pill btn-lg px-4" href="{{ relURL "docs/getting-started/" }}" role="button">Get started</a>
         <a class="btn btn-outline-secondary rounded-pill btn-lg px-4" href="https://github.com/thylong/bouine" role="button" target="_blank" rel="noopener">GitHub</a>
       </div>
     </div>
@@ -103,8 +103,8 @@
     <div class="col-lg-6">
       <h2 class="mt-2">Ready to replace your cache layer?</h2>
       <p class="text-muted mb-4">Deploy bouine in minutes with Docker or Helm. One binary, zero external dependencies.</p>
-      <a class="btn btn-primary rounded-pill px-4 my-2" href="/docs/getting-started/" role="button">Get started</a>
-      <a class="btn btn-link my-2" href="/docs/getting-started/install/" role="button">View install options →</a>
+      <a class="btn btn-primary rounded-pill px-4 my-2" href="{{ relURL "docs/getting-started/" }}" role="button">Get started</a>
+      <a class="btn btn-link my-2" href="{{ relURL "docs/getting-started/install/" }}" role="button">View install options →</a>
     </div>
   </div>
 </section>
