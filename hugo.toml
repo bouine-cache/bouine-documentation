@@ -107,7 +107,7 @@ summarylength = 30
 [menu]
   [[menu.main]]
     name = 'Docs'
-    url = '/docs/getting-started/'
+    url = '/docs/getting-started/install/'
     weight = 10
   [[menu.main]]
     name = 'Configuration'
