@@ -16,7 +16,7 @@ This section gets you from zero to a working cache. You will:
 ## Pages
 
 - [Install](install/) — Docker, binaries, and source builds.
-- [Your first cache](first-cache/) — start an origin, configure bouine, and verify cache hits.
+- [Quick start](first-cache/) — start an origin, configure bouine, and verify cache hits.
 - [Docker](docker/) — run and build images.
 - [Kubernetes](kubernetes/) — deploy with Helm and StatefulSet gossip.
 - [Example configurations](examples/) — static site, API gateway, and e-commerce examples.
