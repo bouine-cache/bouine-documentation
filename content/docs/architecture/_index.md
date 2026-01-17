@@ -36,8 +36,12 @@ bouine is structured in 9 layers, each testable in isolation:
 
 Two HTTP implementations only:
 
+<div class="text-start">
+
 - **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin)
 - **`quic-go/http3`** — HTTP/3 (data plane only)
+
+</div>
 
 Both share `http.Handler`. The admin API uses `net/http.ServeMux`.
 
@@ -53,8 +57,12 @@ Secondary key (Vary): derived from the request headers listed in the response's 
 
 ### Eviction
 
+<div class="text-start">
+
 - **SIEVE** (default) — simple, near-LRU-K performance, O(1) per operation
 - **W-TinyLFU** (optional) — better hit ratio under skew
+
+</div>
 
 ### Negative caching
 
@@ -85,9 +93,13 @@ Added latency for a peer hit: ~0.3ms (one in-cluster HTTP/2 hop).
 
 ### Invalidation propagation
 
+<div class="text-start">
+
 - **Purge**: forwarded to the key's owner node
 - **Ban**: broadcast to all peers
 - **Refresh**: forwarded to the key's owner node
+
+</div>
 
 ### Join protocol
 
