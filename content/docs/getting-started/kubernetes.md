@@ -4,7 +4,6 @@ weight: 4
 description: "Deploy bouine to Kubernetes with Helm, configure StatefulSet gossip, verify peer discovery, and perform rolling updates."
 ---
 
-# Kubernetes
 
 ## Helm quickstart
 

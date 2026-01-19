@@ -4,7 +4,6 @@ weight: 2
 description: "Understand how bouine chooses TTLs, serves stale content, applies negative caching, jitters expirations, and builds cache keys."
 ---
 
-# Cache policy
 
 ## TTL selection
 

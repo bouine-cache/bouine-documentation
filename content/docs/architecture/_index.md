@@ -4,7 +4,6 @@ weight: 4
 description: "How bouine is structured internally: listeners, pipeline, storage, cache engine, origin pools, clustering, and observability."
 ---
 
-# Architecture
 
 ## Layered design
 

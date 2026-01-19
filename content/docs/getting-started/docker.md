@@ -4,7 +4,6 @@ weight: 3
 description: "Run the official bouine Docker image, mount custom configuration, and build fast multi-architecture images locally."
 ---
 
-# Docker
 
 ## Run the official image
 

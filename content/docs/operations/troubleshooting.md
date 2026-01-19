@@ -4,7 +4,6 @@ weight: 99
 description: "Troubleshoot common bouine production issues including cache misses, cluster peer discovery, Docker builds, and releases."
 ---
 
-# Troubleshooting
 
 ## `X-Cache` is always `MISS`
 

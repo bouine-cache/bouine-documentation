@@ -4,7 +4,6 @@ weight: 3
 description: "Runbook for operating bouine: lifecycle, hot reload, invalidation, monitoring, Kubernetes scaling, and releases."
 ---
 
-# Operations runbook
 
 ## Lifecycle
 

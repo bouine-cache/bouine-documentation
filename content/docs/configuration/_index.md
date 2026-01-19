@@ -4,7 +4,6 @@ weight: 2
 description: "Reference for bouine YAML configuration: listeners, storage, routes, cache policy, clustering, and health checks."
 ---
 
-# Configuration reference
 
 bouine is configured via a YAML file passed with `--config`. Environment variable interpolation is not supported — use Kubernetes ConfigMaps or Helm values for templating.
 

@@ -4,7 +4,6 @@ weight: 2
 description: "Contributor-oriented map of bouine packages, layers, good first tasks, and rules for safely changing cache behavior."
 ---
 
-# Codebase guide
 
 ## Package map
 

@@ -4,7 +4,6 @@ weight: 90
 description: "CLI, headers, and admin API quick reference."
 ---
 
-# Reference
 
 ## CLI
 

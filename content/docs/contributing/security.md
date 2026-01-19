@@ -4,7 +4,6 @@ weight: 3
 description: "Security reporting, supported scope, high-impact vulnerability classes, and operational hardening checklist for bouine."
 ---
 
-# Security
 
 Report vulnerabilities via GitHub private advisory or `security@bouine.dev`.
 

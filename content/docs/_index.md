@@ -4,7 +4,6 @@ weight: 1
 description: "Complete user and contributor documentation for installing, configuring, operating, troubleshooting, and extending bouine safely."
 ---
 
-# Documentation
 
 This documentation is organized around common user journeys:
 

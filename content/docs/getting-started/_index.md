@@ -4,7 +4,6 @@ weight: 1
 description: "Install bouine, run it locally, cache your first response, deploy with Docker or Kubernetes, and adapt example configs."
 ---
 
-# Getting started
 
 This section gets you from zero to a working cache. You will:
 

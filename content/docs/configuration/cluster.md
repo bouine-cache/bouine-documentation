@@ -4,7 +4,6 @@ weight: 3
 description: "Configure bouine clustering with StatefulSet DNS, headless Services, gossip membership, peer fetch, and Kubernetes scaling."
 ---
 
-# Cluster configuration
 
 Cluster mode lets multiple bouine pods share cache reads and invalidations.
 

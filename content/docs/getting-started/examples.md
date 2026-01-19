@@ -4,7 +4,6 @@ weight: 5
 description: "Ready-to-adapt bouine YAML examples for static sites, API gateways, and e-commerce routes with private areas and safety notes."
 ---
 
-# Example configurations
 
 ## Static site / blog
 

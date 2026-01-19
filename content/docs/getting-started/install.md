@@ -4,7 +4,6 @@ weight: 1
 description: "Install bouine from Docker Hub, GitHub release binaries, or source, and understand requirements for each method."
 ---
 
-# Install
 
 ## Docker
 

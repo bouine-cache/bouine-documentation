@@ -4,7 +4,6 @@ weight: 6
 description: "Contributor guide covering local setup, development workflow, commit format, pull request checks, and project standards."
 ---
 
-# Contributing
 
 Thanks for improving bouine. This project values correctness, performance, and operational clarity.
 

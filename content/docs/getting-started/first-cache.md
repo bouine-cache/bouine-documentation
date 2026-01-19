@@ -4,7 +4,6 @@ weight: 2
 description: "Start a small origin server, put bouine in front of it, and verify MISS then HIT behavior through headers and metrics."
 ---
 
-# Your first cache
 
 Start a tiny origin server:
 
