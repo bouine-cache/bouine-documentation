@@ -9,10 +9,10 @@ description: "CLI, headers, and admin API quick reference."
 
 ```bash
 bouine serve --config /etc/bouine/config.yaml
-bouine purge <url> --server 127.0.0.1:9000
-bouine ban host_regex=example.com path_regex=^/api --server 127.0.0.1:9000
-bouine refresh <url> --server 127.0.0.1:9000
-bouine cluster peers --server 127.0.0.1:9000
+bouine purge <url>
+bouine ban host_regex=example.com path_regex=^/api
+bouine refresh <url>
+bouine cluster peers
 bouine version
 ```
 

@@ -38,7 +38,7 @@ publishNotReadyAddresses: true
 Check peer list:
 
 ```bash
-kubectl exec bouine-0 -n bouine -- /bouine cluster peers --server 127.0.0.1:9000
+kubectl exec bouine-0 -n bouine -- /bouine cluster peers
 ```
 
 If each pod only sees itself, look for join logs:

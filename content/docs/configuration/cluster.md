@@ -56,7 +56,7 @@ This is read sharing, not write-through replication. New cache entries are store
 ## Debugging peers
 
 ```bash
-kubectl exec bouine-0 -n bouine -- /bouine cluster peers --server 127.0.0.1:9000
+kubectl exec bouine-0 -n bouine -- /bouine cluster peers
 ```
 
 You should see every pod in the StatefulSet.

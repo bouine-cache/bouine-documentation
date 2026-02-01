@@ -49,7 +49,7 @@ spec:
 
 ```bash
 kubectl scale statefulset/bouine -n bouine --replicas=3
-kubectl exec bouine-0 -n bouine -- /bouine cluster peers --server 127.0.0.1:9000
+kubectl exec bouine-0 -n bouine -- /bouine cluster peers
 ```
 
 ## Rolling updates

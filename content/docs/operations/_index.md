@@ -56,7 +56,7 @@ Trigger: `kill -HUP <pid>` or `POST /v1/config/reload`.
 
 ```bash
 # CLI
-bouine purge https://example.com/products/123 --server 127.0.0.1:9000
+bouine purge https://example.com/products/123
 
 # API
 curl -X POST http://127.0.0.1:9000/v1/purge \
@@ -70,7 +70,7 @@ In a cluster, the purge is forwarded to the key's owner node.
 
 ```bash
 # CLI
-bouine ban host_regex=example.com path_regex=^/api/ --server 127.0.0.1:9000
+bouine ban host_regex=example.com path_regex=^/api/
 
 # API
 curl -X POST http://127.0.0.1:9000/v1/ban \
@@ -84,7 +84,7 @@ Bans are lazy — entries are checked against active bans on each lookup. Broadc
 
 ```bash
 # CLI
-bouine refresh https://example.com/products/123 --server 127.0.0.1:9000
+bouine refresh https://example.com/products/123
 
 # API
 curl -X POST http://127.0.0.1:9000/v1/refresh \
@@ -168,7 +168,7 @@ StatefulSet rolls one pod at a time (reverse ordinal). Each pod must pass readin
 ### Verifying cluster health
 
 ```bash
-kubectl exec bouine-0 -n <namespace> -- /bouine cluster peers --server 127.0.0.1:9000
+kubectl exec bouine-0 -n <namespace> -- /bouine cluster peers
 ```
 
 Should show all replicas.

@@ -30,7 +30,7 @@ On Apple Silicon targeting a Linux amd64 cluster:
 
 ```bash
 docker buildx build --platform linux/amd64 \
-  -t rg.fr-par.scw.cloud/heula/bouine:latest \
+  -t thylong/bouine:latest \
   --push .
 ```
 
