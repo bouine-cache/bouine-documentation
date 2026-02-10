@@ -1,0 +1,17 @@
+// Light mode: show white logo, hide dark logo
+[data-bs-theme="light"] .bouine-logo-light { display: inline-block; }
+[data-bs-theme="light"] .bouine-logo-dark  { display: none; }
+
+// Dark mode: hide white logo, show dark logo
+[data-bs-theme="dark"] .bouine-logo-light { display: none; }
+[data-bs-theme="dark"] .bouine-logo-dark  { display: inline-block; }
+
+// Auto (system preference)
+@media (prefers-color-scheme: light) {
+  [data-bs-theme="auto"] .bouine-logo-light { display: inline-block; }
+  [data-bs-theme="auto"] .bouine-logo-dark  { display: none; }
+}
+@media (prefers-color-scheme: dark) {
+  [data-bs-theme="auto"] .bouine-logo-light { display: none; }
+  [data-bs-theme="auto"] .bouine-logo-dark  { display: inline-block; }
+}
