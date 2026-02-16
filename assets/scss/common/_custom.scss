@@ -15,3 +15,61 @@
   [data-bs-theme="auto"] .bouine-logo-light { display: none; }
   [data-bs-theme="auto"] .bouine-logo-dark  { display: inline-block; }
 }
+
+// ── Animated constellation twinkle (replaces bg-dots) ──
+
+@keyframes bouine-twinkle-a {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .2; }
+}
+
+@keyframes bouine-twinkle-b {
+  0%, 100% { opacity: .3; }
+  60%       { opacity: 1; }
+}
+
+.bg-dots {
+  background: none;
+  position: relative;
+  width: 100%;
+  height: 11rem;
+  margin-top: -10rem;
+  z-index: -1;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    -webkit-mask: linear-gradient(to top, #fff 30%, transparent);
+    mask: linear-gradient(to top, #fff 30%, transparent);
+  }
+
+  &::before {
+    background-image: radial-gradient(rgba(139, 92, 246, .55) 1.5px, transparent 1.5px);
+    background-size: 3rem 3rem;
+    animation: bouine-twinkle-a 3.5s ease-in-out infinite;
+  }
+
+  &::after {
+    background-image: radial-gradient(rgba(139, 92, 246, .25) 1px, transparent 1px);
+    background-size: 1.5rem 1.5rem;
+    background-position: .75rem .75rem;
+    animation: bouine-twinkle-b 2.8s ease-in-out infinite;
+  }
+}
+
+[data-bs-theme="dark"] .bg-dots,
+[data-bs-theme="auto"] .bg-dots {
+  &::before {
+    background-image: radial-gradient(rgba(196, 181, 253, .7) 1.5px, transparent 1.5px);
+    -webkit-mask: linear-gradient(to top, #0d0d1a 30%, transparent);
+    mask: linear-gradient(to top, #0d0d1a 30%, transparent);
+  }
+
+  &::after {
+    background-image: radial-gradient(rgba(167, 139, 250, .35) 1px, transparent 1px);
+    -webkit-mask: linear-gradient(to top, #0d0d1a 30%, transparent);
+    mask: linear-gradient(to top, #0d0d1a 30%, transparent);
+  }
+}
