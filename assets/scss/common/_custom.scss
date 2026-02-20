@@ -41,6 +41,7 @@
     content: '';
     position: absolute;
     inset: 0;
+    background-color: var(--bs-body-bg);
     -webkit-mask: linear-gradient(to top, black, transparent);
     mask: linear-gradient(to top, black, transparent);
     -webkit-mask-mode: alpha;
