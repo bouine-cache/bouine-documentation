@@ -41,7 +41,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background-color: var(--bs-body-bg);
+    background-color: #fff;
     -webkit-mask: linear-gradient(to top, black, transparent);
     mask: linear-gradient(to top, black, transparent);
     -webkit-mask-mode: alpha;
@@ -63,6 +63,11 @@
 }
 
 [data-bs-theme="dark"] .bg-dots {
+  &::before,
+  &::after {
+    background-color: hsl(224, 10%, 10%);
+  }
+
   &::before {
     background-image: radial-gradient(rgba(196, 181, 253, .7) 1.5px, transparent 1.5px);
   }
