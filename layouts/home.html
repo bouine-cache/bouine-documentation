@@ -116,4 +116,59 @@
     </div>
   </div>
 </section>
+
+{{/* WebGL noise canvas — covers the full homepage viewport */}}
+<div id="bouine-tint" style="position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 80% 70% at 50% 50%,rgba(139,92,246,.14) 0%,transparent 70%)"></div>
+<canvas id="bouine-noise" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:overlay;opacity:.30;z-index:1"></canvas>
+<script>
+(function(){
+  var c=document.getElementById('bouine-noise');
+  if(!c)return;
+  var gl=c.getContext('webgl');
+  if(!gl)return;
+  var V='attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
+  var F=[
+    'precision mediump float;',
+    'uniform float t;uniform vec2 r;',
+    'float hash(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}',
+    'void main(){',
+    '  vec2 co=gl_FragCoord.xy+vec2(sin(t*.1)*.5,cos(t*.13)*.5);',
+    '  vec2 s=co+t*.01;',
+    '  float u1=max(hash(s),.0001);',
+    '  float u2=hash(s+vec2(1.,0.));',
+    '  float n=sqrt(-2.*log(u1))*cos(6.28318*u2);',
+    '  gl_FragColor=vec4(vec3(clamp(n*.08+.5,0.,1.)),1.);',
+    '}'
+  ].join('');
+  function sh(tp,sr){var s=gl.createShader(tp);gl.shaderSource(s,sr);gl.compileShader(s);return s;}
+  var p=gl.createProgram();
+  gl.attachShader(p,sh(gl.VERTEX_SHADER,V));
+  gl.attachShader(p,sh(gl.FRAGMENT_SHADER,F));
+  gl.linkProgram(p);
+  var buf=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+  var tl=gl.getUniformLocation(p,'t');
+  var rl=gl.getUniformLocation(p,'r');
+  var al=gl.getAttribLocation(p,'a');
+  var last=0;
+  function resize(){c.width=innerWidth;c.height=innerHeight;gl.viewport(0,0,c.width,c.height);}
+  function frame(tm){
+    if(tm-last>=83){
+      resize();
+      gl.useProgram(p);
+      gl.uniform1f(tl,tm*.001);
+      gl.uniform2f(rl,c.width,c.height);
+      gl.enableVertexAttribArray(al);
+      gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+      gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+      gl.drawArrays(gl.TRIANGLES,0,6);
+      last=tm;
+    }
+    requestAnimationFrame(frame);
+  }
+  window.addEventListener('resize',resize);
+  requestAnimationFrame(frame);
+})();
+</script>
 {{ end }}
