@@ -29,47 +29,23 @@
 }
 
 .bg-dots {
-  background: none;
-  position: relative;
+  background-image:
+    linear-gradient(to bottom, #fff 0%, transparent 60%),
+    radial-gradient(rgba(139, 92, 246, .55) 1.5px, transparent 1.5px),
+    radial-gradient(rgba(139, 92, 246, .25) 1px, transparent 1px);
+  background-size: auto, 3rem 3rem, 1.5rem 1.5rem;
+  background-position: 0 0, 0 0, .75rem .75rem;
   width: 100%;
   height: 11rem;
   margin-top: -10rem;
   z-index: -1;
-
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-  }
-
-  &::before {
-    background-image:
-      linear-gradient(to bottom, #fff 0%, transparent 60%),
-      radial-gradient(rgba(139, 92, 246, .55) 1.5px, transparent 1.5px);
-    background-size: auto, 3rem 3rem;
-    animation: bouine-twinkle-a 3.5s ease-in-out infinite;
-  }
-
-  &::after {
-    background-image:
-      linear-gradient(to bottom, #fff 0%, transparent 60%),
-      radial-gradient(rgba(139, 92, 246, .25) 1px, transparent 1px);
-    background-size: auto, 1.5rem 1.5rem;
-    background-position: 0 0, .75rem .75rem;
-    animation: bouine-twinkle-b 2.8s ease-in-out infinite;
-  }
+  animation: bouine-twinkle-a 3.5s ease-in-out infinite;
 }
 
 [data-bs-theme="dark"] .bg-dots {
-  &::before {
-    background-image:
-      linear-gradient(to bottom, hsl(224, 10%, 10%) 0%, transparent 60%),
-      radial-gradient(rgba(196, 181, 253, .7) 1.5px, transparent 1.5px);
-  }
-  &::after {
-    background-image:
-      linear-gradient(to bottom, hsl(224, 10%, 10%) 0%, transparent 60%),
-      radial-gradient(rgba(167, 139, 250, .35) 1px, transparent 1px);
-  }
+  background-image:
+    linear-gradient(to bottom, hsl(224, 10%, 10%) 0%, transparent 60%),
+    radial-gradient(rgba(196, 181, 253, .7) 1.5px, transparent 1.5px),
+    radial-gradient(rgba(167, 139, 250, .35) 1px, transparent 1px);
+  animation: bouine-twinkle-b 2.8s ease-in-out infinite;
 }
