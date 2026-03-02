@@ -16,7 +16,23 @@
   [data-bs-theme="auto"] .bouine-logo-dark  { display: inline-block; }
 }
 
-// ── Animated constellation twinkle (replaces bg-dots) ──
+// Noise canvas — blend mode differs by theme
+#bouine-noise {
+  mix-blend-mode: overlay !important;
+  opacity: .30 !important;
+}
+
+[data-bs-theme="light"] #bouine-noise {
+  mix-blend-mode: multiply !important;
+  opacity: .08 !important;
+}
+
+@media (prefers-color-scheme: light) {
+  [data-bs-theme="auto"] #bouine-noise {
+    mix-blend-mode: multiply !important;
+    opacity: .08 !important;
+  }
+}
 
 @keyframes bouine-twinkle-a {
   0%, 100% { opacity: 1; }
