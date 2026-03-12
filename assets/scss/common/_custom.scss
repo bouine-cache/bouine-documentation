@@ -16,7 +16,10 @@
   [data-bs-theme="auto"] .bouine-logo-dark  { display: inline-block; }
 }
 
-// Noise canvas — blend mode differs by theme
+// Docs pages: left-align content within the centered column
+.content article > div.text-center {
+  text-align: left !important;
+}
 #bouine-noise {
   mix-blend-mode: overlay !important;
   opacity: .30 !important;
