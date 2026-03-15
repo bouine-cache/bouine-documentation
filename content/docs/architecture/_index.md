@@ -59,10 +59,7 @@ Consistent hash with 256 virtual nodes per real node. On a miss, the requesting 
 
 ### Peer fetch flow
 
-```
-Client → bouine-1 (miss) → bouine-0 (owner, hit) → response
-Client → bouine-1 (miss) → bouine-0 (miss) → origin → response
-```
+{{< peer-fetch-diagram >}}
 
 Added latency for a peer hit: ~0.3ms (one in-cluster HTTP/2 hop).
 
