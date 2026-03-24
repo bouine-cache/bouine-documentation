@@ -323,6 +323,7 @@
     "ids": [
       "TableOfContents",
       "access-log-fields",
+      "admin-authentication",
       "admin-endpoints",
       "ao-arr1",
       "ao-arr2",
@@ -443,6 +444,7 @@
       "starting-bouine",
       "statefulset-requirements",
       "static-site--blog",
+      "stayin-alive",
       "stopping-graceful-shutdown",
       "storage",
       "toTop",

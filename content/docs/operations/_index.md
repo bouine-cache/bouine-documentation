@@ -50,6 +50,31 @@ Trigger: `kill -HUP <pid>` or `POST /v1/config/reload`.
 
 ---
 
+## Admin authentication
+
+All write endpoints require `Authorization: Bearer <token>`. Set the token in config:
+
+```yaml
+admin:
+  token: your-secret-token
+```
+
+If not set, bouine auto-generates one at startup — check the `WARN` log line or run:
+
+```bash
+make admin-token CONFIG=config.yaml
+```
+
+On Kubernetes:
+
+```bash
+kubectl logs statefulset/bouine -n <namespace> | grep "admin token"
+```
+
+Read-only endpoints (`/healthz`, `/readyz`, `/metrics`, `/version`, `/v1/cluster/peers`) never require authentication.
+
+---
+
 ## Cache invalidation
 
 ### Purge (exact URL)
