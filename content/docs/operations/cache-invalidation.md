@@ -45,3 +45,13 @@ Marks the entry stale — the next request triggers revalidation. If the origin 
 | Content is wrong / security issue | **Purge** |
 | Content updated, old is OK temporarily | **Refresh** |
 | Bulk invalidation by pattern | **Ban** |
+
+## Dashboard invalidation
+
+The **Invalidation** view in the [operator dashboard](/docs/operations/dashboard/) provides the same three operations through a browser UI — no curl required. The forms validate inputs before submitting:
+
+- URLs must begin with `http://` or `https://` and include a host
+- Regex fields must be valid RE2 expressions
+- At least one ban field (host or path) must be non-empty
+
+The **Recent invalidations** list updates immediately after each successful operation, showing the operation type, argument, and relative timestamp.

@@ -6,15 +6,14 @@ description: "Key Prometheus metrics, access log fields, and admin API endpoints
 
 ## Key metrics
 
-| Metric | Description |
-|---|---|
-| `bouine_requests_total` | Total requests by method, status, cache result |
-| `bouine_request_duration_seconds` | Request latency histogram |
-| `bouine_cache_result_total` | HIT / MISS / STALE_HIT / REVALIDATED / BYPASS |
-| `bouine_purge_total` | Purge operations |
-| `bouine_ban_total` | Ban operations |
-| `bouine_ban_list_size` | Active ban predicates |
-| `bouine_inflight_requests` | Currently in-flight requests |
+| Metric | Labels | Description |
+|---|---|---|
+| `bouine_requests_total` | `method`, `status`, `route` | Total requests; `route` reflects the matched route name (or `_catch-all`) |
+| `bouine_request_duration_seconds` | `method`, `status`, `route` | Request latency histogram |
+| `bouine_response_bytes_total` | `method`, `route` | Total bytes written in responses |
+| `bouine_vary_cap_hits_total` | — | Vary variant storage rejected because `MaxVariants` (64) was exceeded |
+
+> **Note** The `route` label is populated from the `name` field of the matching config route (e.g. `"api-v1"`). If no name is set it defaults to `host:path_prefix` or `_catch-all`. Before Phase 6.9 all requests were labelled `_default`.
 
 ## Access log fields
 
@@ -27,6 +26,7 @@ description: "Key Prometheus metrics, access log fields, and admin API endpoints
   "bytes_out": 1234,
   "dur_ms": 2,
   "cache_status": "HIT",
+  "route": "/api/v1",
   "remote": "10.42.0.1:54321"
 }
 ```
@@ -44,3 +44,4 @@ description: "Key Prometheus metrics, access log fields, and admin API endpoints
 | `/v1/ban` | POST | ✓ | Predicate ban |
 | `/v1/refresh` | POST | ✓ | Soft-purge |
 | `/v1/config/reload` | POST | ✓ | Hot config reload |
+| `/dashboard/` | GET | session | Operator dashboard (browser) |

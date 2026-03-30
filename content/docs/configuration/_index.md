@@ -90,7 +90,7 @@ routes:
 
 | Field | Default | Description |
 |---|---|---|
-| `hot_max_bytes` | - | RAM cache size. Accepts `Mo`, `Go`, `Ko`, `To` (decimal) or `MiB`, `GiB` (binary). |
+| `hot_max_bytes` | - | RAM cache size. Accepts `Mo`, `Go`, `Ko`, `To` (decimal SI) or `MiB`, `GiB`, `Mi`, `Gi`, `KiB`, `Ki`, `TiB`, `Ti` (binary IEC). |
 | `warm_dir` | `""` | Path for mmap warm-tier segments. Empty disables. |
 | `warm_max_bytes` | `""` | Max warm-tier disk usage |
 | `eviction` | `sieve` | Eviction algorithm: `sieve` or `w-tinylfu` |
@@ -103,6 +103,15 @@ routes:
 | `join` | `[]` | Seed addresses (StatefulSet pod DNS) |
 | `replicas` | `1` | Write replication factor |
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback |
+
+### `routes[]`
+
+| Field | Default | Description |
+|---|---|---|
+| `name` | `""` | Human-readable label used in Prometheus `route` label and the dashboard. Defaults to `host:path_prefix` when empty. |
+| `match.host` | `""` | Match on `Host` header (empty = any) |
+| `match.path_prefix` | `""` | Match on URL path prefix (empty = any) |
+| `pool` | — | Upstream pool name |
 
 ### `routes[].cache`
 
@@ -119,6 +128,14 @@ routes:
 | Field | Default | Description |
 |---|---|---|
 | `include_headers` | `[]` | Headers to include in cache key (replaces Vary) |
+
+### `upstream_pools[].connect`
+
+| Field | Default | Description |
+|---|---|---|
+| `timeout` | `10s` | TCP dial timeout |
+| `keep_alive` | `15s` | TCP keep-alive interval |
+| `hedge_timeout` | `""` | Fire a duplicate request after this duration; first response wins (hedged fetch). Empty disables. |
 
 ### Health checks
 

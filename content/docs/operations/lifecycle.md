@@ -43,4 +43,10 @@ Total budget: `terminationGracePeriodSeconds` (default 30s).
 | Storage settings | **No** | Requires restart |
 | Cluster settings | **No** | Requires restart |
 
-Trigger: `kill -HUP <pid>` or `POST /v1/config/reload`.
+Trigger reload via any of:
+
+- `kill -HUP <pid>`
+- `curl -X POST http://localhost:9000/v1/config/reload -H "Authorization: Bearer <token>"`
+- The **Config** page in the operator dashboard — validates first, shows a confirm dialog, applies on confirmation
+
+The dashboard reload uses a validate → confirm → apply flow: if the config file fails to parse, the running configuration is never touched and a 422 error is shown inline.
