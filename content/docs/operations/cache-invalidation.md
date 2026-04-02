@@ -1,7 +1,7 @@
 ---
 title: "Cache invalidation"
 weight: 3
-description: "Purge by URL, predicate ban, and soft-purge refresh — and how they propagate across cluster peers."
+description: "Purge by URL, predicate ban, surrogate-key invalidation, and soft-purge refresh — and how they propagate across cluster peers."
 ---
 
 ## Purge (exact URL)
@@ -11,10 +11,13 @@ description: "Purge by URL, predicate ban, and soft-purge refresh — and how th
 bouine purge https://example.com/products/123 --token <token>
 
 # API
-curl -X POST http://127.0.0.1:9000/v1/purge   -H "Authorization: Bearer <token>"   -H "Content-Type: application/json"   -d '{"url":"https://example.com/products/123"}'
+curl -X POST http://127.0.0.1:9000/v1/purge \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/products/123"}'
 ```
 
-In a cluster, the purge is forwarded to the key's owner node.
+In a cluster, the purge is forwarded to the key's owner node and also gossiped to all peers via the memberlist broadcast queue for redundant delivery.
 
 ## Ban (predicate-based)
 
@@ -23,10 +26,37 @@ In a cluster, the purge is forwarded to the key's owner node.
 bouine ban host_regex=example.com path_regex=^/api/ --token <token>
 
 # API
-curl -X POST http://127.0.0.1:9000/v1/ban   -H "Authorization: Bearer <token>"   -H "Content-Type: application/json"   -d '{"host_regex":"example.com","path_regex":"^/api/"}'
+curl -X POST http://127.0.0.1:9000/v1/ban \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"host_regex":"example.com","path_regex":"^/api/"}'
 ```
 
-Bans are lazy — entries are checked against active bans on each lookup. Broadcast to all peers.
+Bans use a two-pronged invalidation strategy:
+
+1. **Eager eviction** — all entries currently in the hot store that match the predicate are deleted immediately.
+2. **Lazy check** — newly-stored objects are checked against the active ban list on every lookup. This ensures objects filled during the scan window (e.g. from a miss storm) are also invalidated.
+
+Active bans are retained for 24 hours and then pruned automatically.
+
+### Surrogate key ban
+
+```bash
+curl -X POST http://127.0.0.1:9000/v1/ban \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"surrogate_key":"product-456"}'
+```
+
+Invalidates all objects tagged with the given surrogate key. Origins emit surrogate keys via response headers:
+
+| Header | Used by |
+|---|---|
+| `Surrogate-Key: <tag> <tag>` | Fastly, RFC 8607 draft |
+| `Cache-Tag: <tag>, <tag>` | Cloudflare |
+| `X-Cache-Tags: <tag> <tag>` | Varnish / Drupal |
+
+bouine reads whichever header is present (first non-empty header wins) and stores the tags on the cached object.
 
 ## Refresh (soft-purge)
 
@@ -35,23 +65,27 @@ Bans are lazy — entries are checked against active bans on each lookup. Broadc
 bouine refresh https://example.com/products/123 --token <token>
 
 # API
-curl -X POST http://127.0.0.1:9000/v1/refresh   -H "Authorization: Bearer <token>"   -H "Content-Type: application/json"   -d '{"url":"https://example.com/products/123"}'
+curl -X POST http://127.0.0.1:9000/v1/refresh \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/products/123"}'
 ```
 
-Marks the entry stale — the next request triggers revalidation. If the origin returns 304, the cached body is reused.
+Marks the entry stale — the next request triggers revalidation. If the origin returns `304`, the cached body is reused; the TTL is refreshed from the updated headers.
 
 | Scenario | Use |
 |---|---|
 | Content is wrong / security issue | **Purge** |
 | Content updated, old is OK temporarily | **Refresh** |
 | Bulk invalidation by pattern | **Ban** |
+| Invalidate all pages for a product | **Ban (surrogate key)** |
 
 ## Dashboard invalidation
 
-The **Invalidation** view in the [operator dashboard](/docs/operations/dashboard/) provides the same three operations through a browser UI — no curl required. The forms validate inputs before submitting:
+The **Invalidation** view in the [operator dashboard](/docs/operations/dashboard/) provides the same four operations through a browser UI — no curl required. The forms validate inputs before submitting:
 
 - URLs must begin with `http://` or `https://` and include a host
 - Regex fields must be valid RE2 expressions
-- At least one ban field (host or path) must be non-empty
+- At least one ban field (host, path, or surrogate key) must be non-empty
 
 The **Recent invalidations** list updates immediately after each successful operation, showing the operation type, argument, and relative timestamp.

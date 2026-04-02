@@ -23,13 +23,12 @@ Startup sequence:
 
 On `SIGTERM`, bouine executes an ordered shutdown:
 
-1. **Mark not ready** — `/readyz` returns 503
-2. **Drain data-plane** — stop accepting new connections, finish in-flight
-3. **Leave cluster** — gossip Leaving update to peers
-4. **Flush storage** — WAL sync, warm-tier segment close
-5. **Close admin** — final metrics scrape window
+1. **Mark not ready** — `/readyz` returns `503`; kube-proxy removes the pod from `Endpoints`. A 1-second pause lets existing connections drain before the next step.
+2. **Flush storage** — WAL sync, warm-tier segment close (budget: 10 s).
+3. **Leave cluster** — gossip `Leaving` update to peers so the ring rebalances before the pod disappears (budget: 10 s).
+4. **Listeners close** — data-plane stops accepting new connections.
 
-Total budget: `terminationGracePeriodSeconds` (default 30s).
+Total budget: `terminationGracePeriodSeconds` (default 30 s). Set it to at least 30 s and add a `preStop: sleep 5` hook so kube-proxy propagates the readiness change before SIGTERM arrives.
 
 ## Hot reload
 

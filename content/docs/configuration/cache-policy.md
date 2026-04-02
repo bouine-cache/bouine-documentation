@@ -9,11 +9,12 @@ description: "Understand how bouine chooses TTLs, serves stale content, applies 
 
 bouine picks freshness in this order:
 
-1. `s-maxage`
-2. `max-age`
-3. `Expires`
-4. Route `ttl_default`
-5. Heuristic freshness from `Last-Modified` (where allowed)
+1. `CDN-Cache-Control` (RFC 9211 targeted header — overrides `Cache-Control` for shared caches)
+2. `s-maxage`
+3. `max-age`
+4. `Expires` (valid dates only; syntactically invalid Expires values are ignored)
+5. Route `ttl_default` (operator fallback when origin sends no freshness)
+6. Heuristic freshness from `Last-Modified` (10% of `Date − Last-Modified`, where allowed by status code)
 
 ## Stale serving
 
@@ -24,8 +25,8 @@ cache:
   stale_if_error: 300s
 ```
 
-- `stale_while_revalidate`: serve stale while refreshing in the background.
-- `stale_if_error`: serve stale when the origin fails, up to the configured window.
+- `stale_while_revalidate`: serve stale immediately and trigger a background revalidation. The next request gets a fresh `HIT` without any blocking. Concurrency is bounded to 256 simultaneous background revalidations.
+- `stale_if_error`: serve stale when the origin returns 5xx or is unreachable, up to the configured window. Unlike SWR, bouine always attempts the origin first and only falls back to stale on error.
 
 ## Stayin Alive
 

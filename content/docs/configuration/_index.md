@@ -29,10 +29,10 @@ tls:
     sighup: true
 
 storage:
-  hot_max_bytes: 2Go
+  hot_max_bytes: 2GiB
   warm_dir: /var/lib/bouine
-  warm_max_bytes: 50Go
-  eviction: sieve       # or "w-tinylfu"
+  warm_max_bytes: 50GiB
+  eviction: sieve
 
 cluster:
   enabled: true
@@ -90,10 +90,10 @@ routes:
 
 | Field | Default | Description |
 |---|---|---|
-| `hot_max_bytes` | - | RAM cache size. Accepts `Mo`, `Go`, `Ko`, `To` (decimal SI) or `MiB`, `GiB`, `Mi`, `Gi`, `KiB`, `Ki`, `TiB`, `Ti` (binary IEC). |
+| `hot_max_bytes` | - | RAM cache size. Accepts `MiB`, `GiB`, `KiB`, `TiB` (IEC binary) or `MB`, `GB`, `KB`, `TB` (decimal SI). Example: `2GiB`. |
 | `warm_dir` | `""` | Path for mmap warm-tier segments. Empty disables. |
 | `warm_max_bytes` | `""` | Max warm-tier disk usage |
-| `eviction` | `sieve` | Eviction algorithm: `sieve` or `w-tinylfu` |
+| `eviction` | `sieve` | Eviction algorithm. `sieve` (default, recommended). `w-tinylfu` is planned for Phase 5.5. |
 
 ### `cluster`
 
@@ -103,6 +103,9 @@ routes:
 | `join` | `[]` | Seed addresses (StatefulSet pod DNS) |
 | `replicas` | `1` | Write replication factor |
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback |
+| `tls.ca_bundle` | `""` | CA certificate path for peer-to-peer mTLS. Empty = plain HTTP. |
+| `tls.cert_file` | `""` | Client certificate for mTLS |
+| `tls.key_file` | `""` | Client private key for mTLS |
 
 ### `routes[]`
 
@@ -122,6 +125,7 @@ routes:
 | `stale_if_error` | `0` | Serve stale on origin 5xx |
 | `negative_ttl` | `0` | Cache 404/405/410/501 responses for this duration |
 | `jitter_percent` | `0` | Random ±N% on TTLs to prevent stampedes (0–50) |
+| `stayin_alive` | `false` | Serve stale indefinitely when upstream is down (see [Stayin Alive](/docs/configuration/cache-policy/#stayin-alive)) |
 
 ### `routes[].cache.key`
 
@@ -155,6 +159,26 @@ health:
     consecutive_5xx: 5
     eject_for: 30s
 ```
+
+
+### `tracing`
+
+Configure OpenTelemetry span export. Leave `endpoint` empty (default) to disable tracing.
+
+| Field | Default | Description |
+|---|---|---|
+| `endpoint` | `""` | OTLP/HTTP collector URL, e.g. `http://otel-collector:4318`. Empty disables. |
+| `service_name` | `"bouine"` | `service.name` OTel resource attribute |
+| `sampling_rate` | `1.0` | Fraction of requests to sample (0.0–1.0) |
+
+### `prefetch`
+
+Background cache warming via `Link: rel=preload` response headers and optional sitemap crawling.
+
+| Field | Default | Description |
+|---|---|---|
+| `sitemap_urls` | `[]` | Sitemap XML URLs to crawl periodically |
+| `sitemap_interval` | `0` | Crawl interval. Zero disables sitemap crawling. |
 
 ## Hot reload
 

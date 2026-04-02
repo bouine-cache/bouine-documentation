@@ -36,8 +36,28 @@ Secondary key (Vary): derived from the request headers listed in the response's 
 
 
 - **SIEVE** (default) — simple, near-LRU-K performance, O(1) per operation
-- **W-TinyLFU** (optional) — better hit ratio under skew
+- **W-TinyLFU** (planned) — better hit ratio under skewed access patterns; not yet implemented (tracked as Phase 5.5)
 
+
+### CDN-Cache-Control (RFC 9211)
+
+When the origin sends a `CDN-Cache-Control` header, it takes precedence over `Cache-Control` for all shared-cache decisions. This allows origins to set different TTLs for CDN caches vs browser caches:
+
+```http
+Cache-Control: no-store              # browsers don't cache
+CDN-Cache-Control: max-age=3600      # bouine caches for 1h
+```
+
+### Surrogate keys
+
+Origins can tag responses with opaque surrogate keys for grouped invalidation:
+
+```http
+Surrogate-Key: product-456 category-shoes
+Cache-Tag: product-456, category-shoes
+```
+
+bouine reads `Surrogate-Key`, `Cache-Tag`, and `X-Cache-Tags` at store time and makes them available for `POST /v1/ban{surrogate_key:"..."}` invalidation.
 
 ### Negative caching
 
@@ -63,6 +83,16 @@ Consistent hash with 256 virtual nodes per real node. On a miss, the requesting 
 
 Added latency for a peer hit: ~0.3ms (one in-cluster HTTP/2 hop).
 
+### Stale-while-revalidate (SWR)
+
+When an object enters its `stale-while-revalidate` window, bouine:
+
+1. Serves the stale object immediately (no client wait).
+2. Fires a background goroutine (`bgRevalSem` bounds concurrency to 256) that conditionally revalidates with the origin.
+3. The origin reply (200 or 304) updates the hot store; the next request gets a fresh `HIT`.
+
+This is what eliminates the 93% effective hit rate gap vs Varnish in mixed workloads — both caches serve stale immediately and refresh asynchronously.
+
 ### Invalidation propagation
 
 
@@ -79,9 +109,20 @@ Pods retry joining every 2 seconds for up to 60 seconds. Success requires `Membe
 
 | Benchmark | Result |
 |---|---|
-| `Evaluate_Hit` | 100 ns/op, 0 allocs |
+| `Evaluate_Hit` | 40 ns/op, 0 allocs |
 | `HotStore_Get_Hit` | 5.4 ns/op, 0 allocs |
-| `Handler_CacheHit` | 626 ns/op, 9 allocs |
+| `Handler_CacheHit` | 537 ns/op, 8 allocs |
+| `BuildKey` (query params) | 46 ns/op, 0 allocs |
 | `SIEVE_Access` | 5.4 ns/op, 0 allocs |
+
+Load-test results (Docker, 3k RPS, single node vs Varnish + nginx):
+
+| Scenario | bouine | nginx | varnish |
+|---|---|---|---|
+| Hit-only (warm cache) | 166 µs avg | 166 µs avg | 177 µs avg |
+| Miss storm (no-store) | 157 µs avg | degraded | 166 µs avg |
+| Mixed 60/15/10/5/5 | 230 µs avg | 22 ms avg† | 199 µs avg |
+
+†nginx's high mixed average is due to blocking revalidation; bouine and Varnish both use background SWR refresh.
 
 All gates enforced in CI — regressions block merge.
