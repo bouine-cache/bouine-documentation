@@ -435,7 +435,6 @@
       "query",
       "refresh-soft-purge",
       "response-headers",
-      "rolling-update",
       "rolling-update-zero-5xx",
       "rolling-updates",
       "routes",
