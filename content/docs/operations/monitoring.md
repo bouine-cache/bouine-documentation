@@ -16,6 +16,12 @@ description: "Key Prometheus metrics, access log fields, OpenTelemetry tracing, 
 | `bouine_peer_fetch_misses_total` | — | Peer-fetch RPCs that returned a miss; fell through to origin |
 | `bouine_peer_fetch_hop_limit_hits_total` | — | Peer-fetch attempts aborted because MaxHops was reached |
 | `bouine_peer_fetch_duration_seconds` | — | Round-trip time histogram for successful peer-fetch RPCs |
+| `bouine_cluster_mode_info` | `mode` | Always 1; the `mode` label identifies the active consistency mode (`strong`, `eventual`, `full`) |
+| `bouine_cluster_invalidations_http_total` | `type` | Invalidation events sent via HTTP fan-out (`purge`, `ban`). Strong and full modes only. |
+| `bouine_cluster_invalidations_gossip_total` | `type` | Invalidation events received via gossip — all modes. |
+| `bouine_cluster_replications_sent_total` | — | Cached objects broadcast to peers via gossip in full mode. |
+| `bouine_cluster_replications_received_total` | — | Cached objects received from peers via gossip and stored locally in full mode. |
+| `bouine_cluster_replication_bytes_total` | `direction` | Approximate byte size of replicated objects (`sent` or `received`). Full mode only. |
 
 ### Label values
 

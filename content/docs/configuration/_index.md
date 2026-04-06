@@ -100,9 +100,10 @@ routes:
 | Field | Default | Description |
 |---|---|---|
 | `enabled` | `false` | Enable gossip clustering |
+| `mode` | `strong` | Consistency mode: `strong` (sharded, peer-fetch), `eventual` (independent, gossip-only invalidation), or `full` (full replication, every node holds all keys). See [Cluster Consistency Modes](/docs/configuration/cluster-modes/). |
 | `join` | `[]` | Seed addresses (StatefulSet pod DNS) |
-| `replicas` | `1` | Write replication factor |
-| `hop_limit` | `2` | Max peer-fetch hops before origin fallback |
+| `replicas` | `1` | Write replication factor (strong mode only) |
+| `hop_limit` | `2` | Max peer-fetch hops before origin fallback (strong mode only) |
 | `tls.ca_bundle` | `""` | CA certificate path for peer-to-peer mTLS. Empty = plain HTTP. |
 | `tls.cert_file` | `""` | Client certificate for mTLS |
 | `tls.key_file` | `""` | Client private key for mTLS |
@@ -140,6 +141,18 @@ routes:
 | `timeout` | `10s` | TCP dial timeout |
 | `keep_alive` | `15s` | TCP keep-alive interval |
 | `hedge_timeout` | `""` | Fire a duplicate request after this duration; first response wins (hedged fetch). Empty disables. |
+
+### `cluster.mode`
+
+The `cluster.mode` field selects the consistency and replication strategy. Default is `strong` (backward-compatible).
+
+| Value | Key routing | Replication | Invalidation delivery | Consistency |
+|---|---|---|---|---|
+| `strong` | Consistent-hash ring → peer-fetch on miss | 1 copy (owner only) | HTTP fan-out + gossip dual path | Strong after ACK |
+| `eventual` | Every node independent; miss → origin | N copies (independently cached) | Gossip only (1–5 s convergence) | Eventual |
+| `full` | Every node independent; miss → origin | N copies (active replication on fill) | HTTP fan-out + gossip replication | Eventual |
+
+See the [Cluster Consistency Modes](/docs/configuration/cluster-modes/) page for a full comparison and migration guidance.
 
 ### Health checks
 
@@ -190,3 +203,33 @@ Trigger reload via:
 - `kill -HUP <pid>`
 - `curl -X POST http://localhost:9000/v1/config/reload`
 - File change (fsnotify watches the config file)
+
+### `cloudflare`
+
+Optional Cloudflare Cache API propagation. When `zone_id` and an API token are
+configured, purge/ban/refresh operations are forwarded to the Cloudflare edge.
+
+See [Cloudflare CDN propagation](/docs/operations/cloudflare/) for full details
+and Kubernetes secret wiring.
+
+| Field | Default | Description |
+|---|---|---|
+| `zone_id` | `""` | Cloudflare zone identifier (non-secret) |
+| `api_token` | `""` | Cache Purge API token. Prefer `CF_API_TOKEN` env var |
+| `async` | `true` | Return immediately; CF call runs in background goroutine |
+| `timeout` | `10s` | Per-call timeout for CF API requests |
+| `propagate.purge` | `true` | Forward `POST /v1/purge` to CF `PurgeSingleFile` |
+| `propagate.ban` | `true` | Forward `POST /v1/ban` to CF (tags / prefixes / hostnames) |
+| `propagate.refresh` | `true` | Forward `POST /v1/refresh` to CF `PurgeSingleFile` |
+
+```yaml
+cloudflare:
+  zone_id: "your-zone-id"
+  # api_token: ""  # inject via CF_API_TOKEN env var in production
+  async: true       # default — do not delay admin responses
+  timeout: 10s
+  propagate:
+    purge: true
+    ban: true
+    refresh: true
+```

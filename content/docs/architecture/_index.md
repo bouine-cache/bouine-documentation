@@ -69,15 +69,25 @@ Random ±N% applied to every TTL to prevent synchronized expiry stampedes across
 
 ## Clustering
 
-### Membership
+bouine supports three consistency modes (see [Cluster Consistency Modes](/docs/configuration/cluster-modes/)):
+
+### Strong mode (default)
+
+**Sharding**: Consistent hash with 256 virtual nodes per real node. On a miss, the requesting node checks the owner node before going to origin.
+
+### Eventual mode
+
+Every node is independent — no sharding, no peer-fetch. Invalidations propagate via gossip only. Each node caches whatever it receives from origin.
+
+### Full mode
+
+Every node holds a full replica of the cached object set. Objects are actively replicated via gossip on every cacheable fill. Invalidations use HTTP fan-out (sub-second, same as strong).
+
+### Membership (all modes)
 
 `hashicorp/memberlist` for gossip. Nodes bootstrap via StatefulSet DNS.
 
-### Sharding
-
-Consistent hash with 256 virtual nodes per real node. On a miss, the requesting node checks the owner node before going to origin.
-
-### Peer fetch flow
+### Peer fetch flow (strong mode only)
 
 {{< peer-fetch-diagram >}}
 
@@ -95,10 +105,13 @@ This is what eliminates the 93% effective hit rate gap vs Varnish in mixed workl
 
 ### Invalidation propagation
 
+| Operation | `strong` | `eventual` | `full` |
+|---|---|---|---|
+| **Purge** | HTTP fan-out to all peers + gossip | Gossip only (1–5 s convergence) | HTTP fan-out to all peers + gossip |
+| **Ban** | HTTP fan-out to all peers + gossip | Gossip only | HTTP fan-out to all peers + gossip |
+| **Refresh** | Forwarded to key's owner node | Gossip only | HTTP fan-out to all peers |
 
-- **Purge**: forwarded to the key's owner node
-- **Ban**: broadcast to all peers
-- **Refresh**: forwarded to the key's owner node
+In `strong` and `full` modes, the HTTP fan-out ensures sub-second invalidation propagation. The gossip broadcast queue provides a redundant delivery path.
 
 
 ### Join protocol

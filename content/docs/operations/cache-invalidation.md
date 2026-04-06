@@ -17,7 +17,19 @@ curl -X POST http://127.0.0.1:9000/v1/purge \
   -d '{"url":"https://example.com/products/123"}'
 ```
 
-In a cluster, the purge is forwarded to the key's owner node and also gossiped to all peers via the memberlist broadcast queue for redundant delivery.
+In a cluster, the purge is forwarded to all live peers via HTTP fan-out (in `strong` and `full` modes) or gossiped via the memberlist broadcast queue (in `eventual` mode).
+
+## Cluster propagation
+
+The delivery mechanism depends on `cluster.mode`:
+
+| Mode | Purge delivery | Ban delivery | Refresh delivery |
+|---|---|---|---|
+| `strong` | HTTP fan-out + gossip dual path | HTTP fan-out + gossip dual path | HTTP POST to owner node |
+| `eventual` | Gossip only (1–5 s convergence) | Gossip only (1–5 s convergence) | Gossip only |
+| `full` | HTTP fan-out + gossip dual path | HTTP fan-out + gossip dual path | HTTP fan-out to all peers |
+
+See [Cluster Consistency Modes](/docs/configuration/cluster-modes/) for details on choosing a mode.
 
 ## Ban (predicate-based)
 
@@ -89,3 +101,13 @@ The **Invalidation** view in the [operator dashboard](/docs/operations/dashboard
 - At least one ban field (host, path, or surrogate key) must be non-empty
 
 The **Recent invalidations** list updates immediately after each successful operation, showing the operation type, argument, and relative timestamp.
+
+## Cloudflare CDN propagation
+
+When bouine sits behind Cloudflare, invalidation operations can be forwarded to
+the Cloudflare Cache API so both caches are cleared together.
+
+See [Cloudflare CDN propagation](/docs/operations/cloudflare/) for full setup
+instructions, mapping strategy (URL→PurgeSingleFile, surrogate-key→PurgeByTags,
+literal regex→PurgeByPrefixes/Hostnames), async mode, Kubernetes secret wiring,
+and monitoring metrics.

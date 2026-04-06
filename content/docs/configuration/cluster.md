@@ -6,6 +6,18 @@ description: "Configure bouine clustering with StatefulSet DNS, gossip membershi
 
 Cluster mode lets multiple bouine pods share cache reads, broadcast invalidations, and reduce origin load.
 
+## Consistency mode
+
+bouine supports three consistency modes — choose one with `cluster.mode`:
+
+| Mode | Description |
+|------|-------------|
+| `strong` (default) | Consistent-hash sharding, peer-fetch on miss, HTTP fan-out invalidations |
+| `eventual` | Independent caching per node, gossip-only invalidations, zero miss latency |
+| `full` | Full object replication on every fill, maximum hit rate and resilience |
+
+See the [Cluster Consistency Modes](/docs/configuration/cluster-modes/) page for a full comparison table and guidance on choosing the right mode for your deployment.
+
 ## Minimal cluster config
 
 ```yaml
@@ -14,12 +26,13 @@ listen:
 
 cluster:
   enabled: true
+  mode: strong         # "strong" (default) | "eventual" | "full"
   join:
     - "bouine-0.bouine-headless.default.svc.cluster.local:8443"
     - "bouine-1.bouine-headless.default.svc.cluster.local:8443"
     - "bouine-2.bouine-headless.default.svc.cluster.local:8443"
-  replicas: 2
-  hop_limit: 2
+  replicas: 2          # only used in strong mode
+  hop_limit: 2         # only used in strong mode
 ```
 
 ## Cluster TLS (mTLS)
@@ -29,6 +42,7 @@ Peer-to-peer RPCs (`/v1/peer/fetch`, gossip) can be secured with mutual TLS:
 ```yaml
 cluster:
   enabled: true
+  mode: strong
   join: [...]
   tls:
     ca_bundle: /etc/bouine/cluster-ca.crt
@@ -61,7 +75,7 @@ spec:
 
 `publishNotReadyAddresses: true` is required so gossip DNS resolves during startup.
 
-## How read sharing works
+## Strong mode: how read sharing works
 
 1. Receiving node computes the cache key (`xxhash64(scheme|host|path|query|method)`).
 2. Consistent-hash ring (256 virtual nodes) determines the key's owner.
@@ -75,13 +89,15 @@ Typical peer-fetch latency: ~0.5–2 ms on the same datacenter LAN.
 
 ## Invalidation propagation
 
-| Operation | Delivery |
-|---|---|
-| Purge | HTTP POST to owner node + gossip broadcast |
-| Ban | HTTP POST to all live peers + gossip broadcast |
-| Refresh | HTTP POST to owner node |
+| Operation | `strong` | `eventual` | `full` |
+|---|---|---|---|
+| Purge | HTTP POST to all peers + gossip broadcast | Gossip only | HTTP POST to all peers + gossip broadcast |
+| Ban | HTTP POST to all peers + gossip broadcast | Gossip only | HTTP POST to all peers + gossip broadcast |
+| Refresh | HTTP POST to owner node | Gossip only | HTTP POST to all peers |
 
-The gossip broadcast queue provides a secondary delivery path for purge/ban events: if a peer's admin HTTP port is temporarily unreachable, the message is still delivered via the next memberlist gossip round.
+In `strong` and `full` modes, the HTTP fan-out provides sub-second delivery. The gossip broadcast queue provides a secondary delivery path: if a peer's admin HTTP port is temporarily unreachable, the message is still delivered via the next memberlist gossip round.
+
+In `eventual` mode, gossip is the sole delivery path. Convergence window: 1–5 seconds.
 
 ## Debugging peers
 
