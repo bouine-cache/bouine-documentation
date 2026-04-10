@@ -25,20 +25,86 @@ StatefulSet rolls one pod at a time (reverse ordinal). Each pod must pass the re
 
 | Requirement | Why |
 |---|---|
-| `PodDisruptionBudget minAvailable: 2` | Prevents evicting two pods simultaneously on a 3-node cluster |
-| `preStop: sleep 5` | Gives kube-proxy time to drain the pod from Endpoints before SIGTERM |
-| `terminationGracePeriodSeconds: 30` | Must exceed the longest in-flight request + drain budget (10 s) |
-| Readiness probe on `/readyz` | Traffic is removed before shutdown, restored only when the new pod is ready |
+| `terminationGracePeriodSeconds` ≥ 30 s | Must exceed the longest expected in-flight request + cluster leave timeout (10 s). |
+| `preStop` hook (sleep 5 s) | Kubernetes removes the pod from Endpoints asynchronously; the hook lets existing connections drain before `SIGTERM` arrives. |
+| `PodDisruptionBudget minAvailable: 2` | Prevents evicting two pods simultaneously on a 3-node cluster. |
+| `readinessProbe` on `/readyz` | Traffic is removed before the pod enters `Terminating` only if the probe fails; new pod receives traffic only once it passes. |
+| `publishNotReadyAddresses: true` on the headless Service | Ensures DNS resolves all StatefulSet pods (including unready ones) for gossip seed discovery. |
 
 The Helm chart ships with all of these enabled by default when `podDisruptionBudget.enabled: true`.
 
-### Automated verification
+### Step-by-step
 
 ```bash
+# 1. Check that PDB is in place
+kubectl get pdb -n bouine-prod
+
+# 2. Start background traffic monitor (check for 5xx in real time)
+kubectl -n bouine-prod logs -f -l app=bouine --prefix=true | \
+  grep '"status":5' &
+MONITOR_PID=$!
+
+# 3. Trigger rolling restart
+kubectl -n bouine-prod rollout restart statefulset/bouine
+
+# 4. Wait for rollout (≈ 3 × terminationGracePeriodSeconds)
+kubectl -n bouine-prod rollout status statefulset/bouine --timeout=180s
+
+# 5. Verify no 5xx in the monitoring window
+kill $MONITOR_PID 2>/dev/null
+kubectl -n bouine-prod exec -it deploy/traffic-gen -- \
+  bash -c 'grep -c "HTTP/1.1 5" /tmp/access.log || echo "0 errors"'
+```
+
+### Automated verification (SLO DP-5)
+
+The `bench/loadtest/scenarios/4.5_rolling_update/run.sh` scenario runs k6 at
+1 k RPS while executing a rolling restart and asserts that the 5xx error rate
+stays at 0 %.
+
+```bash
+# Against K8s cluster
 bash bench/loadtest/scenarios/4.5_rolling_update/run.sh
 ```
 
-Runs k6 at 1k RPS during the restart and asserts that the 5xx rate stays at 0%.
+Expected output: `✓ http_req_failed rate<0.001%`.
+
+### Helm chart settings (reference)
+
+```yaml
+# deploy/helm/bouine/values.yaml
+
+# Ensures Kubernetes drains endpoints before SIGTERM.
+lifecycle:
+  preStop:
+    exec:
+      command: ["sh", "-c", "sleep 5"]
+
+terminationGracePeriodSeconds: 30
+
+# Prevents simultaneous eviction of two pods.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Traffic only routed to ready pods.
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 9000
+  initialDelaySeconds: 5
+  periodSeconds: 3
+  failureThreshold: 3
+```
+
+## Troubleshooting rolling restart issues
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| 503 during rollout | `preStop` hook too short; kube-proxy updated Endpoints before pod drained | Increase `sleep` in `preStop` to 10 s |
+| 502 after new pod starts | New pod not yet joined gossip ring; peer-fetch fails | Check `/readyz` — should fail until ring joined; increase `initialDelaySeconds` |
+| Rollout stuck | PDB `minAvailable` prevents eviction | Check `kubectl get pdb`; verify at least `minAvailable` pods are Ready |
+| Long rollout | `terminationGracePeriodSeconds` too high relative to actual drain time | Reduce to `max(in_flight_p99_ms / 1000, 15)` seconds |
 
 ## Verifying cluster health
 

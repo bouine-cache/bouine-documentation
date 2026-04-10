@@ -22,6 +22,15 @@ description: "Key Prometheus metrics, access log fields, OpenTelemetry tracing, 
 | `bouine_cluster_replications_sent_total` | — | Cached objects broadcast to peers via gossip in full mode. |
 | `bouine_cluster_replications_received_total` | — | Cached objects received from peers via gossip and stored locally in full mode. |
 | `bouine_cluster_replication_bytes_total` | `direction` | Approximate byte size of replicated objects (`sent` or `received`). Full mode only. |
+| `bouine_cluster_broadcast_failures_total` | `type`, `reason` | Failed invalidation broadcasts: `type` is `purge` or `ban`; `reason` is `dial`, `timeout`, or `5xx`. |
+| `bouine_purge_total` | — | Total purge operations. |
+| `bouine_ban_total` | — | Total ban operations. |
+| `bouine_ban_list_size` | — | Current active ban predicates. |
+| `bouine_config_reload_total` | `result` | Config reload attempts (`success` or `error`). |
+| `bouine_hot_store_bytes` | — | Current hot tier bytes used. |
+| `bouine_hot_store_max_bytes` | — | Configured hot tier maximum. |
+| `bouine_hot_store_objects` | — | Objects currently in hot tier. |
+| `bouine_sieve_evictions_total` | — | Evictions from hot tier (SIEVE algorithm). |
 
 ### Label values
 
@@ -84,3 +93,61 @@ Leave `endpoint` empty (the default) to disable tracing at zero overhead — the
 | `/v1/refresh` | POST | ✓ | Soft-purge (mark stale; revalidates on next request) |
 | `/v1/config/reload` | POST | ✓ | Hot config reload |
 | `/dashboard/` | GET | session | Operator dashboard (browser) |
+
+## Alert rules
+
+```yaml
+# Alert if purge rate spikes (possible invalidation storm)
+- alert: HighPurgeRate
+  expr: rate(bouine_purge_total[5m]) > 100
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Elevated purge rate on {{ $labels.instance }}"
+
+# Alert if stale serves climb above baseline (possible origin outage)
+- alert: HighStaleServeRate
+  expr: |
+    rate(bouine_cache_result_total{result="stale"}[5m])
+    /
+    rate(bouine_cache_result_total[5m]) > 0.10
+  for: 10m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Stale serve ratio > 10% on {{ $labels.instance }}"
+    description: |
+      Bouine is serving stale responses at an elevated rate. Possible causes:
+      origin is returning 5xx, SWR window is large, or heuristic freshness
+      objects have gone stale. Check X-Cache: STALE responses and upstream health.
+
+# Alert if cluster mode differs across pods (configuration drift).
+- alert: ClusterModeMismatch
+  expr: count(count by (mode) (bouine_cluster_mode_info == 1)) > 1
+  for: 2m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Cluster mode mismatch — pods running different consistency modes"
+
+# Alert if replications stall in full mode.
+- alert: FullReplicationStalled
+  expr: rate(bouine_cluster_replications_sent_total[5m]) > 0
+    and rate(bouine_cluster_replications_received_total[5m]) == 0
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Full-mode replication sending but not receiving — gossip may be broken"
+
+# Alert on memory pressure in full mode.
+- alert: FullModeMemoryPressure
+  expr: bouine_hot_store_bytes / bouine_hot_store_max_bytes > 0.9
+    and on() bouine_cluster_mode_info{mode="full"} == 1
+  for: 10m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Full-mode node at >90% hot store capacity"
+```
