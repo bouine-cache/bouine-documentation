@@ -357,7 +357,6 @@
       "arch-replay",
       "arch-svg",
       "async-mode-default",
-      "automated-verification",
       "automated-verification-slo-dp-5",
       "ban-predicate-based",
       "ban-predicate-syntax-comparison",

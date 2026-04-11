@@ -23,5 +23,5 @@ This documentation is organized around common user journeys:
 - [Configuration](configuration/) — all YAML sections and practical cache policy examples.
 - [Operations](operations/) — lifecycle, invalidation, monitoring, releases, and troubleshooting.
 - [Architecture](architecture/) — layered design, cache engine, storage, clustering, and performance.
-- [Migration](migration/) — replace NGINX `proxy_cache` with bouine.
+- [Guides](guides/) — migration from Varnish or NGINX, reverse proxy examples.
 - [Contributing](contributing/) — contributor workflow, codebase map, and security.

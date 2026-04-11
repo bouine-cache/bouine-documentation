@@ -125,7 +125,7 @@ Mode changes require a full cluster restart (rolling restart recommended).
 2. Update the `cluster.mode` field in your ConfigMap
 3. Trigger a config reload or restart all pods in sequence
 
-See the [cluster mode migration guide](/docs/migration/cluster-modes/) for detailed procedures.
+See the [cluster mode operations guide](/docs/operations/cluster-modes/) for detailed procedures.
 
 ---
 
