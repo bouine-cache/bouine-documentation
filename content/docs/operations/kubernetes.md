@@ -97,14 +97,9 @@ readinessProbe:
   failureThreshold: 3
 ```
 
-## Troubleshooting rolling restart issues
+## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| 503 during rollout | `preStop` hook too short; kube-proxy updated Endpoints before pod drained | Increase `sleep` in `preStop` to 10 s |
-| 502 after new pod starts | New pod not yet joined gossip ring; peer-fetch fails | Check `/readyz` — should fail until ring joined; increase `initialDelaySeconds` |
-| Rollout stuck | PDB `minAvailable` prevents eviction | Check `kubectl get pdb`; verify at least `minAvailable` pods are Ready |
-| Long rollout | `terminationGracePeriodSeconds` too high relative to actual drain time | Reduce to `max(in_flight_p99_ms / 1000, 15)` seconds |
+See the [Troubleshooting](/docs/operations/troubleshooting/#rolling-restart-produces-503502) page for rolling restart issues (503/502 during rollout, stuck rollouts, etc.).
 
 ## Verifying cluster health
 

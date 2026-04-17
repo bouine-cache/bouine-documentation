@@ -1,11 +1,41 @@
 ---
 title: "Configuration"
 weight: 2
-description: "Reference for bouine YAML configuration: listeners, storage, routes, cache policy, clustering, and health checks."
+description: "Reference for bouine YAML configuration: listeners, storage, routes, cache policy, TLS, clustering, Helm chart values, and health checks."
 ---
 
 
 bouine is configured via a YAML file passed with `--config`. Environment variable interpolation is not supported — use Kubernetes ConfigMaps or Helm values for templating.
+
+## Pages in this section
+
+- [Cache policy](cache-policy/) — TTL selection, stale serving, negative caching, jitter, and cache keys.
+- [Storage tiers](storage/) — hot and warm tiers, eviction, sizing guidelines.
+- [TLS](tls/) — certificates, SNI, ALPN, OCSP stapling, HTTP/3, and automatic reload.
+- [Clustering](cluster-modes/) — consistency modes, gossip, peer fetch, mTLS, invalidation.
+- [Helm chart reference](helm/) — all `values.yaml` keys with defaults.
+
+## Minimal working config
+
+```yaml
+listen:
+  http: ":8080"
+  admin: ":9000"
+
+storage:
+  hot_max_bytes: 256MiB
+  eviction: sieve
+
+upstream_pools:
+  - name: app
+    targets: ["app.default.svc:8080"]
+
+routes:
+  - match: { path_prefix: / }
+    pool: app
+    cache:
+      ttl_default: 60s
+```
 
 ## Full example
 
@@ -16,6 +46,7 @@ listen:
   http3: ":443/udp"
   admin: ":9000"
   cluster: ":8443"
+  proxy_protocol: false
 
 tls:
   certs:
@@ -74,33 +105,34 @@ routes:
           - Accept-Language
 ```
 
-## Sections
+## Field reference
 
 ### `listen`
 
 | Field | Default | Description |
 |---|---|---|
 | `http` | `":80"` | HTTP/1.1 + h2c plaintext listener |
-| `https` | `""` | HTTPS (TLS) listener |
+| `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
 | `http3` | `""` | HTTP/3 (QUIC, UDP) listener |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
+| `proxy_protocol` | `false` | Parse PROXY Protocol v1/v2 headers on the HTTP/HTTPS listener |
 
 ### `storage`
 
 | Field | Default | Description |
 |---|---|---|
-| `hot_max_bytes` | - | RAM cache size. Accepts `MiB`, `GiB`, `KiB`, `TiB` (IEC binary) or `MB`, `GB`, `KB`, `TB` (decimal SI). Example: `2GiB`. |
-| `warm_dir` | `""` | Path for mmap warm-tier segments. Empty disables. |
+| `hot_max_bytes` | — | RAM cache size. See [size units](#size-units). Example: `2GiB`. |
+| `warm_dir` | `""` | Path for mmap warm-tier segments. Empty disables. See [Storage tiers](storage/). |
 | `warm_max_bytes` | `""` | Max warm-tier disk usage |
-| `eviction` | `sieve` | Eviction algorithm. `sieve` (default, recommended). `w-tinylfu` is planned for Phase 5.5. |
+| `eviction` | `sieve` | Eviction algorithm. `sieve` (default, recommended). |
 
 ### `cluster`
 
 | Field | Default | Description |
 |---|---|---|
 | `enabled` | `false` | Enable gossip clustering |
-| `mode` | `strong` | Consistency mode: `strong` (sharded, peer-fetch), `eventual` (independent, gossip-only invalidation), or `full` (full replication, every node holds all keys). See [Cluster Consistency Modes](/docs/configuration/cluster-modes/). |
+| `mode` | `strong` | Consistency mode: `strong`, `eventual`, or `full`. See [Clustering](cluster-modes/). |
 | `join` | `[]` | Seed addresses (StatefulSet pod DNS) |
 | `replicas` | `1` | Write replication factor (strong mode only) |
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback (strong mode only) |
@@ -109,6 +141,8 @@ routes:
 | `tls.key_file` | `""` | Client private key for mTLS |
 
 ### `routes[]`
+
+Route matching uses `host` and `path_prefix` only. Regex-based path matching is not supported in routes — use `path_regex` in [ban predicates](/docs/operations/cache-invalidation/) for invalidation.
 
 | Field | Default | Description |
 |---|---|---|
@@ -121,6 +155,7 @@ routes:
 
 | Field | Default | Description |
 |---|---|---|
+| `enabled` | `true` | Set to `false` to bypass caching for this route |
 | `ttl_default` | `0` | Default TTL when origin has no `Cache-Control` |
 | `stale_while_revalidate` | `0` | Serve stale while refreshing in background |
 | `stale_if_error` | `0` | Serve stale on origin 5xx |
@@ -140,19 +175,7 @@ routes:
 |---|---|---|
 | `timeout` | `10s` | TCP dial timeout |
 | `keep_alive` | `15s` | TCP keep-alive interval |
-| `hedge_timeout` | `""` | Fire a duplicate request after this duration; first response wins (hedged fetch). Empty disables. |
-
-### `cluster.mode`
-
-The `cluster.mode` field selects the consistency and replication strategy. Default is `strong` (backward-compatible).
-
-| Value | Key routing | Replication | Invalidation delivery | Consistency |
-|---|---|---|---|---|
-| `strong` | Consistent-hash ring → peer-fetch on miss | 1 copy (owner only) | HTTP fan-out + gossip dual path | Strong after ACK |
-| `eventual` | Every node independent; miss → origin | N copies (independently cached) | Gossip only (1–5 s convergence) | Eventual |
-| `full` | Every node independent; miss → origin | N copies (active replication on fill) | HTTP fan-out + gossip replication | Eventual |
-
-See the [Cluster Consistency Modes](/docs/configuration/cluster-modes/) page for a full comparison and migration guidance.
+| `hedge_timeout` | `""` | Fire a duplicate request after this duration; first response wins ([hedged fetch](#hedged-fetch)). Empty disables. |
 
 ### Health checks
 
@@ -173,6 +196,11 @@ health:
     eject_for: 30s
 ```
 
+### `admin`
+
+| Field | Default | Description |
+|---|---|---|
+| `token` | `""` (auto-generated) | Admin bearer token. See [Authentication](/docs/operations/authentication/). |
 
 ### `tracing`
 
@@ -193,6 +221,66 @@ Background cache warming via `Link: rel=preload` response headers and optional s
 | `sitemap_urls` | `[]` | Sitemap XML URLs to crawl periodically |
 | `sitemap_interval` | `0` | Crawl interval. Zero disables sitemap crawling. |
 
+When `sitemap_urls` is configured with a non-zero `sitemap_interval`, bouine periodically fetches each sitemap, extracts URLs, and warms the cache by issuing internal requests. This reduces cold-start miss rates after restarts.
+
+bouine also parses `Link: </path>; rel=preload` response headers and prefetches the linked URLs in the background.
+
+### `cloudflare`
+
+Optional Cloudflare Cache API propagation. See [Cloudflare CDN propagation](/docs/operations/cloudflare/) for full details and Kubernetes secret wiring.
+
+| Field | Default | Description |
+|---|---|---|
+| `zone_id` | `""` | Cloudflare zone identifier (non-secret) |
+| `api_token` | `""` | Cache Purge API token. Prefer `CF_API_TOKEN` env var. |
+| `async` | `true` | Return immediately; CF call runs in background goroutine |
+| `timeout` | `10s` | Per-call timeout for CF API requests |
+| `propagate.purge` | `true` | Forward `POST /v1/purge` to CF `PurgeSingleFile` |
+| `propagate.ban` | `true` | Forward `POST /v1/ban` to CF (tags / prefixes / hostnames) |
+| `propagate.refresh` | `true` | Forward `POST /v1/refresh` to CF `PurgeSingleFile` |
+
+---
+
+## Hedged fetch
+
+When `hedge_timeout` is set on an upstream pool, bouine fires a duplicate request to the origin after the specified duration if the first request hasn't responded. The first response to arrive wins; the other is discarded.
+
+```yaml
+upstream_pools:
+  - name: api
+    targets: [api.default.svc:8080]
+    connect:
+      hedge_timeout: 50ms
+```
+
+Use hedging when your origin has occasional high-latency outliers (p99 >> p50). It trades a small amount of extra origin load for significantly better tail latency. Do **not** use hedging for non-idempotent requests or when origin load is already near capacity.
+
+---
+
+## Size units
+
+All byte-size fields (`hot_max_bytes`, `warm_max_bytes`) accept any of these suffixes (case-insensitive):
+
+| Suffix | Multiplier | Family |
+|--------|-----------|--------|
+| `B` | 1 | exact |
+| `K`, `KB` | 10³ | SI decimal |
+| `KiB`, `KI` | 1 024 | IEC binary |
+| `Ko` | 10³ | French SI |
+| `M`, `MB` | 10⁶ | SI decimal |
+| `MiB`, `MI` | 1 048 576 | IEC binary |
+| `Mo` | 10⁶ | French SI |
+| `G`, `GB` | 10⁹ | SI decimal |
+| `GiB`, `GI` | 1 073 741 824 | IEC binary |
+| `Go` | 10⁹ | French SI |
+| `T`, `TB` | 10¹² | SI decimal |
+| `TiB`, `TI` | 2⁴⁰ | IEC binary |
+| `To` | 10¹² | French SI |
+
+> **Recommendation**: Use IEC binary units (`MiB`, `GiB`) for clarity. The Helm chart defaults use `GiB`.
+
+---
+
 ## Hot reload
 
 Reloadable without restart: routes, upstream pools, cache TTLs, TLS certificates.
@@ -201,35 +289,5 @@ Reloadable without restart: routes, upstream pools, cache TTLs, TLS certificates
 
 Trigger reload via:
 - `kill -HUP <pid>`
-- `curl -X POST http://localhost:9000/v1/config/reload`
-- File change (fsnotify watches the config file)
-
-### `cloudflare`
-
-Optional Cloudflare Cache API propagation. When `zone_id` and an API token are
-configured, purge/ban/refresh operations are forwarded to the Cloudflare edge.
-
-See [Cloudflare CDN propagation](/docs/operations/cloudflare/) for full details
-and Kubernetes secret wiring.
-
-| Field | Default | Description |
-|---|---|---|
-| `zone_id` | `""` | Cloudflare zone identifier (non-secret) |
-| `api_token` | `""` | Cache Purge API token. Prefer `CF_API_TOKEN` env var |
-| `async` | `true` | Return immediately; CF call runs in background goroutine |
-| `timeout` | `10s` | Per-call timeout for CF API requests |
-| `propagate.purge` | `true` | Forward `POST /v1/purge` to CF `PurgeSingleFile` |
-| `propagate.ban` | `true` | Forward `POST /v1/ban` to CF (tags / prefixes / hostnames) |
-| `propagate.refresh` | `true` | Forward `POST /v1/refresh` to CF `PurgeSingleFile` |
-
-```yaml
-cloudflare:
-  zone_id: "your-zone-id"
-  # api_token: ""  # inject via CF_API_TOKEN env var in production
-  async: true       # default — do not delay admin responses
-  timeout: 10s
-  propagate:
-    purge: true
-    ban: true
-    refresh: true
-```
+- `curl -X POST http://localhost:9000/v1/config/reload -H "Authorization: Bearer <token>"`
+- File change (fsnotify watches the config file automatically)

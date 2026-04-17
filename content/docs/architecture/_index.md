@@ -69,7 +69,7 @@ Random ±N% applied to every TTL to prevent synchronized expiry stampedes across
 
 ## Clustering
 
-bouine supports three consistency modes (see [Cluster Consistency Modes](/docs/configuration/cluster-modes/)):
+bouine supports three consistency modes (see [Clustering](/docs/configuration/cluster-modes/)):
 
 ### Strong mode (default)
 

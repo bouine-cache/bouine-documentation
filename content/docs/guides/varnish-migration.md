@@ -12,15 +12,15 @@ description: "Complete migration guide from Varnish Cache to bouine: conceptual 
 |---|---|---|
 | VCL subroutines | declarative YAML config | bouine uses config, not code |
 | `vcl_recv` | `routes[].match` | routing and request matching |
-| `vcl_hash` | `routes[].match.headers` | implicit via match rules |
+| `vcl_hash` | automatic cache key (`xxhash64`) | scheme + host + path + query + method |
 | `vcl_backend_fetch` | `upstream_pools[]` | backend pool config |
 | `vcl_backend_response` | origin `Cache-Control` | bouine honors RFC 9111 strictly |
 | `beresp.ttl` | `cache.ttl_default` | overridden by origin headers |
 | `beresp.grace` | `cache.stale_while_revalidate` | SWR semantics |
-| `ban()` | admin API `/admin/bans` | HTTP-based purge API |
-| `purge` | admin API `/admin/purge` | exact-match invalidation |
-| Varnish log (`-g request`) | `access_logs` | OpenTelemetry-compatible output |
-| `varnishstat` | `/admin/stats` | Prometheus-compatible metrics |
+| `ban()` | admin API `POST /v1/ban` | HTTP-based invalidation API |
+| `purge` | admin API `POST /v1/purge` | exact-match invalidation |
+| Varnish log (`-g request`) | structured JSON logs (stdout) | pipe to any log aggregator |
+| `varnishstat` | `/metrics` (Prometheus) | Prometheus-compatible metrics |
 | VSM/shared memory | in-process memory | no mmap, no VSM files |
 
 ## 1. Conceptual mapping
@@ -51,6 +51,8 @@ This means:
 | Cache policy | Explicit TTL, grace, keep assignments | RFC 9111 + `routes[].cache` overrides |
 | Cluster | Via `varnish-plus` or external HA | Built-in gossip (strong, eventual, full) |
 | TLS termination | `varnish-plus` or separate proxy | Built-in (H1+H2+H3) |
+
+> **Route matching**: bouine routes match on `host` and `path_prefix` only — regex-based path matching is not supported in routes. Use path prefixes for routing, and `path_regex` in ban predicates for cache invalidation.
 
 ## 2. Side-by-side: e-commerce workload
 
@@ -113,8 +115,9 @@ listen:
   admin: ":9000"
 
 tls:
-  cert_file: /etc/bouine/cert.pem
-  key_file: /etc/bouine/key.pem
+  certs:
+    - cert_file: /etc/bouine/cert.pem
+      key_file: /etc/bouine/key.pem
 
 upstream_pools:
   - name: origin
@@ -122,20 +125,21 @@ upstream_pools:
       - origin.internal:8080
     health:
       active:
-        enabled: true
+        path: /healthz
         interval: 10s
       passive:
         consecutive_5xx: 3
 
 routes:
+  # Static assets — match by path prefix (regex not supported in routes)
   - name: static-assets
     match:
-      path_regex: "\\.(jpg|png|css|js)$"
+      path_prefix: /static/
     pool: origin
     cache:
-      ttl_default: 1d
-      stale_while_revalidate: 1h
-      stale_if_error: 5m
+      ttl_default: 86400s
+      stale_while_revalidate: 3600s
+      stale_if_error: 300s
 
   - name: api
     match:
@@ -144,32 +148,28 @@ routes:
     cache:
       enabled: false
 
+  # Default route — bouine only caches GET/HEAD per RFC 9111.
+  # Authorization and Set-Cookie responses are not cached by default.
   - name: default
     match:
       path_prefix: /
-      methods: [GET, HEAD]
     pool: origin
     cache:
-      ttl_default: 5m
+      ttl_default: 300s
       stale_while_revalidate: 30s
-      stale_if_error: 5m
-      cookies:
-        allow_set_cookie: false
-      # Authorization header automatically prevents caching per RFC 9111
-
-access_logs:
-  format: json
-  sample_rate: 0.01
+      stale_if_error: 300s
 ```
+
+> **Note**: bouine logs structured JSON to stdout by default (`--log-format json`). There is no `access_logs` config block — pipe stdout to your log aggregator.
 
 ### Key differences in the example
 
 | Behavior | VCL | bouine |
 |---|---|---|
-| POST/PUT/DELETE | `return(pass)` (bypass cache) | `methods: [GET, HEAD]` (only GET/HEAD cached) |
+| POST/PUT/DELETE | `return(pass)` (bypass cache) | Only `GET`/`HEAD` cached per RFC 9111 |
 | `/api/` bypass | `return(pass)` in `vcl_recv` | `cache.enabled: false` on matched route |
-| Static asset TTL | `set beresp.ttl = 1d` | `ttl_default: 1d` on route match |
-| Session cookie | `return(pass)` if Cookie matches | `allow_set_cookie: false` (default) |
+| Static asset TTL | `set beresp.ttl = 1d` | `ttl_default: 86400s` on route match |
+| Session cookie | `return(pass)` if Cookie matches | Not cached per RFC 9111 when `Set-Cookie` present |
 | Authorization | `return(pass)` | Not cached by default (RFC 9111) |
 | 5xx retry | `return(retry)` | Passive health ejection (configurable) |
 | Cache hits header | `obj.hits` | `X-Cache` header added automatically |
@@ -209,8 +209,8 @@ for Phase 5). Current predicates match against request headers / URL only.
 
 | Varnish | bouine |
 |---|---|
-| `MAIN.cache_hit` | `bouine_cache_result_total{result="HIT"}` |
-| `MAIN.cache_miss` | `bouine_cache_result_total{result="MISS"}` |
+| `MAIN.cache_hit` | `bouine_requests_total{cache_result="HIT"}` |
+| `MAIN.cache_miss` | `bouine_requests_total{cache_result="MISS"}` |
 | `MAIN.n_object` | `bouine_hot_store_objects` (hot tier only) |
 | `MAIN.n_expired` | Not directly exposed; use TTL from origin |
 | `MAIN.n_lru_nuked` | `bouine_sieve_evictions_total` |
@@ -331,7 +331,7 @@ objects warm automatically.
 
 **Q: Can I use the same backend health checks?**
 A: bouine supports active HTTP probes and passive outlier detection. See
-[upstream pool configuration](/docs/configuration/cluster/) for details. The
+[upstream pool configuration](/docs/configuration/#health-checks) for details. The
 `consecutive_5xx` threshold replaces Varnish's `probe` block.
 
 **Q: Will my Varnish stats dashboards work?**

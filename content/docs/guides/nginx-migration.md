@@ -9,7 +9,7 @@ description: "Migrate from NGINX proxy_cache to bouine by mapping directives, ca
 
 | NGINX directive | bouine config | Notes |
 |---|---|---|
-| `proxy_cache_path ... max_size=1g` | `storage.hot_max_bytes: 1Go` | bouine uses in-RAM storage, no filesystem levels |
+| `proxy_cache_path ... max_size=1g` | `storage.hot_max_bytes: 1GiB` | bouine uses in-RAM storage, no filesystem levels |
 | `proxy_cache_valid 200 60s` | `routes[].cache.ttl_default: 60s` | Per-route, respects `Cache-Control` by default |
 | `proxy_cache_use_stale error http_500 http_502 http_503 http_504` | `routes[].cache.stale_if_error: 30s` | Serves stale on origin 5xx or timeout |
 | `proxy_cache_background_update on` | `routes[].cache.stale_while_revalidate: 10s` | Background revalidation while serving stale |
@@ -48,7 +48,7 @@ listen:
   http: ":80"
   admin: ":9000"
 storage:
-  hot_max_bytes: 1Go
+  hot_max_bytes: 1GiB
 upstream_pools:
   - name: backend
     targets: [backend:8080]

@@ -78,5 +78,5 @@ These are always accessible without authentication — required for K8s probes a
 
 | Header | Values | Description |
 |---|---|---|
-| `X-Cache` | `HIT`, `MISS` | How the response was served |
+| `X-Cache` | `HIT`, `MISS`, `STALE`, `BYPASS`, `REVALIDATED` | How the response was served |
 | `Age` | seconds | Current cached object age |

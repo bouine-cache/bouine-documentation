@@ -5,23 +5,24 @@ description: "Complete user and contributor documentation for installing, config
 ---
 
 
-This documentation is organized around common user journeys:
+## I want to…
 
-- **Try bouine locally** in a few minutes.
-- **Put bouine in front of a real service** with a minimal config.
-- **Deploy and operate bouine on Kubernetes**.
-- **Understand how clustering and invalidation work**.
-- **Contribute safely** without regressing correctness or performance.
-
-> **Suggested path**
->
-> If you are new to bouine, read **Getting started → First cache** first, then **Configuration → Cache policy**, then **Operations → Kubernetes**.
+| Goal | Start here |
+|------|-----------|
+| **Try bouine locally** in 5 minutes | [Quick start →](getting-started/first-cache/) |
+| **Deploy on Kubernetes** with Helm | [Deploy on Kubernetes →](getting-started/kubernetes/) |
+| **Replace Varnish or NGINX** | [Migration guides →](guides/) |
+| **Configure cache policy, TLS, or clustering** | [Configuration →](configuration/) |
+| **Operate bouine in production** (invalidation, monitoring, upgrades) | [Operations →](operations/) |
+| **Understand the internals** | [Architecture →](architecture/) |
+| **Contribute to bouine** | [Contributing →](contributing/) |
 
 ## Sections
 
-- [Getting started](getting-started/) — install bouine, run it locally, and deploy it on Kubernetes.
-- [Configuration](configuration/) — all YAML sections and practical cache policy examples.
-- [Operations](operations/) — lifecycle, invalidation, monitoring, releases, and troubleshooting.
+- [Getting started](getting-started/) — install, quick start, Docker, Kubernetes, and example configs.
+- [Configuration](configuration/) — YAML reference, cache policy, storage tiers, TLS, clustering, and Helm chart values.
+- [Operations](operations/) — lifecycle, invalidation, monitoring, dashboard, Kubernetes ops, and troubleshooting.
 - [Architecture](architecture/) — layered design, cache engine, storage, clustering, and performance.
-- [Guides](guides/) — migration from Varnish or NGINX, reverse proxy examples.
+- [Guides](guides/) — migration from Varnish or NGINX, reverse proxy examples, and capacity planning.
 - [Contributing](contributing/) — contributor workflow, codebase map, and security.
+- [Reference](reference/) — CLI commands, admin API, and response headers.

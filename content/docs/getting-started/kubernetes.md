@@ -18,50 +18,15 @@ helm install bouine deploy/helm/bouine \
   --set config.cluster.enabled=true
 ```
 
+See [Helm chart reference](/docs/configuration/helm/) for all configurable values.
+
 ## StatefulSet requirements
 
-For multi-pod clustering, use a StatefulSet and headless Service:
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: bouine-headless
-spec:
-  clusterIP: None
-  publishNotReadyAddresses: true
-  selector:
-    app: bouine
-  ports:
-    - name: cluster-tcp
-      port: 8443
-      protocol: TCP
-    - name: cluster-udp
-      port: 8443
-      protocol: UDP
-```
-
-> **Important**
->
-> `publishNotReadyAddresses: true` is required. Without it, StatefulSet pod DNS records may not resolve during startup, and memberlist gossip may fail to form a cluster.
+For multi-pod clustering, use a StatefulSet and a headless Service with `publishNotReadyAddresses: true`. See [Clustering → Headless Service](/docs/configuration/cluster-modes/#headless-service-kubernetes) for the full manifest.
 
 ## Admin token (multi-pod requirement)
 
-All pods **must share the same `admin.token`**. When no token is configured, each pod generates its own random token — the dashboard session cookie (HMAC-signed with the token) is then rejected by other pods, causing login failures or "invalid token" errors.
-
-Set a shared token via Helm:
-
-```bash
-helm upgrade bouine deploy/helm/bouine   --reuse-values   --set "config.admin.token=your-shared-secret"
-```
-
-Or in your `values.yaml`:
-
-```yaml
-config:
-  admin:
-    token: "your-shared-secret"
-```
+All pods **must share the same `admin.token`**. See [Authentication](/docs/operations/authentication/) for setup instructions.
 
 ## Scaling
 
@@ -77,7 +42,7 @@ kubectl rollout restart statefulset/bouine -n bouine
 kubectl rollout status statefulset/bouine -n bouine
 ```
 
-bouine marks itself not-ready during shutdown and leaves the gossip cluster cleanly.
+bouine marks itself not-ready during shutdown and leaves the gossip cluster cleanly. See [Kubernetes operations](/docs/operations/kubernetes/) for zero-5xx rolling update procedures.
 
 ## PROXY Protocol
 

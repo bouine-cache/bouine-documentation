@@ -29,7 +29,7 @@ The delivery mechanism depends on `cluster.mode`:
 | `eventual` | Gossip only (1–5 s convergence) | Gossip only (1–5 s convergence) | Gossip only |
 | `full` | HTTP fan-out + gossip dual path | HTTP fan-out + gossip dual path | HTTP fan-out to all peers |
 
-See [Cluster Consistency Modes](/docs/configuration/cluster-modes/) for details on choosing a mode.
+See [Clustering](/docs/configuration/cluster-modes/) for details on choosing a mode.
 
 ## Ban (predicate-based)
 

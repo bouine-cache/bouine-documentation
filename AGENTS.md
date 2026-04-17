@@ -40,13 +40,12 @@ All commands go through `make` (which delegates to npm/hugo):
 │   └── docs/                    # All documentation pages
 │       ├── _index.md            # Docs landing/overview
 │       ├── getting-started/     # Install, Docker, K8s, quick start
-│       ├── configuration/       # YAML config reference
-│       ├── operations/          # Runbooks: lifecycle, auth, invalidation, monitoring
+│       ├── configuration/       # YAML config reference, cache policy, storage, TLS, clustering, Helm
+│       ├── operations/          # Runbooks: lifecycle, auth, invalidation, monitoring, dashboard, K8s ops
 │       ├── architecture/        # Design docs and internals
-│       ├── guides/              # Migration guides (NGINX, Varnish, reverse proxies)
+│       ├── guides/              # Migration guides (NGINX, Varnish, reverse proxies), capacity planning
 │       ├── contributing/        # Contributor guide, security
-│       ├── reference/           # API/config reference
-│       └── migration/           # Migration docs
+│       └── reference/           # CLI, API & headers reference
 ├── layouts/
 │   ├── home.html                # Custom homepage template (overrides theme)
 │   ├── shortcodes/              # Custom Hugo shortcodes
