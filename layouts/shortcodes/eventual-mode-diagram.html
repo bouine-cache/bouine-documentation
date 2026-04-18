@@ -1,0 +1,130 @@
+<div style="position:relative;margin:1.5rem 0;">
+  <button id="em-replay" onclick="emReplay()" style="position:absolute;top:8px;right:8px;z-index:10;cursor:pointer;padding:.2rem .7rem;border:1px solid rgba(139,92,246,.5);border-radius:4px;background:rgba(13,13,26,.85);color:#c4b5fd;font-size:.7rem;font-family:monospace;letter-spacing:.05em;">↺ replay</button>
+  <svg id="em-svg" viewBox="0 0 700 420" style="width:100%;border-radius:8px;background:#0d0d1a;display:block;" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="em-glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+
+    <!-- Title -->
+    <text id="em-title" x="350" y="28" text-anchor="middle" fill="#c4b5fd" font-size="13" font-weight="700" opacity="0">Eventual mode — independent caching per node</text>
+
+    <!-- Client -->
+    <rect id="em-client" x="16" y="145" width="64" height="42" rx="6" fill="rgba(71,85,105,.25)" stroke="#475569" stroke-width="1.5" opacity="0"/>
+    <text id="em-ct" x="48" y="164" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600" opacity="0">CLIENT</text>
+    <text id="em-cu" x="48" y="176" text-anchor="middle" fill="#64748b" font-size="7" opacity="0">GET /products</text>
+
+    <!-- Origin (top center) -->
+    <rect id="em-origin" x="300" y="40" width="80" height="42" rx="6" fill="rgba(30,41,59,.35)" stroke="#475569" stroke-width="1.5" opacity="0"/>
+    <text id="em-ot" x="340" y="59" text-anchor="middle" fill="#94a3b8" font-size="9" opacity="0">ORIGIN</text>
+    <text id="em-ou" x="340" y="71" text-anchor="middle" fill="#64748b" font-size="7" opacity="0">upstream</text>
+
+    <!-- bouine-0 (receives request) -->
+    <g id="em-n0" opacity="0">
+      <rect x="270" y="120" width="140" height="100" rx="10" fill="rgba(109,40,217,.1)" stroke="#4c1d95" stroke-width="1.5"/>
+      <text x="340" y="140" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">bouine-0</text>
+      <text x="340" y="155" text-anchor="middle" fill="#4c1d95" font-size="7.5">receives request</text>
+      <rect id="em-store0" x="283" y="162" width="114" height="24" rx="4" fill="rgba(109,40,217,.15)" stroke="#5b21b6" stroke-width="1"/>
+      <text id="em-s0t" x="340" y="178" text-anchor="middle" fill="#7c3aed" font-size="8">hot store</text>
+      <rect x="283" y="192" width="114" height="18" rx="3" fill="rgba(109,40,217,.06)" stroke="#2d1b69" stroke-width="1"/>
+      <text x="340" y="205" text-anchor="middle" fill="#3b0764" font-size="7">no peer-fetch, no replication</text>
+    </g>
+
+    <!-- bouine-1 (idle peer) -->
+    <g id="em-n1" opacity="0">
+      <rect x="100" y="270" width="140" height="90" rx="10" fill="rgba(109,40,217,.08)" stroke="#3b0764" stroke-width="1.5"/>
+      <text x="170" y="292" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">bouine-1</text>
+      <rect id="em-store1" x="113" y="302" width="114" height="24" rx="4" fill="rgba(109,40,217,.1)" stroke="#3b0764" stroke-width="1"/>
+      <text id="em-s1t" x="170" y="318" text-anchor="middle" fill="#4c1d95" font-size="8">hot store (own keys)</text>
+      <rect x="113" y="332" width="114" height="18" rx="3" fill="rgba(109,40,217,.06)" stroke="#2d1b69" stroke-width="1"/>
+      <text x="170" y="345" text-anchor="middle" fill="#3b0764" font-size="7">independent · unaware</text>
+    </g>
+
+    <!-- bouine-2 (idle peer) -->
+    <g id="em-n2" opacity="0">
+      <rect x="440" y="270" width="140" height="90" rx="10" fill="rgba(109,40,217,.08)" stroke="#3b0764" stroke-width="1.5"/>
+      <text x="510" y="292" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">bouine-2</text>
+      <rect id="em-store2" x="453" y="302" width="114" height="24" rx="4" fill="rgba(109,40,217,.1)" stroke="#3b0764" stroke-width="1"/>
+      <text id="em-s2t" x="510" y="318" text-anchor="middle" fill="#4c1d95" font-size="8">hot store (own keys)</text>
+      <rect x="453" y="332" width="114" height="18" rx="3" fill="rgba(109,40,217,.06)" stroke="#2d1b69" stroke-width="1"/>
+      <text x="510" y="345" text-anchor="middle" fill="#3b0764" font-size="7">independent · unaware</text>
+    </g>
+
+    <!-- Gossip lines (thin, background) -->
+    <line id="em-g01" x1="290" y1="220" x2="220" y2="270" stroke="#2d1b69" stroke-width="1" stroke-dasharray="4,4" opacity="0"/>
+    <line id="em-g02" x1="390" y1="220" x2="460" y2="270" stroke="#2d1b69" stroke-width="1" stroke-dasharray="4,4" opacity="0"/>
+    <line id="em-g12" x1="240" y1="315" x2="440" y2="315" stroke="#2d1b69" stroke-width="1" stroke-dasharray="4,4" opacity="0"/>
+    <text id="em-gl" x="340" y="258" text-anchor="middle" fill="#2d1b69" font-size="7" opacity="0">gossip (invalidation only)</text>
+
+    <!-- "no replication" X marks on gossip lines -->
+    <g id="em-nope1" opacity="0">
+      <circle cx="255" cy="245" r="8" fill="rgba(13,13,26,.9)" stroke="#3b0764" stroke-width="1"/>
+      <line x1="251" y1="241" x2="259" y2="249" stroke="#4c1d95" stroke-width="1.5"/>
+      <line x1="259" y1="241" x2="251" y2="249" stroke="#4c1d95" stroke-width="1.5"/>
+    </g>
+    <g id="em-nope2" opacity="0">
+      <circle cx="425" cy="245" r="8" fill="rgba(13,13,26,.9)" stroke="#3b0764" stroke-width="1"/>
+      <line x1="421" y1="241" x2="429" y2="249" stroke="#4c1d95" stroke-width="1.5"/>
+      <line x1="429" y1="241" x2="421" y2="249" stroke="#4c1d95" stroke-width="1.5"/>
+    </g>
+
+    <!-- Animated dots -->
+    <circle id="em-req" cx="80" cy="166" r="5" fill="#a78bfa" filter="url(#em-glow)" opacity="0"/>
+    <circle id="em-miss" cx="340" cy="174" r="5" fill="#f59e0b" filter="url(#em-glow)" opacity="0"/>
+
+    <!-- Step label -->
+    <text id="em-step" x="350" y="405" text-anchor="middle" fill="#a78bfa" font-size="10" opacity="0"></text>
+  </svg>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+<script>
+(function(){
+  function emPlay(){
+    ['em-req','em-miss'].forEach(function(id){
+      anime.set('#'+id,{opacity:0,translateX:0,translateY:0});
+    });
+    anime.set('#em-step',{opacity:0,fill:'#a78bfa'});
+    anime.set('#em-store0',{stroke:'#5b21b6',fill:'rgba(109,40,217,.15)'});
+    anime.set('#em-s0t',{fill:'#7c3aed'});
+    anime.set('#em-store1',{stroke:'#3b0764',fill:'rgba(109,40,217,.1)'});
+    anime.set('#em-store2',{stroke:'#3b0764',fill:'rgba(109,40,217,.1)'});
+    anime.set('#em-nope1,#em-nope2',{opacity:0});
+
+    var tl=anime.timeline({autoplay:true,loop:false});
+
+    tl
+      .add({targets:'#em-title',opacity:[0,1],duration:500,easing:'easeOutQuad'})
+      .add({targets:'#em-n0,#em-n1,#em-n2',opacity:[0,1],duration:500,easing:'easeOutBack',delay:anime.stagger(120)},'-=200')
+      .add({targets:'#em-client,#em-ct,#em-cu,#em-origin,#em-ot,#em-ou',opacity:[0,1],duration:400,delay:anime.stagger(60)},'-=200')
+      .add({targets:'#em-g01,#em-g02,#em-g12,#em-gl',opacity:[0,.4],duration:500,delay:anime.stagger(80)},'-=200')
+
+      // Step 1: request arrives at bouine-0
+      .add({targets:'#em-step',innerHTML:'1 ⃝  Request arrives at bouine-0 — MISS in local store',opacity:1,duration:300},'+=400')
+      .add({targets:'#em-req',opacity:1,duration:100})
+      .add({targets:'#em-req',translateX:210,duration:450,easing:'easeOutQuad'})
+      .add({targets:'#em-store0',stroke:['#5b21b6','#ef4444'],duration:300},'-=100')
+      .add({targets:'#em-s0t',fill:'#ef4444',duration:200},'-=200')
+
+      // Step 2: fetch directly from origin (no peer-fetch)
+      .add({targets:'#em-step',innerHTML:'2 ⃝  Fetch directly from origin — no peer-fetch, no hash ring lookup',duration:300},'+=300')
+      .add({targets:'#em-req',opacity:0,duration:200})
+      .add({targets:'#em-miss',opacity:1,cx:340,cy:174,translateX:0,translateY:0,duration:100})
+      .add({targets:'#em-miss',translateY:-112,duration:400,easing:'easeOutQuad'})
+      .add({targets:'#em-miss',translateY:0,fill:'#4ade80',duration:400,easing:'easeInQuad'})
+
+      // Step 3: store locally only
+      .add({targets:'#em-step',innerHTML:'3 ⃝  Store response in local hot store only — no broadcast to peers',duration:300},'+=200')
+      .add({targets:'#em-store0',stroke:'#22c55e',fill:'rgba(34,197,94,.12)',duration:400})
+      .add({targets:'#em-s0t',fill:'#4ade80',duration:200},'-=300')
+      .add({targets:'#em-miss',opacity:0,duration:200})
+
+      // Step 4: show that peers don't get it
+      .add({targets:'#em-step',innerHTML:'4 ⃝  Peers are unaware — same URL on bouine-1 or bouine-2 would MISS again',duration:300},'+=300')
+      .add({targets:'#em-nope1,#em-nope2',opacity:[0,1],duration:400,easing:'easeOutBack'},'+=100')
+
+      // Final
+      .add({targets:'#em-step',innerHTML:'X-Cache: HIT (local only) · each node fills independently · memory: 1–N× working set',fill:'#4ade80',duration:400},'+=600');
+  }
+  window.emReplay=emPlay;
+  if(typeof anime!=='undefined'){emPlay();}
+})();
+</script>

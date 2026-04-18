@@ -130,4 +130,15 @@ extraVolumes:
 
 ## Cluster TLS (mTLS)
 
-Peer-to-peer traffic (gossip, peer-fetch) uses a separate TLS configuration. See [Clustering → Cluster TLS](/docs/configuration/cluster-modes/#cluster-tls-mtls).
+Peer-to-peer RPCs (`/v1/peer/fetch`, gossip) use a **separate** TLS configuration from the data-plane listeners. This secures inter-node traffic independently.
+
+```yaml
+cluster:
+  enabled: true
+  tls:
+    ca_bundle: /etc/bouine/cluster-ca.crt
+    cert_file: /etc/bouine/cluster-client.crt
+    key_file:  /etc/bouine/cluster-client.key
+```
+
+Leave `tls` empty for plain HTTP (acceptable inside a private Kubernetes cluster protected by NetworkPolicy). In multi-tenant or public-cloud environments, always enable cluster TLS.

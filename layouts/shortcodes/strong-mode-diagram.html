@@ -1,0 +1,129 @@
+<div style="position:relative;margin:1.5rem 0;">
+  <button id="sm-replay" onclick="smReplay()" style="position:absolute;top:8px;right:8px;z-index:10;cursor:pointer;padding:.2rem .7rem;border:1px solid rgba(139,92,246,.5);border-radius:4px;background:rgba(13,13,26,.85);color:#c4b5fd;font-size:.7rem;font-family:monospace;letter-spacing:.05em;">↺ replay</button>
+  <svg id="sm-svg" viewBox="0 0 750 440" style="width:100%;border-radius:8px;background:#0d0d1a;display:block;" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="sm-glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+
+    <!-- Title -->
+    <text id="sm-title" x="375" y="28" text-anchor="middle" fill="#c4b5fd" font-size="13" font-weight="700" opacity="0">Strong mode — consistent-hash sharding</text>
+
+    <!-- Hash ring (drawn first, behind everything) -->
+    <circle id="sm-ring" cx="375" cy="210" r="120" fill="none" stroke="#2d1b69" stroke-width="2" stroke-dasharray="6,4" opacity="0"/>
+
+    <!-- Key-space arcs (drawn on top of ring, but behind nodes) -->
+    <path id="sm-arc0" d="M375,90 A120,120 0 0,1 479,270" fill="none" stroke="#8b5cf6" stroke-width="4" opacity="0"/>
+    <path id="sm-arc1" d="M479,270 A120,120 0 0,1 271,270" fill="none" stroke="#6d28d9" stroke-width="4" opacity="0"/>
+    <path id="sm-arc2" d="M271,270 A120,120 0 0,1 375,90" fill="none" stroke="#4c1d95" stroke-width="4" opacity="0"/>
+
+    <!-- Node 0 (top) — opaque bg circle hides ring beneath, label above -->
+    <g id="sm-n0" opacity="0">
+      <circle cx="375" cy="90" r="20" fill="#0d0d1a" stroke="none"/>
+      <circle cx="375" cy="90" r="20" fill="#13112a" stroke="#7c3aed" stroke-width="2"/>
+      <text x="375" y="94" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="700">N0</text>
+      <text x="375" y="55" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">bouine-0</text>
+      <text x="375" y="68" text-anchor="middle" fill="#5b21b6" font-size="8">owner A–F</text>
+    </g>
+    <!-- Node 1 (bottom-right) — opaque bg, label to the right -->
+    <g id="sm-n1" opacity="0">
+      <circle cx="479" cy="270" r="20" fill="#0d0d1a" stroke="none"/>
+      <circle cx="479" cy="270" r="20" fill="#13112a" stroke="#7c3aed" stroke-width="2"/>
+      <text x="479" y="274" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="700">N1</text>
+      <text x="520" y="258" text-anchor="start" fill="#a78bfa" font-size="10" font-weight="700">bouine-1</text>
+      <text x="520" y="271" text-anchor="start" fill="#5b21b6" font-size="8">owner G–P</text>
+    </g>
+    <!-- Node 2 (bottom-left) — opaque bg, label to the left -->
+    <g id="sm-n2" opacity="0">
+      <circle cx="271" cy="270" r="20" fill="#0d0d1a" stroke="none"/>
+      <circle cx="271" cy="270" r="20" fill="#13112a" stroke="#7c3aed" stroke-width="2"/>
+      <text x="271" y="274" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="700">N2</text>
+      <text x="230" y="258" text-anchor="end" fill="#a78bfa" font-size="10" font-weight="700">bouine-2</text>
+      <text x="230" y="271" text-anchor="end" fill="#5b21b6" font-size="8">owner Q–Z</text>
+    </g>
+
+    <!-- Client -->
+    <rect id="sm-client" x="16" y="180" width="68" height="44" rx="6" fill="rgba(71,85,105,.25)" stroke="#475569" stroke-width="1.5" opacity="0"/>
+    <text id="sm-ct" x="50" y="199" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600" opacity="0">CLIENT</text>
+    <text id="sm-cu" x="50" y="213" text-anchor="middle" fill="#64748b" font-size="7" opacity="0">GET /api/v1</text>
+
+    <!-- Origin -->
+    <rect id="sm-origin" x="666" y="180" width="68" height="44" rx="6" fill="rgba(30,41,59,.35)" stroke="#1e293b" stroke-width="1.5" opacity="0"/>
+    <text id="sm-ot" x="700" y="199" text-anchor="middle" fill="#475569" font-size="9" opacity="0">ORIGIN</text>
+    <text id="sm-ou" x="700" y="213" text-anchor="middle" fill="#334155" font-size="7" opacity="0">upstream</text>
+
+    <!-- Animated dots -->
+    <circle id="sm-dot" cx="84" cy="202" r="5" fill="#a78bfa" filter="url(#sm-glow)" opacity="0"/>
+    <circle id="sm-pf-dot" cx="271" cy="270" r="5" fill="#f59e0b" filter="url(#sm-glow)" opacity="0"/>
+    <circle id="sm-res-dot" cx="375" cy="90" r="5" fill="#4ade80" filter="url(#sm-glow)" opacity="0"/>
+
+    <!-- Info panels -->
+    <g id="sm-info-miss" opacity="0">
+      <rect x="80" y="350" width="180" height="50" rx="6" fill="rgba(239,68,68,.08)" stroke="#ef4444" stroke-width="1"/>
+      <text x="170" y="372" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600">L4 Cache: MISS</text>
+      <text x="170" y="388" text-anchor="middle" fill="#ef4444" font-size="8">key hash → owner is bouine-0</text>
+    </g>
+    <g id="sm-info-hit" opacity="0">
+      <rect x="490" y="50" width="190" height="50" rx="6" fill="rgba(34,197,94,.08)" stroke="#22c55e" stroke-width="1"/>
+      <text x="585" y="72" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">bouine-0 hot store: HIT ✓</text>
+      <text x="585" y="87" text-anchor="middle" fill="#16a34a" font-size="8">5 ns · 0 allocs · peer fetch ~0.3 ms</text>
+    </g>
+
+    <!-- Step label -->
+    <text id="sm-step" x="375" y="430" text-anchor="middle" fill="#a78bfa" font-size="10" opacity="0"></text>
+  </svg>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+<script>
+(function(){
+  function smPlay(){
+    ['sm-dot','sm-pf-dot','sm-res-dot'].forEach(function(id){
+      anime.set('#'+id,{opacity:0,translateX:0,translateY:0});
+    });
+    anime.set('#sm-info-miss,#sm-info-hit',{opacity:0});
+    anime.set('#sm-step',{opacity:0,fill:'#a78bfa'});
+    anime.set('#sm-n2 circle',{stroke:'#7c3aed'});
+    anime.set('#sm-n0 circle',{stroke:'#7c3aed'});
+
+    var tl=anime.timeline({autoplay:true,loop:false});
+
+    tl
+      .add({targets:'#sm-title',opacity:[0,1],duration:500,easing:'easeOutQuad'})
+      .add({targets:'#sm-ring',opacity:[0,1],duration:600,easing:'easeOutQuad'},'-=200')
+      .add({targets:'#sm-arc0,#sm-arc1,#sm-arc2',opacity:[0,.7],duration:500,easing:'easeOutQuad',delay:anime.stagger(120)},'-=300')
+      .add({targets:'#sm-n0,#sm-n1,#sm-n2',opacity:[0,1],duration:400,easing:'easeOutBack',delay:anime.stagger(100)},'-=200')
+      .add({targets:'#sm-client,#sm-ct,#sm-cu,#sm-origin,#sm-ot,#sm-ou',opacity:[0,1],duration:400,delay:anime.stagger(60)},'-=200')
+
+      // Step 1: request hits bouine-2
+      .add({targets:'#sm-step',innerHTML:'1 ⃝  Request arrives at bouine-2 (not the owner)',opacity:1,duration:300},'+=400')
+      .add({targets:'#sm-dot',opacity:1,duration:100})
+      .add({targets:'#sm-dot',translateX:187,translateY:68,duration:500,easing:'easeOutQuad'})
+      .add({targets:'#sm-n2 circle:nth-child(2)',stroke:['#7c3aed','#f59e0b'],duration:300},'-=100')
+
+      // Step 2: MISS, peer-fetch to owner
+      .add({targets:'#sm-step',innerHTML:'2 ⃝  L4 cache MISS — consistent-hash lookup → owner is bouine-0',duration:300},'+=300')
+      .add({targets:'#sm-info-miss',opacity:[0,1],duration:400},'-=100')
+      .add({targets:'#sm-dot',opacity:0,duration:200},'+=200')
+      .add({targets:'#sm-pf-dot',opacity:1,cx:271,cy:270,translateX:0,translateY:0,duration:100})
+      .add({targets:'#sm-pf-dot',translateX:104,translateY:-180,duration:600,easing:'easeInOutQuad'})
+
+      // Step 3: owner HIT
+      .add({targets:'#sm-step',innerHTML:'3 ⃝  bouine-0 finds key in hot store — HIT',duration:300},'+=200')
+      .add({targets:'#sm-n0 circle:nth-child(2)',stroke:['#7c3aed','#22c55e'],fill:'#0f2a1a',duration:400},'-=100')
+      .add({targets:'#sm-info-miss',opacity:0,duration:200})
+      .add({targets:'#sm-info-hit',opacity:[0,1],duration:400},'-=100')
+
+      // Step 4: response returns
+      .add({targets:'#sm-step',innerHTML:'4 ⃝  Response: bouine-0 → bouine-2 → client',duration:300},'+=400')
+      .add({targets:'#sm-pf-dot',opacity:0,duration:200})
+      .add({targets:'#sm-res-dot',opacity:1,cx:375,cy:90,translateX:0,translateY:0,duration:100})
+      .add({targets:'#sm-res-dot',translateX:-104,translateY:180,duration:500,easing:'easeInOutQuad'})
+      .add({targets:'#sm-res-dot',translateX:-291,translateY:112,duration:400,easing:'easeInQuad'})
+
+      // Final
+      .add({targets:'#sm-step',innerHTML:'X-Cache: HIT · origin not reached · memory: working set ÷ 3',fill:'#4ade80',duration:400},'+=200')
+      .add({targets:'#sm-n2 circle:nth-child(2)',stroke:'#7c3aed',duration:300});
+  }
+  window.smReplay=smPlay;
+  if(typeof anime!=='undefined'){smPlay();}
+})();
+</script>

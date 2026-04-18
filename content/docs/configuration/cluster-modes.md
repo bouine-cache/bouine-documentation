@@ -32,7 +32,7 @@ Use this decision guide:
 
 ---
 
-## Minimal cluster config
+## Cluster config
 
 ```yaml
 listen:
@@ -49,7 +49,7 @@ cluster:
   hop_limit: 2         # only used in strong mode
 ```
 
-## Headless Service (Kubernetes)
+On Kubernetes, gossip peer discovery requires a headless Service:
 
 ```yaml
 apiVersion: v1
@@ -72,26 +72,15 @@ spec:
 
 > **Required**: `publishNotReadyAddresses: true` — without it, StatefulSet pod DNS may not resolve during startup and gossip will fail to form a cluster.
 
-## Cluster TLS (mTLS)
-
-Peer-to-peer RPCs (`/v1/peer/fetch`, gossip) can be secured with mutual TLS:
-
-```yaml
-cluster:
-  enabled: true
-  tls:
-    ca_bundle: /etc/bouine/cluster-ca.crt
-    cert_file: /etc/bouine/cluster-client.crt
-    key_file:  /etc/bouine/cluster-client.key
-```
-
-Leave `tls` empty for plain HTTP (acceptable inside a private Kubernetes cluster protected by NetworkPolicy). In multi-tenant or public-cloud environments, always enable cluster TLS.
+For inter-node mTLS, see [TLS → Cluster TLS](/docs/configuration/tls/#cluster-tls-mtls).
 
 ---
 
 ## Strong mode (default)
 
 A consistent-hash ring (256 virtual nodes per node) determines which node *owns* each cache key.
+
+{{< strong-mode-diagram >}}
 
 **Request flow:**
 
@@ -113,6 +102,8 @@ Typical peer-fetch latency: ~0.5–2 ms on the same datacenter LAN.
 
 Every node is independent — no sharding, no peer-fetch. Each node caches whatever it receives from origin.
 
+{{< eventual-mode-diagram >}}
+
 **Request flow:**
 
 1. Node receives a request, looks up in local store.
@@ -131,6 +122,8 @@ Every node is independent — no sharding, no peer-fetch. Each node caches whate
 ## Full mode
 
 Every node holds a full replica of the cached object set. Objects are actively replicated via gossip on fill.
+
+{{< full-mode-diagram >}}
 
 **Request flow:**
 
@@ -188,27 +181,3 @@ curl http://localhost:9000/v1/cluster/peers
 ```
 
 Should show every pod in the StatefulSet with `addr` set to the pod IP (not `0.0.0.0`).
-
----
-
-## Cluster metrics
-
-| Metric | Available in |
-|--------|-------------|
-| `bouine_cluster_mode_info{mode="..."}` | All modes |
-| `bouine_peer_fetch_hits_total` | `strong` only |
-| `bouine_peer_fetch_misses_total` | `strong` only |
-| `bouine_peer_fetch_duration_seconds` | `strong` only |
-| `bouine_cluster_invalidations_http_total{type="purge\|ban"}` | `strong`, `full` |
-| `bouine_cluster_invalidations_gossip_total{type="purge\|ban"}` | All modes |
-| `bouine_cluster_replications_sent_total` | `full` only |
-| `bouine_cluster_replications_received_total` | `full` only |
-| `bouine_cluster_replication_bytes_total{direction="sent\|received"}` | `full` only |
-
-## Startup warnings
-
-bouine logs warnings at startup when the configuration suggests a mismatch:
-
-- `hop_limit` set in `eventual` or `full` mode → warns that it is a no-op.
-- `mode: full` with a small `hot_max_bytes` → warns that memory may be insufficient.
-- `replicas` set in `full` or `eventual` mode → warns that the field has no effect outside `strong`.
