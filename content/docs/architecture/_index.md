@@ -36,7 +36,7 @@ Secondary key (Vary): derived from the request headers listed in the response's 
 
 
 - **SIEVE** (default) — simple, near-LRU-K performance, O(1) per operation
-- **W-TinyLFU** (planned) — better hit ratio under skewed access patterns; not yet implemented (tracked as Phase 5.5)
+- **W-TinyLFU** (planned) — better hit ratio under skewed access patterns; not yet implemented
 
 
 ### CDN-Cache-Control (RFC 9211)

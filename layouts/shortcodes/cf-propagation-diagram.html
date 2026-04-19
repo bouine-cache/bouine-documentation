@@ -1,0 +1,96 @@
+<div style="position:relative;margin:1.5rem 0;">
+  <button id="d4-replay" onclick="d4Replay()" style="position:absolute;top:8px;right:8px;z-index:10;cursor:pointer;padding:.2rem .7rem;border:1px solid rgba(139,92,246,.5);border-radius:4px;background:rgba(13,13,26,.85);color:#c4b5fd;font-size:.7rem;font-family:monospace;letter-spacing:.05em;">↺ replay</button>
+  <svg id="d4-svg" viewBox="0 0 780 380" style="width:100%;border-radius:8px;background:#0d0d1a;display:block;" xmlns="http://www.w3.org/2000/svg">
+    <defs><filter id="d4-glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+
+    <!-- Divider -->
+    <line x1="390" y1="10" x2="390" y2="340" stroke="#1e1e3a" stroke-width="1"/>
+
+    <!-- Left: WITHOUT -->
+    <text id="d4-h1" x="195" y="24" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="700" opacity="0">Without CF propagation</text>
+
+    <g id="d4-left" opacity="0">
+      <rect x="40" y="60" width="120" height="55" rx="8" fill="rgba(109,40,217,.1)" stroke="#4c1d95" stroke-width="1.5"/>
+      <text x="100" y="82" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">bouine</text>
+      <rect id="d4-lb" x="53" y="92" width="94" height="16" rx="3" fill="rgba(109,40,217,.12)" stroke="#5b21b6" stroke-width="1"/>
+      <text id="d4-lbt" x="100" y="104" text-anchor="middle" fill="#7c3aed" font-size="7">/products/123</text>
+      <rect x="220" y="60" width="120" height="55" rx="8" fill="rgba(245,158,11,.06)" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="280" y="82" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">Cloudflare</text>
+      <rect id="d4-lcf" x="233" y="92" width="94" height="16" rx="3" fill="rgba(245,158,11,.1)" stroke="#92400e" stroke-width="1"/>
+      <text id="d4-lcft" x="280" y="104" text-anchor="middle" fill="#b45309" font-size="7">/products/123</text>
+      <text x="100" y="140" text-anchor="middle" fill="#64748b" font-size="8">operator purges bouine...</text>
+    </g>
+    <g id="d4-left-after" opacity="0">
+      <g id="d4-lx">
+        <line x1="80" y1="88" x2="120" y2="108" stroke="#ef4444" stroke-width="2"/>
+        <line x1="120" y1="88" x2="80" y2="108" stroke="#ef4444" stroke-width="2"/>
+      </g>
+      <text x="100" y="175" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">bouine: purged ✓</text>
+      <text x="280" y="175" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">CF: still cached ✗</text>
+      <text x="280" y="192" text-anchor="middle" fill="#fca5a5" font-size="7">stale content served</text>
+    </g>
+    <g id="d4-problem" opacity="0">
+      <rect x="30" y="210" width="340" height="55" rx="6" fill="rgba(239,68,68,.06)" stroke="#ef4444" stroke-width="1"/>
+      <text x="200" y="232" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600">Users still see stale /products/123 from Cloudflare edge</text>
+      <text x="200" y="250" text-anchor="middle" fill="#ef4444" font-size="8">CF TTL must expire naturally — could be hours</text>
+    </g>
+
+    <!-- Right: WITH -->
+    <text id="d4-h2" x="585" y="24" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="700" opacity="0">With CF propagation</text>
+
+    <g id="d4-right" opacity="0">
+      <rect x="430" y="60" width="120" height="55" rx="8" fill="rgba(109,40,217,.1)" stroke="#4c1d95" stroke-width="1.5"/>
+      <text x="490" y="82" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">bouine</text>
+      <rect id="d4-rb" x="443" y="92" width="94" height="16" rx="3" fill="rgba(109,40,217,.12)" stroke="#5b21b6" stroke-width="1"/>
+      <text id="d4-rbt" x="490" y="104" text-anchor="middle" fill="#7c3aed" font-size="7">/products/123</text>
+      <rect x="610" y="60" width="120" height="55" rx="8" fill="rgba(245,158,11,.06)" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="670" y="82" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">Cloudflare</text>
+      <rect id="d4-rcf" x="623" y="92" width="94" height="16" rx="3" fill="rgba(245,158,11,.1)" stroke="#92400e" stroke-width="1"/>
+      <text id="d4-rcft" x="670" y="104" text-anchor="middle" fill="#b45309" font-size="7">/products/123</text>
+      <line x1="550" y1="90" x2="608" y2="90" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="579" y="84" text-anchor="middle" fill="#92400e" font-size="6">async API</text>
+      <text x="580" y="140" text-anchor="middle" fill="#64748b" font-size="8">operator purges bouine...</text>
+    </g>
+    <g id="d4-right-after" opacity="0">
+      <g>
+        <line x1="470" y1="88" x2="510" y2="108" stroke="#ef4444" stroke-width="2"/>
+        <line x1="510" y1="88" x2="470" y2="108" stroke="#ef4444" stroke-width="2"/>
+      </g>
+      <g>
+        <line x1="650" y1="88" x2="690" y2="108" stroke="#ef4444" stroke-width="2"/>
+        <line x1="690" y1="88" x2="650" y2="108" stroke="#ef4444" stroke-width="2"/>
+      </g>
+      <text x="490" y="175" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">bouine: purged ✓</text>
+      <text x="670" y="175" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">CF: purged ✓</text>
+    </g>
+    <g id="d4-solution" opacity="0">
+      <rect x="420" y="210" width="340" height="55" rx="6" fill="rgba(34,197,94,.06)" stroke="#22c55e" stroke-width="1"/>
+      <text x="590" y="232" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="600">Both caches invalidated atomically</text>
+      <text x="590" y="250" text-anchor="middle" fill="#16a34a" font-size="8">operator sees 200 at ~1 ms · CF purged in background ~80 ms</text>
+    </g>
+
+    <text id="d4-step" x="390" y="365" text-anchor="middle" fill="#a78bfa" font-size="10" opacity="0"></text>
+  </svg>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+<script>
+(function(){
+  function play(){
+    anime.set('#d4-left-after,#d4-right-after,#d4-problem,#d4-solution',{opacity:0});
+    anime.set('#d4-step',{opacity:0,fill:'#a78bfa'});
+    var tl=anime.timeline({autoplay:true,loop:false});
+    tl.add({targets:'#d4-h1,#d4-h2',opacity:[0,1],duration:500,easing:'easeOutQuad',delay:anime.stagger(200)})
+      .add({targets:'#d4-left,#d4-right',opacity:[0,1],duration:500,easing:'easeOutBack'},'-=200')
+      .add({targets:'#d4-step',innerHTML:'Both sides start with /products/123 cached in bouine and Cloudflare',opacity:1,duration:300},'+=400')
+      .add({targets:'#d4-step',innerHTML:'Left: operator purges bouine only — Cloudflare still has stale copy',duration:300},'+=800')
+      .add({targets:'#d4-left-after',opacity:[0,1],duration:500},'+=200')
+      .add({targets:'#d4-problem',opacity:[0,1],duration:500},'+=300')
+      .add({targets:'#d4-step',innerHTML:'Right: operator purges bouine with CF propagation — both caches cleared',duration:300},'+=600')
+      .add({targets:'#d4-right-after',opacity:[0,1],duration:500},'+=200')
+      .add({targets:'#d4-solution',opacity:[0,1],duration:500},'+=300')
+      .add({targets:'#d4-step',innerHTML:'Enable cloudflare.propagate to keep both cache layers in sync',fill:'#4ade80',duration:400},'+=400');
+  }
+  window.d4Replay=play;
+  if(typeof anime!=='undefined'){play();}
+})();
+</script>

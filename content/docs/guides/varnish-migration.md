@@ -1,5 +1,5 @@
 ---
-title: "Varnish to bouine"
+title: "Migration from Varnish"
 weight: 2
 description: "Complete migration guide from Varnish Cache to bouine: conceptual mapping, VCL vs YAML side-by-side, parity tables, behavioral differences, and FAQ."
 ---
@@ -200,8 +200,7 @@ curl -X POST http://127.0.0.1:9000/v1/ban \
   -d '{"host_regex":"example.com","path_regex":"^/products/"}'
 ```
 
-Note: bouine does not support `obj.status` in ban predicates (this is planned
-for Phase 5). Current predicates match against request headers / URL only.
+Note: bouine does not support `obj.status` in ban predicates (not implemented yet). Current predicates match against request headers / URL only.
 
 ## 4. Observability mapping
 

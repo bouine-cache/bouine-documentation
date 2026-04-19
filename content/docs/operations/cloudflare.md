@@ -10,6 +10,8 @@ When bouine sits behind Cloudflare (or any scenario where Cloudflare caches
 responses delivered through bouine), invalidating a URL in bouine is not
 enough — the entry may also be cached at the Cloudflare edge.
 
+{{< cf-propagation-diagram >}}
+
 The **Cloudflare CDN propagation** feature forwards bouine purge, ban, and
 refresh operations to the [Cloudflare Cache API](https://developers.cloudflare.com/api/resources/cache/methods/purge/)
 so both caches are invalidated atomically from the operator's point of view.
@@ -33,6 +35,8 @@ skipped invalidation so you can alert on them.
 ---
 
 ## Async mode (default)
+
+{{< cf-async-timeline-diagram >}}
 
 By default `async: true`. The admin API returns `200 OK` immediately; the
 Cloudflare API call runs in a background goroutine. This keeps invalidation
