@@ -44,18 +44,4 @@ kubectl rollout status statefulset/bouine -n bouine
 
 bouine marks itself not-ready during shutdown and leaves the gossip cluster cleanly. See [Kubernetes operations](/docs/operations/kubernetes/) for zero-5xx rolling update procedures.
 
-## PROXY Protocol
 
-bouine supports PROXY Protocol v1 and v2 for deployments behind AWS NLB, GCP Internal LB, or HAProxy where the real client IP is carried in the PROXY header rather than the TCP source address.
-
-Enable per listener in config:
-
-```yaml
-listen:
-  http: ":80"
-  proxy_protocol: true
-```
-
-When enabled, bouine parses the PROXY header on the raw TCP stream (before TLS) and overrides `RemoteAddr` with the upstream-reported client IP. This IP appears in access logs and is visible to upstream pools.
-
-> **Important**: only enable `proxy_protocol` when the load balancer is configured to send PROXY headers. Enabling it without a PROXY-aware upstream will cause all connections to fail.

@@ -11,7 +11,7 @@ bouine is configured via a YAML file passed with `--config`. Environment variabl
 
 - [Cache policy](cache-policy/) — TTL selection, stale serving, negative caching, jitter, and cache keys.
 - [Storage tiers](storage/) — hot and warm tiers, eviction, sizing guidelines.
-- [TLS](tls/) — certificates, SNI, ALPN, OCSP stapling, HTTP/3, and automatic reload.
+- [TLS](tls/) — certificates, SNI, ALPN, OCSP stapling, and automatic reload.
 - [Clustering](cluster-modes/) — consistency modes, gossip, peer fetch, mTLS, invalidation.
 - [Helm chart reference](helm/) — all `values.yaml` keys with defaults.
 
@@ -43,10 +43,8 @@ routes:
 listen:
   http: ":80"
   https: ":443"
-  http3: ":443/udp"
   admin: ":9000"
   cluster: ":8443"
-  proxy_protocol: false
 
 tls:
   certs:
@@ -113,10 +111,8 @@ routes:
 |---|---|---|
 | `http` | `":80"` | HTTP/1.1 + h2c plaintext listener |
 | `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
-| `http3` | `""` | HTTP/3 (QUIC, UDP) listener |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
-| `proxy_protocol` | `false` | Parse PROXY Protocol v1/v2 headers on the HTTP/HTTPS listener |
 
 ### `storage`
 

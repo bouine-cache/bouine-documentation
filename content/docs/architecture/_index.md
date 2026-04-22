@@ -13,14 +13,11 @@ bouine is structured in 9 layers, each testable in isolation.
 
 ## HTTP stacks
 
-Two HTTP implementations only:
-
+One HTTP implementation only:
 
 - **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin)
-- **`quic-go/http3`** — HTTP/3 (data plane only)
 
-
-Both share `http.Handler`. The admin API uses `net/http.ServeMux`.
+The admin API uses `net/http.ServeMux`.
 
 ## Cache engine
 
@@ -35,8 +32,7 @@ Secondary key (Vary): derived from the request headers listed in the response's 
 ### Eviction
 
 
-- **SIEVE** (default) — simple, near-LRU-K performance, O(1) per operation
-- **W-TinyLFU** (planned) — better hit ratio under skewed access patterns; not yet implemented
+- **SIEVE** — simple, near-LRU-K performance, O(1) per operation
 
 
 ### CDN-Cache-Control (RFC 9211)
