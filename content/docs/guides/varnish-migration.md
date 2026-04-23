@@ -45,7 +45,7 @@ This means:
 | Aspect | Varnish | bouine |
 |---|---|---|
 | Language | VCL (domain-specific, C-like) | YAML |
-| Reload | `varnishadm vcl.load` + `vcl.use` (compile and link) | Hot-reload via `SIGHUP` or `/v1/config/reload` |
+| Reload | `varnishadm vcl.load` + `vcl.use` (compile and link) | Reload via admin API `/v1/config/reload` or dashboard |
 | Backend definition | `backend` block in VCL | `upstream_pools[]` in YAML |
 | Routing | `vcl_recv` with `if/return(pass)` | `routes[].match` declarative table |
 | Cache policy | Explicit TTL, grace, keep assignments | RFC 9111 + `routes[].cache` overrides |
@@ -324,9 +324,9 @@ built-in (H1+H2), and HA is handled by Kubernetes or a load
 balancer. No separate Plus license needed.
 
 **Q: How do I warm the cache after startup?**
-A: Use the `bouine warm` CLI (reads from a URL list or sitemap) or configure
-[SWR background refresh](/docs/configuration/cache-policy/) to keep popular
-objects warm automatically.
+A: Configure [SWR background refresh](/docs/configuration/cache-policy/) to keep popular
+objects warm automatically. SWR serves stale immediately and refreshes in the
+background, so the effective miss rate stays low even after a cold start.
 
 **Q: Can I use the same backend health checks?**
 A: bouine supports active HTTP probes and passive outlier detection. See

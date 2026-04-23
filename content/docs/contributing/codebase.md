@@ -17,7 +17,7 @@ description: "Contributor-oriented map of bouine packages, layers, good first ta
 | `internal/cluster` | L6 | memberlist gossip, hash ring, peer fetch |
 | `internal/admin` | L7 | Admin HTTP API |
 | `internal/observability` | L8 | Metrics, logs, access log |
-| `internal/prefetch` | - | Link preload + sitemap warming |
+
 | `pkg/api` | public | Wire types shared by SDK and admin |
 | `pkg/bouineapi` | public | Go SDK |
 

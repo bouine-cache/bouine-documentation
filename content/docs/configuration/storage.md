@@ -96,4 +96,4 @@ In `full` mode, `hot_max_bytes` must cover the **entire** working set on every n
 
 ## Configuration not reloadable
 
-Storage settings (`hot_max_bytes`, `warm_dir`, `warm_max_bytes`, `eviction`) require a restart to take effect. They cannot be hot-reloaded.
+Storage settings (`hot_max_bytes`, `warm_dir`, `warm_max_bytes`, `eviction`) require a restart to take effect.

@@ -1,7 +1,7 @@
 ---
 title: "Lifecycle"
 weight: 1
-description: "Start, stop, hot reload, and drain bouine in production and Kubernetes."
+description: "Start, stop, config reload, and drain bouine in production and Kubernetes."
 ---
 
 ## Starting bouine
@@ -66,17 +66,9 @@ kubectl delete pod bouine-0
 SIGTERM triggers the sequencer. SIGKILL (after grace period) is a hard
 kill — avoid if possible.
 
-## Reload (hot)
+## Config reload
 
-bouine supports hot reload of configuration and TLS certificates without
-restarting the process. The `internal/config.Watcher` uses `fsnotify`
-for file changes and also listens for `SIGHUP`.
-
-### Via signal
-
-```bash
-kill -HUP <pid>
-```
+bouine supports config reload via the admin API or the operator dashboard.
 
 ### Via admin API
 
@@ -85,17 +77,18 @@ curl -X POST http://127.0.0.1:9000/v1/config/reload \
   -H "Authorization: Bearer ${BOUINE_ADMIN_TOKEN}"
 ```
 
-> **Note**: config reload via API currently returns `200` immediately.
-> The actual reload happens asynchronously via the Watcher.
+### Via dashboard
+
+The Config page has a "Reload config" button that validates the file before applying.
 
 ### What is reloaded
 
-| Component | Hot-reloadable | Notes |
+| Component | Reloadable | Notes |
 |---|---|---|
 | Routes | Yes | New routes take effect immediately. |
 | Upstream pools | Yes | Targets, health check config. |
 | Cache TTLs | Yes | Per-route cache settings. |
-| TLS certificates | Yes | Cert + key files watched. |
+| TLS certificates | **No** | Requires restart (use K8s rolling restart with cert-manager). |
 | Listen addresses | **No** | Requires restart. |
 | Storage settings | **No** | Requires restart. |
 | Cluster settings | **No** | Requires restart. |

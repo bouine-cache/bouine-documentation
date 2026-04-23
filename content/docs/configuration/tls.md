@@ -46,38 +46,10 @@ bouine selects the certificate whose `sni` list matches the client's SNI extensi
 | `tls.alpn` | `[h2, http/1.1]` | ALPN protocols to advertise |
 | `tls.min_version` | `"1.2"` | Minimum TLS version (`"1.2"` or `"1.3"`) |
 | `tls.ocsp_stapling` | `""` | OCSP stapling mode (empty = disabled) |
-| `tls.reload.fsnotify` | `false` | Watch cert/key files for changes |
-| `tls.reload.sighup` | `false` | Reload certs on `SIGHUP` |
 
-## Certificate reload
+## Certificate rotation
 
-TLS certificates are **hot-reloadable** without process restart.
-
-### File-based reload (recommended)
-
-```yaml
-tls:
-  reload:
-    fsnotify: true
-```
-
-bouine watches the certificate and key files via `fsnotify`. When a file changes (e.g., cert-manager renews a certificate), the new cert is loaded within seconds.
-
-### Signal-based reload
-
-```yaml
-tls:
-  reload:
-    sighup: true
-```
-
-Send `SIGHUP` to reload certificates manually:
-
-```bash
-kill -HUP $(pgrep bouine)
-```
-
-Both methods can be enabled simultaneously.
+TLS certificates are loaded at startup. To rotate certificates, use a Kubernetes rolling restart. cert-manager renews the Secret, and the StatefulSet rollout picks up the new cert.
 
 ## Kubernetes with cert-manager
 
@@ -93,7 +65,6 @@ config:
       - cert_file: /etc/bouine/tls/tls.crt
         key_file: /etc/bouine/tls/tls.key
     reload:
-      fsnotify: true
 
 # Mount the cert-manager Secret as a volume
 extraVolumeMounts:

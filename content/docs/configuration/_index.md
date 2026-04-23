@@ -53,9 +53,6 @@ tls:
       sni: ["example.com", "*.example.com"]
   alpn: [h2, http/1.1]
   min_version: "1.2"
-  reload:
-    fsnotify: true
-    sighup: true
 
 storage:
   hot_max_bytes: 2GiB
@@ -208,19 +205,6 @@ Configure OpenTelemetry span export. Leave `endpoint` empty (default) to disable
 | `service_name` | `"bouine"` | `service.name` OTel resource attribute |
 | `sampling_rate` | `1.0` | Fraction of requests to sample (0.0–1.0) |
 
-### `prefetch`
-
-Background cache warming via `Link: rel=preload` response headers and optional sitemap crawling.
-
-| Field | Default | Description |
-|---|---|---|
-| `sitemap_urls` | `[]` | Sitemap XML URLs to crawl periodically |
-| `sitemap_interval` | `0` | Crawl interval. Zero disables sitemap crawling. |
-
-When `sitemap_urls` is configured with a non-zero `sitemap_interval`, bouine periodically fetches each sitemap, extracts URLs, and warms the cache by issuing internal requests. This reduces cold-start miss rates after restarts.
-
-bouine also parses `Link: </path>; rel=preload` response headers and prefetches the linked URLs in the background.
-
 ### `cloudflare`
 
 Optional Cloudflare Cache API propagation. See [Cloudflare CDN propagation](/docs/operations/cloudflare/) for full details and Kubernetes secret wiring.
@@ -277,13 +261,16 @@ All byte-size fields (`hot_max_bytes`, `warm_max_bytes`) accept any of these suf
 
 ---
 
-## Hot reload
+## Config reload
 
-Reloadable without restart: routes, upstream pools, cache TTLs, TLS certificates.
+Reloadable without restart: routes, upstream pools, cache TTLs.
 
-**Not** reloadable: listen addresses, storage settings, cluster settings.
+**Not** reloadable: listen addresses, storage settings, cluster settings, TLS certificates.
 
-Trigger reload via:
-- `kill -HUP <pid>`
-- `curl -X POST http://localhost:9000/v1/config/reload -H "Authorization: Bearer <token>"`
-- File change (fsnotify watches the config file automatically)
+Trigger reload via the admin API or the dashboard:
+
+```bash
+curl -X POST http://localhost:9000/v1/config/reload -H "Authorization: Bearer <token>"
+```
+
+For TLS certificate rotation, restart the process or use Kubernetes rolling restarts with cert-manager.
