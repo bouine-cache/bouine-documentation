@@ -9,8 +9,7 @@ description: "Contributor-oriented map of bouine packages, layers, good first ta
 
 | Package | Layer | Purpose |
 |---|---:|---|
-| `internal/listener` | L1 | HTTP/1.1, HTTP/2, TLS |
-| `internal/pipeline` | L2 | Route matching and request pipeline |
+| `internal/server` | L1 | HTTP/1.1, HTTP/2, TLS, route matching |
 | `internal/storage` | L3 | Hot store, warm tier, WAL, SIEVE |
 | `internal/cache` | L4 | RFC 9111 state machine and handler |
 | `internal/origin` | L5 | Upstream pools, health checks, hedged transport |

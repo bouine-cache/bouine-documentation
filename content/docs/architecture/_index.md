@@ -7,7 +7,7 @@ description: "How bouine is structured internally: listeners, pipeline, storage,
 
 ## Layered design
 
-bouine is structured in 9 layers, each testable in isolation.
+bouine is structured in 8 layers, each testable in isolation.
 
 {{< arch-diagram >}}
 
