@@ -10,12 +10,12 @@ description: "Contributor-oriented map of bouine packages, layers, good first ta
 | Package | Layer | Purpose |
 |---|---:|---|
 | `internal/server` | L1 | HTTP/1.1, HTTP/2, TLS, route matching |
-| `internal/storage` | L3 | Hot store, warm tier, WAL, SIEVE |
-| `internal/cache` | L4 | RFC 9111 state machine and handler |
-| `internal/origin` | L5 | Upstream pools, health checks, hedged transport |
-| `internal/cluster` | L6 | memberlist gossip, hash ring, peer fetch |
-| `internal/admin` | L7 | Admin HTTP API |
-| `internal/observability` | L8 | Metrics, logs, access log |
+| `internal/storage` | L2 | Hot store, warm tier, WAL, SIEVE |
+| `internal/cache` | L3 | RFC 9111 state machine and handler |
+| `internal/origin` | L4 | Upstream pools, health checks, hedged transport |
+| `internal/cluster` | L5 | memberlist gossip, hash ring, peer fetch |
+| `internal/admin` | L6 | Admin HTTP API |
+| `internal/observability` | L7 | Metrics, logs, access log |
 
 | `pkg/api` | public | Wire types shared by SDK and admin |
 | `pkg/bouineapi` | public | Go SDK |
