@@ -1,6 +1,6 @@
 <div style="position:relative;margin:1.5rem 0;">
   <button id="arch-replay" onclick="archReplay()" style="position:absolute;top:8px;right:8px;z-index:10;cursor:pointer;padding:.2rem .7rem;border:1px solid rgba(139,92,246,.5);border-radius:4px;background:rgba(13,13,26,.85);color:#c4b5fd;font-size:.7rem;font-family:monospace;letter-spacing:.05em;">↺ replay</button>
-  <svg id="arch-svg" viewBox="0 0 600 380" style="width:100%;border-radius:8px;background:#0d0d1a;display:block;" xmlns="http://www.w3.org/2000/svg">
+  <svg id="arch-svg" viewBox="0 0 600 420" style="width:100%;border-radius:8px;background:#0d0d1a;display:block;" xmlns="http://www.w3.org/2000/svg">
     <g id="arch-overview">
       <rect id="ao-client"  x="20"  y="155" width="90"  height="70" rx="8" fill="none" stroke="#475569" stroke-width="1.5" opacity="0"/>
       <text id="ao-ct1"     x="65"  y="185" text-anchor="middle" fill="#94a3b8" font-size="11" opacity="0">Client</text>
@@ -15,34 +15,39 @@
       <text id="ao-ot2"     x="535" y="200" text-anchor="middle" fill="#64748b" font-size="9"  opacity="0">upstream</text>
     </g>
     <g id="arch-layers" opacity="0" transform="translate(50,20)">
-      <rect class="al" x="0" y="0"   width="500" height="38" rx="5" fill="rgba(109,40,217,.18)" stroke="#5b21b6" stroke-width="1"/>
-      <text x="12" y="24" fill="#c4b5fd" font-size="11" font-weight="700">L7</text>
-      <text x="44" y="24" fill="#a78bfa" font-size="11">Observability</text>
-      <text x="210" y="24" fill="#5b21b6" font-size="9">Prometheus · OpenTelemetry · slog · pprof</text>
-      <rect class="al" x="0" y="42"  width="500" height="38" rx="5" fill="rgba(109,40,217,.16)" stroke="#5b21b6" stroke-width="1"/>
-      <text x="12" y="66" fill="#c4b5fd" font-size="11" font-weight="700">L6</text>
-      <text x="44" y="66" fill="#a78bfa" font-size="11">Control Plane</text>
-      <text x="210" y="66" fill="#5b21b6" font-size="9">admin API · purge · ban · config · reload</text>
-      <rect class="al" x="0" y="84"  width="500" height="38" rx="5" fill="rgba(109,40,217,.14)" stroke="#5b21b6" stroke-width="1"/>
-      <text x="12" y="108" fill="#c4b5fd" font-size="11" font-weight="700">L5</text>
-      <text x="44" y="108" fill="#a78bfa" font-size="11">Cluster</text>
-      <text x="210" y="108" fill="#5b21b6" font-size="9">gossip · hashring · peer fetch · digests</text>
-      <rect class="al" x="0" y="126" width="500" height="38" rx="5" fill="rgba(109,40,217,.12)" stroke="#5b21b6" stroke-width="1"/>
-      <text x="12" y="150" fill="#c4b5fd" font-size="11" font-weight="700">L4</text>
-      <text x="44" y="150" fill="#a78bfa" font-size="11">Origin / Upstream</text>
-      <text x="210" y="150" fill="#5b21b6" font-size="9">pool · health · hedge · circuit breaker</text>
-      <rect class="al" x="0" y="168" width="500" height="38" rx="5" fill="rgba(88,28,135,.35)" stroke="#7c3aed" stroke-width="2"/>
-      <text x="12" y="192" fill="#e9d5ff" font-size="11" font-weight="700">L3</text>
-      <text x="44" y="192" fill="#e9d5ff" font-size="11" font-weight="700">Cache Engine</text>
-      <text x="210" y="192" fill="#6d28d9" font-size="9">RFC 9111 · Vary · SWR · SIE · revalidation</text>
-      <rect class="al" x="0" y="210" width="500" height="38" rx="5" fill="rgba(109,40,217,.12)" stroke="#5b21b6" stroke-width="1"/>
-      <text x="12" y="234" fill="#c4b5fd" font-size="11" font-weight="700">L2</text>
-      <text x="44" y="234" fill="#a78bfa" font-size="11">Storage</text>
-      <text x="210" y="234" fill="#5b21b6" font-size="9">hot (RAM) · warm (mmap) · SIEVE · WAL</text>
-      <rect class="al" x="0" y="252" width="500" height="38" rx="5" fill="rgba(109,40,217,.08)" stroke="#4c1d95" stroke-width="1"/>
-      <text x="12" y="276" fill="#c4b5fd" font-size="11" font-weight="700">L1</text>
-      <text x="44" y="276" fill="#a78bfa" font-size="11">Server</text>
-      <text x="210" y="276" fill="#4c1d95" font-size="9">HTTP/1.1 · HTTP/2 · TLS · route matching</text>
+      <rect class="al" x="0" y="0"   width="500" height="38" rx="5" fill="rgba(109,40,217,.06)" stroke="#3b1d6e" stroke-width="1" stroke-dasharray="6,4"/>
+      <text x="12" y="24" fill="#6050a0" font-size="11" font-weight="700">L8</text>
+      <text x="44" y="24" fill="#6050a0" font-size="11">AI Insights</text>
+      <text x="210" y="24" fill="#3b1d6e" font-size="9">traffic analysis · suggestions · dashboard ML</text>
+      <text x="488" y="24" fill="#6050a0" font-size="8" text-anchor="end" font-style="italic">coming soon</text>
+      <rect class="al" x="0" y="42"   width="500" height="38" rx="5" fill="rgba(109,40,217,.18)" stroke="#5b21b6" stroke-width="1"/>
+      <text x="12" y="66" fill="#c4b5fd" font-size="11" font-weight="700">L7</text>
+      <text x="44" y="66" fill="#a78bfa" font-size="11">Observability</text>
+      <text x="210" y="66" fill="#5b21b6" font-size="9">Prometheus · OpenTelemetry · slog · pprof</text>
+      <rect class="al" x="0" y="84"  width="500" height="38" rx="5" fill="rgba(109,40,217,.16)" stroke="#5b21b6" stroke-width="1"/>
+      <text x="12" y="108" fill="#c4b5fd" font-size="11" font-weight="700">L6</text>
+      <text x="44" y="108" fill="#a78bfa" font-size="11">Control Plane</text>
+      <text x="210" y="108" fill="#5b21b6" font-size="9">admin API · purge · ban · config · reload</text>
+      <rect class="al" x="0" y="126"  width="500" height="38" rx="5" fill="rgba(109,40,217,.14)" stroke="#5b21b6" stroke-width="1"/>
+      <text x="12" y="150" fill="#c4b5fd" font-size="11" font-weight="700">L5</text>
+      <text x="44" y="150" fill="#a78bfa" font-size="11">Cluster</text>
+      <text x="210" y="150" fill="#5b21b6" font-size="9">gossip · hashring · peer fetch · digests</text>
+      <rect class="al" x="0" y="168" width="500" height="38" rx="5" fill="rgba(109,40,217,.12)" stroke="#5b21b6" stroke-width="1"/>
+      <text x="12" y="192" fill="#c4b5fd" font-size="11" font-weight="700">L4</text>
+      <text x="44" y="192" fill="#a78bfa" font-size="11">Origin / Upstream</text>
+      <text x="210" y="192" fill="#5b21b6" font-size="9">pool · health · hedge · circuit breaker</text>
+      <rect class="al" x="0" y="210" width="500" height="38" rx="5" fill="rgba(88,28,135,.35)" stroke="#7c3aed" stroke-width="2"/>
+      <text x="12" y="234" fill="#e9d5ff" font-size="11" font-weight="700">L3</text>
+      <text x="44" y="234" fill="#e9d5ff" font-size="11" font-weight="700">Cache Engine</text>
+      <text x="210" y="234" fill="#6d28d9" font-size="9">RFC 9111 · Vary · SWR · SIE · revalidation</text>
+      <rect class="al" x="0" y="252" width="500" height="38" rx="5" fill="rgba(109,40,217,.12)" stroke="#5b21b6" stroke-width="1"/>
+      <text x="12" y="276" fill="#c4b5fd" font-size="11" font-weight="700">L2</text>
+      <text x="44" y="276" fill="#a78bfa" font-size="11">Storage</text>
+      <text x="210" y="276" fill="#5b21b6" font-size="9">hot (RAM) · warm (mmap) · SIEVE · WAL</text>
+      <rect class="al" x="0" y="294" width="500" height="38" rx="5" fill="rgba(109,40,217,.08)" stroke="#4c1d95" stroke-width="1"/>
+      <text x="12" y="318" fill="#c4b5fd" font-size="11" font-weight="700">L1</text>
+      <text x="44" y="318" fill="#a78bfa" font-size="11">Server</text>
+      <text x="210" y="318" fill="#4c1d95" font-size="9">HTTP/1.1 · HTTP/2 · TLS · route matching</text>
     </g>
   </svg>
 </div>
