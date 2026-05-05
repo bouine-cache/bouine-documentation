@@ -11,6 +11,7 @@ description: "Troubleshoot common bouine production issues: cache misses, cluste
 | Pods don't discover each other | **Critical** | [Cluster discovery](#pods-do-not-discover-each-other) |
 | Rolling restart produces 503/502 | **High** | [Rolling restart](#rolling-restart-produces-503502) |
 | Purge doesn't propagate | **High** | [Purge propagation](#purge-does-not-propagate-across-cluster) |
+| HIT p99 spikes to 50–100 ms under load | **High** | [GC stop-the-world pauses](#hit-p99-spikes-to-50100-ms-under-load) |
 | `X-Cache` always MISS | **Medium** | [Cache misses](#x-cache-is-always-miss) |
 | Stale reads on one node | **Medium** | [Stale reads](#stale-reads) |
 | Memory pressure in full mode | **Medium** | [Memory pressure](#memory-pressure-in-full-mode) |
@@ -55,6 +56,95 @@ kubectl logs bouine-1 -n bouine | grep -i 'join\|cluster'
 | Long rollout | `terminationGracePeriodSeconds` too high relative to actual drain time | Reduce to `max(in_flight_p99_ms / 1000, 15)` seconds |
 
 See [Kubernetes operations](/docs/operations/kubernetes/) for the full zero-5xx rolling update procedure.
+
+---
+
+---
+
+## HIT p99 spikes to 50–100 ms under load
+
+### Symptom
+
+`X-Cache: HIT` responses have p99 latency of 50–100 ms even though the
+cache is warm and the origin is healthy. The spike is reproducible under
+concurrent load and persists regardless of cluster mode. In Prometheus:
+
+```promql
+histogram_quantile(0.99,
+  rate(bouine_request_duration_seconds_bucket{cache_result="HIT"}[1m]))
+```
+
+### Root cause: Go GC stop-the-world pauses
+
+The most common cause is the Go runtime's garbage collector running too
+aggressively because `GOMEMLIMIT` is set too low relative to actual RSS.
+
+**Confirm with:**
+
+```bash
+# Check GC worst-case pause and the configured GOMEMLIMIT
+curl -s http://127.0.0.1:9000/metrics | grep -E 'go_gc_duration|go_gc_gomemlimit'
+```
+
+```
+go_gc_duration_seconds{quantile="1"}  0.095   ← worst-case pause ~95 ms
+go_gc_gomemlimit_bytes                7.55e+07 ← GOMEMLIMIT = 72 MiB
+```
+
+If `go_gc_duration_seconds{quantile="1"}` is in the same range as your
+observed HIT p99, GC pauses are the cause. This typically happens when:
+
+- `GOMEMLIMIT` is set well below the pod memory limit.
+- The hot cache is near or exceeding `GOMEMLIMIT` — forcing the GC to
+  run almost continuously and occasionally triggering a long STW cycle
+  to reclaim enough memory to stay under the limit.
+
+### Fix: tune GOMEMLIMIT to 85 % of the pod memory limit
+
+Set `GOMEMLIMIT` to approximately **85 % of `resources.limits.memory`**
+so the GC has headroom to collect lazily rather than continuously.
+
+**Kubernetes StatefulSet / Deployment:**
+
+```yaml
+env:
+  - name: GOMEMLIMIT
+    value: "82MiB"   # 85% of a 96Mi pod limit
+  - name: GOGC
+    value: "100"     # default; keep paired with GOMEMLIMIT
+```
+
+**Helm chart (`values.yaml`):**
+
+```yaml
+goMemLimit: "3GiB"   # 85% of resources.limits.memory
+```
+
+**Rule of thumb:**
+
+| Pod memory limit | Recommended GOMEMLIMIT |
+|---|---|
+| 128 Mi | 108 Mi |
+| 256 Mi | 216 Mi |
+| 512 Mi | 435 Mi |
+| 1 Gi | 870 Mi |
+| 4 Gi | 3.4 Gi |
+
+After the change, verify that `go_gc_duration_seconds{quantile="1"}`
+drops to < 5 ms under the same load. If the pod's RSS still exceeds
+`GOMEMLIMIT` at peak, consider also increasing `hot_max_bytes` or the
+pod memory limit.
+
+### Other causes of HIT p99 spikes
+
+If GC pauses are small but HIT p99 is still elevated, check:
+
+| Metric | What to look for | Fix |
+|---|---|---|
+| `go_goroutines` growing unboundedly | Goroutine leak | File an issue; check for stuck peer-fetch goroutines |
+| `bouine_cluster_invalidations_http_total` spiking | Invalidation fan-out on hot path | Use gossip-only (`eventual` mode) for write-heavy workloads |
+| `process_cpu_seconds_total` near `limits.cpu` | CPU throttling (CFS) | Raise `limits.cpu` or reduce VUs |
+| `bouine_vary_cap_hits_total` non-zero | Vary header explosion | Add `Vary` normalisation or increase `MaxVariants` |
 
 ---
 
