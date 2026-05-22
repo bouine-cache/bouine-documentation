@@ -1,0 +1,23 @@
+# gitleaks configuration for bouine-documentation.
+#
+# Extends the upstream default ruleset and records vetted false positives.
+# Every allowlist entry MUST cite why it is safe.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vetted false positives (documentation placeholders)."
+
+# Old reference page (content/docs/reference.md), since replaced by
+# content/docs/reference/_index.md. The match is a literal placeholder
+# token ("your-secret-token") in a curl example, not a real credential.
+commits = [
+  "3d4abec006c552f7fe022f6c0cc262ae9a971a48",
+]
+paths = [
+  '''content/docs/reference\.md''',
+]
+regexes = [
+  '''Bearer your-secret-token''',
+]
