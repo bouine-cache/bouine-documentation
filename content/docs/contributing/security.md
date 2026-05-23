@@ -5,7 +5,10 @@ description: "Security reporting, supported scope, high-impact vulnerability cla
 ---
 
 
-Report vulnerabilities via GitHub private advisory or `security@bouine.dev`.
+Report security issues via GitHub's
+[Private vulnerability reporting](https://github.com/thylong/bouine/security/advisories/new)
+— it creates a tracked, embargoed advisory. No security email alias is
+published.
 
 ## Scope
 
