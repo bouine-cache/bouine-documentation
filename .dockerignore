@@ -1,0 +1,23 @@
+# Build artifacts and deps — rebuilt inside the image.
+node_modules/
+public/
+resources/
+.hugo_build.lock
+
+# VCS / local tooling
+.git/
+.gitignore
+.crush/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Repo meta not needed in the image
+README.md
+SECURITY.md
+LICENSE
+AGENTS.md
+.github/
+.gitmodules
+hugo_stats.json

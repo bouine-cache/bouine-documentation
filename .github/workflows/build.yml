@@ -1,0 +1,42 @@
+name: build
+
+# Builds the Hugo site on every PR and push to main to catch broken links,
+# submodule issues, and template errors. Does NOT deploy — deployment is
+# manual via `make deploy` from an operator machine (keeps cluster creds out
+# of CI).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Doks dependencies
+        run: npm ci || npm install
+
+      - name: Install Hugo (extended)
+        env:
+          HUGO_VERSION: "0.154.5"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o hugo.deb \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
+          sudo dpkg -i hugo.deb
+
+      - name: Build (production)
+        run: hugo --environment production --minify --gc --baseURL "https://bouine.thylong.com/"
