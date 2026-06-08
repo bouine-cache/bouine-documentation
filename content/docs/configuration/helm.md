@@ -9,12 +9,18 @@ The Helm chart deploys bouine as a StatefulSet with headless Service for gossip 
 ## Install
 
 ```bash
-helm install bouine deploy/helm/bouine \
+helm repo add bouine https://thylong.github.io/bouine
+helm repo update
+
+helm install bouine bouine/bouine \
   --namespace bouine --create-namespace \
   --set "config.upstream_pools[0].name=app" \
   --set "config.upstream_pools[0].targets[0]=app.default.svc:8080" \
   --set "config.routes[0].pool=app"
 ```
+
+To install from a local checkout, replace `bouine/bouine` with the chart
+directory `deploy/helm/bouine`.
 
 ## All values
 
@@ -22,7 +28,7 @@ helm install bouine deploy/helm/bouine \
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `image.repository` | `ghcr.io/thylong/bouine` | Container image repository |
+| `image.repository` | `thylong/bouine` | Container image repository (Docker Hub) |
 | `image.tag` | `""` (appVersion) | Image tag; defaults to chart's `appVersion` |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy |
 | `nameOverride` | `""` | Override chart name |

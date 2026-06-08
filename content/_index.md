@@ -1,6 +1,6 @@
 ---
 title: "bouine"
-description: "Documentation for bouine, a Kubernetes-native HTTP reverse-proxy cache with RFC 9111 semantics and gossip clustering."
-lead: "Bouine (pronounced <em>bween</em>) is a Kubernetes-native HTTP reverse-proxy cache written in Go. RFC 9111 compliant, zero-alloc hit path, gossip clustering, no external dependencies."
+description: "Bouine is a cloud-native HTTP reverse-proxy cache in Go - RFC9111 compliant, zero-alloc hit path, gossip clustering, no external K/V store."
+lead: "Bouine is a cloud-native HTTP reverse-proxy cache in Go - RFC9111 compliant, zero-alloc hit path, gossip clustering, no external K/V store."
 
 ---

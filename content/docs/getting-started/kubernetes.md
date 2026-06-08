@@ -7,15 +7,25 @@ description: "Deploy bouine to Kubernetes with Helm, configure StatefulSet gossi
 
 ## Helm quickstart
 
+Install from the published Helm repository ([indexed on Artifact Hub](https://artifacthub.io/packages/search?repo=bouine)):
+
 ```bash
-helm install bouine deploy/helm/bouine \
+helm repo add bouine https://thylong.github.io/bouine
+helm repo update
+
+helm install bouine bouine/bouine \
   --namespace bouine --create-namespace \
-  --set image.repository=thylong/bouine \
-  --set image.tag=latest \
   --set "config.upstream_pools[0].name=app" \
   --set "config.upstream_pools[0].targets[0]=app.default.svc:8080" \
   --set "config.routes[0].pool=app" \
   --set config.cluster.enabled=true
+```
+
+The chart defaults to the `thylong/bouine` image on Docker Hub. To install
+from a local checkout instead, point Helm at the chart directory:
+
+```bash
+helm install bouine deploy/helm/bouine --namespace bouine --create-namespace ...
 ```
 
 See [Helm chart reference](/docs/configuration/helm/) for all configurable values.

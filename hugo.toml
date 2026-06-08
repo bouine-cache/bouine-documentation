@@ -14,7 +14,7 @@ summarylength = 30
 
 [params]
   title = 'bouine'
-  description = 'Documentation for bouine, a Kubernetes-native reverse-proxy cache.'
+  description = 'Bouine is a cloud-native HTTP reverse-proxy cache in Go - RFC9111 compliant, zero-alloc hit path, gossip clustering, no external K/V store.'
   images = ['logo.png']
   mainSections = ['docs']
 
