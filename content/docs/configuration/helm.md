@@ -9,7 +9,7 @@ The Helm chart deploys bouine as a StatefulSet with headless Service for gossip 
 ## Install
 
 ```bash
-helm repo add bouine https://thylong.github.io/bouine
+helm repo add bouine https://charts.thylong.com
 helm repo update
 
 helm install bouine bouine/bouine \

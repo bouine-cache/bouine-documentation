@@ -10,7 +10,7 @@ description: "Deploy bouine to Kubernetes with Helm, configure StatefulSet gossi
 Install from the published Helm repository ([indexed on Artifact Hub](https://artifacthub.io/packages/search?repo=bouine)):
 
 ```bash
-helm repo add bouine https://thylong.github.io/bouine
+helm repo add bouine https://charts.thylong.com
 helm repo update
 
 helm install bouine bouine/bouine \
