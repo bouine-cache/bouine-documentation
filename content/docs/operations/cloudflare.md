@@ -93,6 +93,52 @@ cloudflare:
 
 ---
 
+## Decoupling bouine and Cloudflare cache lifetimes
+
+A common pattern is for the origin service to emit `Cache-Control` headers
+that are intended for the browser or the Cloudflare edge — not for bouine.
+For example, an API emitting `Cache-Control: max-age=60` wants the browser
+to re-check every minute, but you want bouine to cache the response for an
+hour to shield the origin.
+
+Without any override, bouine would cache for 60 s, and Cloudflare would also
+see `max-age=60` and cache for 60 s. Both are correct, but the origin is
+hit far more often than necessary.
+
+**`ttl_override`** lets you separate the two lifetimes. bouine stores the
+response for however long you specify; the upstream's headers are forwarded
+**byte-for-byte unchanged** to Cloudflare (and the browser):
+
+```yaml
+routes:
+  - name: api
+    match: { path_prefix: /api/ }
+    pool: backend
+    cache:
+      ttl_override: 1h          # bouine caches for 1 h
+      stale_while_revalidate: 5m
+      stale_if_error: 24h
+```
+
+**What each layer sees:**
+
+| Layer | Receives | Caches for |
+|---|---|---|
+| bouine | Response body + `Cache-Control: max-age=60` | **1 h** (override) |
+| Cloudflare edge | `Cache-Control: max-age=60` (forwarded unchanged) | 60 s |
+| Browser | `Cache-Control: max-age=60` | 60 s |
+
+The origin is hit at most once per hour per bouine node, while Cloudflare and
+the browser still honour the service's intended 60-second freshness window.
+
+> Combining this with the [Cloudflare CDN propagation](#configuration) feature
+> (purge / ban / refresh) ensures that when you do need to invalidate content,
+> both bouine and the Cloudflare edge are cleared together.
+
+See the full reference in [Cache policy → TTL override](/docs/configuration/cache-policy/#ttl-override).
+
+---
+
 ## Kubernetes deployment
 
 ### 1. Create the token Secret
