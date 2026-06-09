@@ -1,7 +1,7 @@
 ---
 title: "Cache policy"
 weight: 2
-description: "Understand how bouine chooses TTLs, serves stale content, applies negative caching, jitters expirations, and builds cache keys."
+description: "Understand how bouine chooses TTLs, overrides them per-route, serves stale content, applies negative caching, jitters expirations, and builds cache keys."
 ---
 
 
@@ -15,6 +15,97 @@ bouine picks freshness in this order:
 4. `Expires` (valid dates only; syntactically invalid Expires values are ignored)
 5. Route `ttl_default` (operator fallback when origin sends no freshness)
 6. Heuristic freshness from `Last-Modified` (10% of `Date − Last-Modified`, where allowed by status code)
+
+If the route has `ttl_override` set, its value **replaces** the result of
+this waterfall entirely. See [TTL override](#ttl-override) below.
+
+---
+
+## TTL override
+
+`ttl_override` forces bouine's internal cache lifetime to a specific value,
+regardless of what `max-age`, `s-maxage`, `CDN-Cache-Control`, or `Expires`
+the origin sends. The upstream's response headers are forwarded to downstream
+clients **unaltered** — only bouine's internal freshness counter changes.
+
+```yaml
+routes:
+  - name: api
+    match: { path_prefix: /api/ }
+    pool: backend
+    cache:
+      ttl_override: 1h    # bouine caches for 1 h
+      ttl_default:  30s   # fallback if origin sends no freshness headers
+      stale_while_revalidate: 5m
+```
+
+### Why it exists: bouine in front of a downstream CDN
+
+The canonical use case is a **bouine → Cloudflare** (or bouine → any CDN)
+stack where you want to control the two caches independently:
+
+```
+Service → bouine → Cloudflare → Client
+```
+
+The service emits `Cache-Control: max-age=60`. Without `ttl_override`:
+
+- bouine caches for 60 s, revalidates after each minute.
+- Cloudflare sees `Cache-Control: max-age=60` and also caches for 60 s.
+
+With `ttl_override: 1h`:
+
+- bouine caches for **1 h**. The service is hit once per hour per bouine
+  node instead of once per minute.
+- Cloudflare still receives `Cache-Control: max-age=60` unaltered and
+  caches for **60 s** at the edge.
+- Clients get low edge latency (Cloudflare's 60 s cache) while the
+  origin is shielded by bouine's much longer storage window.
+
+> **TTL override does not mutate the forwarded headers.** `Cache-Control: max-age=60`
+> is what Cloudflare (and browsers) see. Only bouine's internal
+> storage lifetime changes.
+
+### What the override does NOT affect
+
+| Upstream directive | Behaviour with `ttl_override` set |
+|---|---|
+| `no-store` | Response is **not cached at all**. Override has no effect. |
+| `private` | Response is **not cached at all**. Override has no effect. |
+| `no-cache` | Response is stored but **revalidated on every request**. Override is bypassed. |
+| `must-revalidate` | Honoured after the override TTL expires. |
+| `proxy-revalidate` | Honoured after the override TTL expires. |
+| `jitter_percent` | Applied to the override value (not the origin's max-age). |
+
+`no-store` and `private` are evaluated before the object is stored;
+the override never runs for these responses.
+
+### Revalidation behaviour
+
+When bouine's override TTL expires it performs a conditional revalidation
+(`If-None-Match` / `If-Modified-Since`). If the origin returns `304 Not Modified`,
+the override TTL is **re-applied** to the refreshed object — the object does
+not revert to the origin's `max-age`. A full `200` is stored fresh with the
+override TTL.
+
+### Combining with other cache fields
+
+`ttl_override` composes cleanly with the rest of the cache policy:
+
+```yaml
+cache:
+  ttl_override: 2h                # bouine keeps for 2 h
+  stale_while_revalidate: 10m     # serve stale during background refresh
+  stale_if_error: 24h             # serve if origin is down for up to 24 h
+  jitter_percent: 5               # ±5 % jitter on the 2 h override
+  negative_ttl: 10s               # cache 404s for 10 s (unaffected)
+```
+
+`ttl_default` is not superseded when `ttl_override` is set — it remains the
+fallback for responses the origin sends **without any freshness headers**.
+Set both if your origin is inconsistent about emitting `Cache-Control`.
+
+---
 
 ## Stale serving
 
