@@ -170,3 +170,49 @@ cloudflare:
 See [Cache policy → TTL override](/docs/configuration/cache-policy/#ttl-override)
 and [Cloudflare CDN propagation](/docs/operations/cloudflare/) for the full
 reference.
+
+## Method-split routes and path rewriting
+
+Cache `GET`/`HEAD` on an API path while passing writes straight through, and
+strip the routing prefix so the upstream sees the path it expects.
+
+```yaml
+upstream_pools:
+  - name: api
+    targets: ["api.default.svc.cluster.local:8080"]
+
+routes:
+  # Cached reads. strip_prefix rewrites /api/v1/users → /users for the upstream.
+  - name: api-reads
+    match:
+      path_prefix: /api/v1
+      methods: [GET, HEAD]
+    pool: api
+    request:
+      strip_prefix: /api/v1
+    cache:
+      ttl_default: 30s
+      stale_while_revalidate: 10s
+      max_object_size: 512KiB
+      key:
+        strip_query_params: [utm_source, fbclid]
+
+  # Writes: same path + prefix rewrite, but never cached.
+  - name: api-writes
+    match:
+      path_prefix: /api/v1
+      methods: [POST, PUT, PATCH, DELETE]
+    pool: api
+    request:
+      strip_prefix: /api/v1
+    cache:
+      enabled: false
+```
+
+- `match.methods` lets the **same** `path_prefix` carry two route entries with
+  independent cache policies (first match wins, so order reads before writes).
+- `request.strip_prefix` rewrites the upstream path but leaves the **cache key**
+  on the original path, so `/api/v1/users` and `/api/v2/users` never collide.
+- Empty/omitted `methods` matches all methods (the default).
+
+See the [routes field reference](/docs/configuration/#routes) for all options.

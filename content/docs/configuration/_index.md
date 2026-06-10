@@ -135,14 +135,23 @@ routes:
 
 ### `routes[]`
 
-Route matching uses `host` and `path_prefix` only. Regex-based path matching is not supported in routes — use `path_regex` in [ban predicates](/docs/operations/cache-invalidation/) for invalidation.
+Route matching uses `host`, `path_prefix`, and optionally `methods`. Routes are matched in declaration order; the first match wins. Regex-based path matching is not supported in routes — use `path_regex` in [ban predicates](/docs/operations/cache-invalidation/) for invalidation.
 
 | Field | Default | Description |
 |---|---|---|
 | `name` | `""` | Human-readable label used in Prometheus `route` label and the dashboard. Defaults to `host:path_prefix` when empty. |
 | `match.host` | `""` | Match on `Host` header (empty = any) |
 | `match.path_prefix` | `""` | Match on URL path prefix (empty = any) |
+| `match.methods` | `[]` | Restrict to listed HTTP methods, e.g. `[GET, HEAD]`. Empty = all methods. Normalised to upper-case. Lets you give GET and POST on the same path independent cache policies. |
 | `pool` | — | Upstream pool name |
+
+### `routes[].request`
+
+| Field | Default | Description |
+|---|---|---|
+| `header_set` | `{}` | Headers to set on the upstream request |
+| `header_remove` | `[]` | Headers to remove from the upstream request |
+| `strip_prefix` | `""` | Strip this path prefix before forwarding to the upstream (e.g. `/api/v1/users` → `/users`). Must start with `/`. The cache key still uses the original path. |
 
 ### `routes[].cache`
 
@@ -150,17 +159,21 @@ Route matching uses `host` and `path_prefix` only. Regex-based path matching is 
 |---|---|---|
 | `enabled` | `true` | Set to `false` to bypass caching for this route |
 | `ttl_default` | `0` | Default TTL when origin has no `Cache-Control` |
+| `ttl_override` | `0` | Force bouine's internal TTL regardless of upstream `Cache-Control`/`Expires`; upstream headers are forwarded unaltered. See [TTL override](/docs/configuration/cache-policy/#ttl-override). |
 | `stale_while_revalidate` | `0` | Serve stale while refreshing in background |
 | `stale_if_error` | `0` | Serve stale on origin 5xx |
 | `negative_ttl` | `0` | Cache 404/405/410/501 responses for this duration |
 | `jitter_percent` | `0` | Random ±N% on TTLs to prevent stampedes (0–50) |
 | `stayin_alive` | `false` | Serve stale indefinitely when upstream is down (see [Stayin Alive](/docs/configuration/cache-policy/#stayin-alive)) |
+| `allow_set_cookie` | `false` | Allow caching responses that carry `Set-Cookie`. Default blocks caching such responses (nginx-style). When `true`, the response is cached but `Set-Cookie` is stripped from the stored copy. See [Set-Cookie caching](/docs/configuration/cache-policy/#set-cookie-caching). |
+| `max_object_size` | `0` | Skip caching responses whose body exceeds this size (e.g. `1MiB`). The response is still proxied. `0` = no limit. |
 
 ### `routes[].cache.key`
 
 | Field | Default | Description |
 |---|---|---|
 | `include_headers` | `[]` | Headers to include in cache key (replaces Vary) |
+| `strip_query_params` | `[]` | Query parameter names to exclude from the cache key, e.g. `[utm_source, fbclid]`. The params are still forwarded to the upstream. See [Stripping query parameters](/docs/configuration/cache-policy/#stripping-query-parameters-from-the-key). |
 
 ### `upstream_pools[].connect`
 
