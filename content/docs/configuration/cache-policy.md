@@ -159,6 +159,50 @@ cache:
 
 Caches 404, 405, 410, and 501 responses briefly. Use this to protect origins from repeated misses.
 
+## Set-Cookie caching
+
+By default, a response carrying a `Set-Cookie` header is **never cached** — even
+if it has explicit freshness (`max-age`). This matches nginx's `proxy_cache`
+behaviour and prevents one user's session cookie from being replayed to other
+users (a session-fixation vector).
+
+```yaml
+cache:
+  allow_set_cookie: false   # default — Set-Cookie blocks caching
+```
+
+To cache such responses anyway, opt in explicitly. When enabled, bouine still
+delivers the cookie to the **first** client (the MISS), but **strips
+`Set-Cookie` from the stored copy** so subsequent HITs never replay it:
+
+```yaml
+cache:
+  allow_set_cookie: true    # cache, but strip Set-Cookie from stored object
+```
+
+| Upstream sends | `allow_set_cookie: false` (default) | `allow_set_cookie: true` |
+|---|---|---|
+| `Set-Cookie` + `max-age=60` | Not cached (proxied through) | Cached without `Set-Cookie` |
+| `Set-Cookie` + `no-store` | Not cached | Not cached |
+| No `Set-Cookie` | Cached normally | Cached normally |
+
+> **Only enable `allow_set_cookie` on routes where the `Set-Cookie` is not
+> user-specific** (e.g. a non-personalised A/B cookie). Never enable it on
+> authentication or session routes.
+
+## Object size limit
+
+Skip caching responses whose body exceeds a size limit. The response is still
+proxied to the client — only storage is skipped, so large downloads don't evict
+useful entries:
+
+```yaml
+cache:
+  max_object_size: 1MiB     # don't cache bodies larger than 1 MiB
+```
+
+`0` (default) means no limit.
+
 ## Jittered TTLs
 
 ```yaml
@@ -183,3 +227,23 @@ Use this when the origin varies by request header. Keep the list short — every
 > **Avoid unbounded variants**
 >
 > Never key on raw `User-Agent`, unbounded cookies, or high-cardinality request IDs. This creates cache fragmentation and can be a cache-poisoning vector.
+
+## Stripping query parameters from the key
+
+Tracking and analytics parameters (`utm_source`, `fbclid`, `gclid`, `_ga`, …)
+make otherwise-identical URLs into distinct cache entries, fragmenting the
+cache. Strip them from the **key** while still forwarding them to the origin:
+
+```yaml
+cache:
+  key:
+    strip_query_params: [utm_source, utm_medium, utm_campaign, fbclid, gclid, _ga]
+```
+
+With this config, `/page?id=1&utm_source=email` and `/page?id=1&utm_source=twitter`
+resolve to the **same** cache entry. The origin still receives the full query
+string (including the tracking params) on a MISS.
+
+> **Purge note**: `POST /v1/purge` computes the key from the URL you send, without
+> route context. When using `strip_query_params`, send purge URLs **without** the
+> stripped parameters so they match the stored key (same behaviour as Varnish).
