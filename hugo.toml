@@ -14,7 +14,7 @@ summarylength = 30
 
 [params]
   title = 'bouine'
-  description = 'Bouine is a cloud-native HTTP reverse-proxy cache in Go - RFC9111 compliant, zero-alloc hit path, gossip clustering, no external K/V store.'
+  description = 'Bouine is a cloud-native HTTP cache in Go - RFC9111 compliant, zero-alloc hit path, gossip clustering, no external K/V store.'
   images = ['logo.png']
   mainSections = ['docs']
 
@@ -54,7 +54,7 @@ summarylength = 30
       separator = '|'
       suffix = 'bouine'
     [params.seo.description]
-      summaryFallback = 'Documentation for bouine, a Kubernetes-native reverse-proxy cache.'
+      summaryFallback = 'Documentation for bouine, a Kubernetes-native cache.'
     [params.seo.schemas]
       type = 'Organization'
       name = 'bouine'
