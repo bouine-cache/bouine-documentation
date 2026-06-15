@@ -22,22 +22,21 @@ The default image includes a minimal config at `/etc/bouine/config.yaml` so the 
 
 ## GitHub Releases
 
-Download a binary from [GitHub Releases](https://github.com/thylong/bouine/releases):
+Download the latest release binary from [GitHub Releases](https://github.com/thylong/bouine/releases). The command below is pre-selected for your operating system and CPU architecture — switch the tabs if you need a different target:
 
-```bash
-# Linux amd64
-curl -fSL -o bouine https://github.com/thylong/bouine/releases/latest/download/bouine-linux-amd64
-chmod +x bouine
-./bouine version
-```
+{{< install-binary >}}
 
-Binaries are published for:
+The one-liner resolves the latest version automatically, so it never goes stale. Binaries are published for:
 
 | OS | Architectures |
 |---|---|
 | Linux | `amd64`, `arm64` |
 | macOS | `amd64`, `arm64` |
 | Windows | `amd64`, `arm64` |
+
+> **Verify the download**
+>
+> Each release ships `SHA256SUMS` (with a cosign signature `SHA256SUMS.sig` and certificate `SHA256SUMS.pem`). Check the checksum after downloading if you need supply-chain assurance.
 
 ## From source
 

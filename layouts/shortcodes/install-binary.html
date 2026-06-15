@@ -1,0 +1,112 @@
+{{/*
+  install-binary shortcode — renders an OS/arch-aware one-liner to install
+  the latest bouine release binary. Defaults to macOS; auto-selects Linux or
+  Windows (and arm64/amd64) from the visitor's browser when detectable.
+  Pure client-side; no build-time data. Version is resolved at runtime via
+  the GitHub releases API so the command never goes stale.
+*/}}
+<div class="bn-install" id="bn-install" style="margin:1.25rem 0;border:1px solid rgba(124,58,237,.35);border-radius:10px;overflow:hidden;font-size:.9rem;">
+  <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.55rem .75rem;background:rgba(124,58,237,.07);border-bottom:1px solid rgba(124,58,237,.2);">
+    <div class="bn-os" role="tablist" aria-label="Operating system" style="display:inline-flex;gap:.25rem;">
+      <button data-os="macos"   class="bn-tab" type="button">macOS</button>
+      <button data-os="linux"   class="bn-tab" type="button">Linux</button>
+      <button data-os="windows" class="bn-tab" type="button">Windows</button>
+    </div>
+    <span style="opacity:.4;">·</span>
+    <div class="bn-arch" role="tablist" aria-label="Architecture" style="display:inline-flex;gap:.25rem;">
+      <button data-arch="arm64" class="bn-tab" type="button">arm64</button>
+      <button data-arch="amd64" class="bn-tab" type="button">amd64</button>
+    </div>
+    <span id="bn-detected" style="margin-left:auto;font-size:.72rem;opacity:.65;font-family:monospace;"></span>
+  </div>
+  <div style="position:relative;">
+    <button id="bn-copy" type="button" aria-label="Copy"
+      style="position:absolute;top:.5rem;right:.5rem;cursor:pointer;padding:.2rem .6rem;border:1px solid rgba(167,139,250,.4);border-radius:5px;background:rgba(13,13,26,.85);color:#c4b5fd;font-size:.7rem;font-family:monospace;">copy</button>
+    <pre style="margin:0;padding:.9rem 1rem;background:#0d0d1a;color:#e2e2f0;overflow-x:auto;border-radius:0;"><code id="bn-cmd" style="background:none;padding:0;font-size:.82rem;line-height:1.55;white-space:pre;"></code></pre>
+  </div>
+</div>
+
+<style>
+.bn-install .bn-tab{cursor:pointer;padding:.22rem .65rem;border:1px solid rgba(124,58,237,.3);border-radius:6px;background:transparent;color:inherit;font-size:.78rem;font-family:inherit;opacity:.7;transition:all .12s;}
+.bn-install .bn-tab:hover{opacity:1;}
+.bn-install .bn-tab[aria-selected="true"]{background:#7c3aed;border-color:#7c3aed;color:#fff;opacity:1;font-weight:600;}
+</style>
+
+<script>
+(function(){
+  var REPO = "thylong/bouine";
+  var root = document.getElementById("bn-install");
+  if(!root) return;
+  var state = { os: "macos", arch: "arm64" };
+
+  function cmd(os, arch){
+    if(os === "windows"){
+      return [
+        '$ver = (Invoke-RestMethod https://api.github.com/repos/'+REPO+'/releases/latest).tag_name',
+        'Invoke-WebRequest "https://github.com/'+REPO+'/releases/download/$ver/bouine-$ver-windows-'+arch+'.exe" -OutFile bouine.exe',
+        '.\\bouine.exe version'
+      ].join("\n");
+    }
+    var goos = (os === "macos") ? "darwin" : "linux";
+    return [
+      'ver=$(curl -fsSL https://api.github.com/repos/'+REPO+'/releases/latest | grep -oE \'"tag_name":[^,]+\' | cut -d\'"\' -f4) && \\',
+      'curl -fSL -o bouine "https://github.com/'+REPO+'/releases/download/$ver/bouine-$ver-'+goos+'-'+arch+'" && \\',
+      'chmod +x bouine && ./bouine version'
+    ].join("\n");
+  }
+
+  function render(){
+    root.querySelectorAll(".bn-os .bn-tab").forEach(function(b){
+      b.setAttribute("aria-selected", b.dataset.os === state.os);
+    });
+    root.querySelectorAll(".bn-arch .bn-tab").forEach(function(b){
+      b.setAttribute("aria-selected", b.dataset.arch === state.arch);
+    });
+    document.getElementById("bn-cmd").textContent = cmd(state.os, state.arch);
+  }
+
+  root.querySelectorAll(".bn-os .bn-tab").forEach(function(b){
+    b.addEventListener("click", function(){ state.os = b.dataset.os; render(); });
+  });
+  root.querySelectorAll(".bn-arch .bn-tab").forEach(function(b){
+    b.addEventListener("click", function(){ state.arch = b.dataset.arch; render(); });
+  });
+
+  document.getElementById("bn-copy").addEventListener("click", function(){
+    var btn = this;
+    navigator.clipboard.writeText(document.getElementById("bn-cmd").textContent).then(function(){
+      btn.textContent = "copied"; setTimeout(function(){ btn.textContent = "copy"; }, 1500);
+    });
+  });
+
+  // --- detection (default macOS / arm64) ---
+  function detect(){
+    var ua = navigator.userAgent || "";
+    var uad = navigator.userAgentData;
+    var plat = (uad && uad.platform ? uad.platform : "").toLowerCase();
+    if(plat.indexOf("win") >= 0 || /Windows/i.test(ua)) state.os = "windows";
+    else if(plat.indexOf("linux") >= 0 || (/Linux|Android|X11/i.test(ua) && !/Mac/i.test(ua))) state.os = "linux";
+    else if(plat.indexOf("mac") >= 0 || /Mac/i.test(ua)) state.os = "macos";
+    // sensible arch default per OS (Apple Silicon dominant on mac)
+    state.arch = (state.os === "macos") ? "arm64" : "amd64";
+    var setBadge = function(){
+      document.getElementById("bn-detected").textContent =
+        "detected: " + state.os + " · " + state.arch;
+    };
+    // refine arch via Client Hints when available (Chromium)
+    if(uad && uad.getHighEntropyValues){
+      uad.getHighEntropyValues(["architecture"]).then(function(v){
+        if(v.architecture === "arm") state.arch = "arm64";
+        else if(v.architecture === "x86") state.arch = "amd64";
+        render(); setBadge();
+      }).catch(function(){ render(); setBadge(); });
+    } else {
+      // ARM hint from UA (e.g. aarch64 on Linux)
+      if(/aarch64|arm64/i.test(ua)) state.arch = "arm64";
+      setBadge();
+    }
+    render(); setBadge();
+  }
+  detect();
+})();
+</script>
