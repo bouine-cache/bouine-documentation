@@ -20,17 +20,29 @@ bouine version
 
 ## Admin authentication
 
-All write endpoints require a bearer token. Set it in config:
+All write endpoints require a bearer token. The token is resolved in priority order:
+
+1. `BOUINE_ADMIN_TOKEN` environment variable
+2. `admin.token` in the config file
+3. Auto-generated random token (logged as `WARN`)
+
+### Environment variable
+
+```bash
+export BOUINE_ADMIN_TOKEN=your-secret-token
+```
+
+### Config file
 
 ```yaml
 admin:
   token: your-secret-token
 ```
 
-If omitted, bouine auto-generates a random token at startup and logs it:
+If neither is set, bouine auto-generates a random token at startup and logs it:
 
 ```json
-{"level":"WARN","msg":"admin token not configured — using auto-generated token","token":"a3f9...","hint":"set admin.token in config to silence this warning"}
+{"level":"WARN","msg":"admin token not configured — using auto-generated token","token":"a3f9...","hint":"set admin.token in config or BOUINE_ADMIN_TOKEN env var to silence this warning"}
 ```
 
 Retrieve the token from a config file:
