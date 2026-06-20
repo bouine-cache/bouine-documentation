@@ -24,8 +24,14 @@ The dashboard uses a session cookie derived from the admin bearer token.
 
 > **Multi-pod requirement**
 >
-> All pods must share the same `admin.token`. Each pod independently generates a random token if none is set, but session cookies are HMAC-signed with that token — a cookie issued by pod A is rejected by pod B if they have different tokens.
+> All pods must share the same admin token. Each pod independently generates a random token if none is set, but session cookies are HMAC-signed with that token — a cookie issued by pod A is rejected by pod B if they have different tokens.
 >
+> Set the token via the `BOUINE_ADMIN_TOKEN` environment variable (recommended for Kubernetes):
+> ```bash
+> # Injected from Vault via chassis AppSecretSet — all pods get the same value
+> ```
+>
+> Or via the config file:
 > ```yaml
 > # Required for dashboard consistency across replicas
 > admin:
