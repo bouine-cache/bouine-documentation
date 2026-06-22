@@ -6,3 +6,4 @@ node_modules/
 *.swo
 *~
 .hugo_build.lock
+compare-prototypes/

@@ -1,0 +1,359 @@
+{{ define "main" }}
+<style>
+/* ── Compare page (variant B3: minimal spec rows) ────────────── */
+.compare-page { max-width: 820px; margin: 0 auto; }
+
+.compare-page .compare-breadcrumb {
+  font-size: 0.85rem; opacity: 0.6; padding: 1rem 0 0;
+}
+.compare-page .compare-breadcrumb a { color: inherit; }
+
+.compare-page .compare-header { padding: 1rem 0 1.5rem; }
+.compare-page .compare-header h1 {
+  font-size: calc(1.4rem + 1vw); margin-top: 0;
+}
+.compare-page .compare-header h1 .vs {
+  color: var(--bs-body-color); opacity: 0.4; font-weight: 400;
+}
+.compare-page .compare-header h1 .alt-name { color: var(--bs-primary); }
+.compare-page .compare-header .alt-type {
+  font-size: 0.85rem; opacity: 0.6; margin-top: 0.25rem;
+}
+.compare-page .compare-header p {
+  font-size: 0.95rem; opacity: 0.7; max-width: 550px; margin: 0.75rem 0 0;
+}
+
+/* Selector bar — segmented control */
+.compare-page .selector-bar {
+  display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.compare-page .selector-label {
+  font-size: 0.8rem; opacity: 0.5; margin-right: 0.5rem;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.compare-page .selector-group {
+  display: inline-flex; gap: 0;
+  border: 1px solid var(--bs-border); border-radius: var(--bs-border-radius, 0.375rem);
+  overflow: hidden; background: var(--bs-body-tertiary, var(--bs-overlay, hsl(224, 14%, 16%)));
+}
+.compare-page .selector-btn {
+  padding: 0.4rem 0.875rem; border: none; background: none;
+  font-family: inherit; font-size: 0.85rem; font-weight: 500;
+  color: var(--bs-body-color); cursor: pointer;
+  border-right: 1px solid var(--bs-border);
+  transition: all 0.12s;
+}
+.compare-page .selector-btn:last-child { border-right: none; }
+.compare-page .selector-btn:hover { background: rgba(139, 92, 246, 0.08); }
+.compare-page .selector-btn.active { background: var(--bs-primary); color: #fff; }
+
+/* Category sections */
+.compare-page .cat-section { margin-bottom: 1.5rem; }
+.compare-page .cat-title {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--bs-primary);
+  padding: 0.75rem 0 0.5rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.compare-page .cat-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--bs-border);
+}
+
+/* Column headers */
+.compare-page .col-headers {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 0.8fr;
+  padding: 0.5rem 0.5rem 0.6rem;
+  border-bottom: 2px solid var(--bs-border);
+  margin-bottom: 0.25rem;
+}
+.compare-page .col-header {
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.compare-page .col-header:first-child { text-align: left; opacity: 0.4; }
+.compare-page .col-header.bouine-col { color: hsl(281, 82%, 63%); }
+.compare-page .col-header.other-col { color: var(--bs-primary); }
+
+/* Spec rows — 3-column grid */
+.compare-page .spec-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 0.8fr;
+  align-items: center;
+  padding: 0.7rem 0.5rem;
+  border-bottom: 1px solid rgba(var(--bs-body-color-rgb, 120, 120, 120), 0.08);
+  transition: background 0.1s;
+}
+.compare-page .spec-row:hover { background: var(--bs-body-tertiary, var(--bs-overlay, hsl(224, 14%, 16%))); }
+.compare-page .spec-row:last-child { border-bottom: none; }
+
+.compare-page .spec-label {
+  font-size: 0.875rem; color: var(--bs-heading-color, var(--bs-body-color));
+  font-weight: 500;
+  cursor: help;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.15s;
+}
+.compare-page .spec-label:hover {
+  text-decoration-color: var(--bs-primary);
+}
+.compare-page .spec-label .spec-note {
+  display: block; font-weight: 400; font-size: 0.75rem;
+  opacity: 0.5; margin-top: 0.1rem;
+}
+
+.compare-page .spec-val { text-align: center; font-size: 0.85rem; }
+.compare-page .spec-val.bouine-val { color: hsl(281, 82%, 63%); font-weight: 600; }
+.compare-page .spec-val.other-val { color: var(--bs-body-color); }
+
+.compare-page .spec-icon {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+}
+.compare-page .spec-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.compare-page .spec-dot.yes { background: hsl(101, 82%, 63%); }
+.compare-page .spec-dot.no { background: hsl(339, 82%, 63%); }
+.compare-page .spec-dot.partial { background: hsl(41, 82%, 63%); }
+.compare-page .spec-text { font-size: 0.8rem; display: none; }
+
+/* Light mode dot adjustments for readability */
+[data-bs-theme="light"] .compare-page .spec-dot.yes { background: hsl(101, 60%, 45%); }
+[data-bs-theme="light"] .compare-page .spec-dot.no { background: hsl(339, 65%, 50%); }
+[data-bs-theme="light"] .compare-page .spec-dot.partial { background: hsl(41, 65%, 45%); }
+
+/* Tooltip — global selector (element is appended to <body>, outside .compare-page) */
+.spec-tooltip {
+  position: fixed !important;
+  display: none !important;
+  max-width: 320px !important;
+  padding: 0.65rem 0.9rem !important;
+  background: var(--bs-body-bg, #181a20) !important;
+  border: 1px solid var(--bs-primary, hsl(234, 100%, 60%)) !important;
+  border-radius: 0.375rem !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35) !important;
+  font-size: 0.8rem !important;
+  font-weight: 400 !important;
+  line-height: 1.55 !important;
+  color: var(--bs-body-color, #bfc3cc) !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+  white-space: normal !important;
+}
+.spec-tooltip.visible { display: block !important; }
+
+/* Verdict */
+.compare-page .verdict {
+  margin-top: 2rem; padding: 1rem 1.25rem;
+  background: var(--bs-body-tertiary, var(--bs-overlay, hsl(224, 14%, 16%)));
+  border-radius: var(--bs-border-radius, 0.375rem);
+  border-left: 2px solid hsl(281, 82%, 63%);
+}
+.compare-page .verdict h3 {
+  margin-top: 0; font-size: 0.8rem; color: hsl(281, 82%, 63%);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.compare-page .verdict p { margin: 0.4rem 0 0; font-size: 0.875rem; }
+
+/* Noscript fallback tables */
+.compare-page noscript h2 {
+  font-size: 1.15rem; margin-top: 2rem;
+  border-bottom: 2px solid var(--bs-border); padding-bottom: 0.4rem;
+}
+.compare-page noscript table {
+  width: 100%; border-collapse: collapse; margin: 1rem 0;
+  font-size: 0.85rem;
+}
+.compare-page noscript th,
+.compare-page noscript td {
+  padding: 0.5rem 0.75rem; text-align: left;
+  border-bottom: 1px solid var(--bs-border);
+}
+.compare-page noscript th { font-weight: 700; color: var(--bs-heading-color, var(--bs-body-color)); }
+.compare-page noscript td:not(:first-child) { text-align: center; }
+
+@media (max-width: 580px) {
+  .compare-page .spec-row { grid-template-columns: 1fr; gap: 0.3rem; padding: 0.6rem 0; }
+  .compare-page .spec-val { text-align: left; }
+  .compare-page .selector-group { width: 100%; overflow-x: auto; }
+  .compare-page .selector-btn { white-space: nowrap; }
+}
+</style>
+
+<div class="compare-page">
+
+  <nav class="compare-breadcrumb" aria-label="Breadcrumb">
+    <a href="{{ relLangURL "" }}">Home</a> / <span>Compare</span>
+  </nav>
+
+  <div class="compare-header">
+    <h1>bouine <span class="vs">vs</span> <span class="alt-name" id="altName">Envoy</span></h1>
+    <div class="alt-type" id="altType">Service Mesh Proxy · C++</div>
+    <p>Criterion-by-criterion comparison across DevOps, SRE, and engineering expectations.</p>
+  </div>
+
+  <div class="selector-bar">
+    <span class="selector-label">Switch opponent</span>
+    <div class="selector-group">
+      <button class="selector-btn active" data-alt="envoy" type="button">Envoy</button>
+      <button class="selector-btn" data-alt="nginx" type="button">NGINX</button>
+      <button class="selector-btn" data-alt="haproxy" type="button">HAProxy</button>
+      <button class="selector-btn" data-alt="varnish" type="button">Varnish</button>
+      <button class="selector-btn" data-alt="caddy" type="button">Caddy</button>
+    </div>
+  </div>
+
+  <div class="col-headers">
+    <div class="col-header">Criterion</div>
+    <div class="col-header bouine-col">bouine</div>
+    <div class="col-header other-col" id="colHeaderOther">Envoy</div>
+  </div>
+
+  <div id="compareContent"></div>
+
+  {{ .Content }}
+
+</div>
+
+<script>
+(function() {
+  var dataScript = document.getElementById('compareData');
+  if (!dataScript) return;
+  var data = JSON.parse(dataScript.textContent);
+  var langValues = ['Go', 'C', 'C++'];
+  function isLang(v) { return langValues.indexOf(v) !== -1; }
+
+  var criterionHelp = {
+    'Kubernetes-native deploy': 'First-class StatefulSet support with headless Service DNS bootstrapping, pod discovery, and Helm-managed rolling updates.',
+    'Helm chart': 'Official, maintained Helm chart with a full values.yaml reference and production defaults.',
+    'YAML config': 'Declarative YAML configuration instead of a custom DSL (nginx.conf, HAProxy cfg, VCL, Caddyfile).',
+    'Hot config reload': 'Reload configuration without dropping active connections or restarting the process.',
+    'Single static binary': 'No dynamic modules, no shared library dependencies — one binary deploys everywhere.',
+    'Prometheus metrics': 'Native /metrics endpoint exposing cache hit/miss ratios, latency histograms, and cluster health without external exporters.',
+    'OpenTelemetry tracing': 'Native OTel spans for the full cache hit/miss/peer-fetch lifecycle, traceable through any OTel-compatible backend.',
+    'Distributed clustering': 'Built-in gossip-based clustering with multiple consistency modes (strong, eventual, full) — no external control plane required.',
+    'Sub-second invalidation': 'Purge and ban operations reach all cluster peers in under one second via HTTP fan-out, not just gossip convergence.',
+    'Stale-if-error': 'Serve cached stale content when the origin returns 5xx errors or times out, preventing user-facing failures.',
+    'Stayin-Alive': 'Serve stale content indefinitely when the upstream is completely down — the cache becomes the origin during outages.',
+    'Built-in dashboard': 'Live operator dashboard showing metrics, route performance, cluster health, and one-click invalidation — no external tooling needed.',
+    'mTLS for peers': 'Mutual TLS encryption between cluster nodes for secure gossip and peer-fetch traffic.',
+    'RFC 9111 conformance': 'Implements the HTTP caching specification (RFC 9111) directly. bouine scores 94% on the cache-tests.fyi conformance suite.',
+    'Vary header support': 'Respects the Vary response header for cache key derivation, serving the correct variant per request headers.',
+    'Surrogate keys': 'Origin can tag responses with Surrogate-Key / Cache-Tag headers for grouped invalidation across multiple URLs at once.',
+    'Request coalescing': 'Deduplicates concurrent requests for the same cache key — only one request reaches the origin, the rest wait for the cached response.',
+    'Negative caching': 'Caches error responses (404, 405, 410, 501) with a configurable TTL per route to protect the origin from repeated error traffic.',
+    'Programmable logic': 'Ability to inject custom request/response processing logic via a scripting language (Lua, WASM, VCL, njs) or plugins.',
+    'Implementation language': 'The primary language the proxy/cache is written in. Affects contribution ease, build speed, and runtime memory model.',
+    'No external KV store': 'Embedded hot tier in RAM with optional warm tier on disk. No Redis, no Memcached, no external control plane process to operate.',
+    'SIEVE eviction (O(1))': 'SIEVE eviction algorithm: simple, near-LRU-K hit ratio, O(1) per operation. Alternatives typically use standard LRU.',
+    'Consistent-hash + peer-fetch': '256 virtual nodes per real node for consistent hashing. On a cache miss, the requesting node checks the owner node before going to origin. ~0.3ms added latency.',
+    'Jittered TTLs': 'Random ±N% applied to every TTL to prevent synchronized expiry stampedes across cached entries.',
+    'Background SWR': 'Serves stale content immediately while a background goroutine revalidates with the origin. Concurrency bounded to 256 goroutines.',
+    'Hedged fetch': 'Fires a duplicate request after a configurable timeout; the first response wins, reducing tail latency on slow origins.',
+    'Zero-alloc hit path': 'Cache hit path allocates zero bytes on the hot path (40 ns/op, 0 allocs). Benchmark-gated in CI to block performance regressions.'
+  };
+
+  var tooltipEl = null;
+
+  function ensureTooltip() {
+    if (!tooltipEl) {
+      tooltipEl = document.createElement('div');
+      tooltipEl.className = 'spec-tooltip';
+      tooltipEl.setAttribute('role', 'tooltip');
+      document.body.appendChild(tooltipEl);
+    }
+    return tooltipEl;
+  }
+
+  function showTooltip(label, rect) {
+    var tip = ensureTooltip();
+    var help = criterionHelp[label];
+    if (!help) return;
+    tip.textContent = help;
+    tip.classList.add('visible');
+    var tipRect = tip.getBoundingClientRect();
+    var left = rect.left;
+    var top = rect.bottom + 6;
+    if (left + tipRect.width > window.innerWidth - 16) {
+      left = window.innerWidth - tipRect.width - 16;
+    }
+    if (left < 8) { left = 8; }
+    if (top + tipRect.height > window.innerHeight - 8) {
+      top = rect.top - tipRect.height - 6;
+    }
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
+  function hideTooltip() {
+    if (tooltipEl) tooltipEl.classList.remove('visible');
+  }
+
+  function render(altKey) {
+    var alt = data[altKey];
+    if (!alt) return;
+    document.getElementById('altName').textContent = alt.name;
+    document.getElementById('altType').textContent = alt.type + ' \u00b7 ' + alt.lang;
+    document.getElementById('colHeaderOther').textContent = alt.name;
+
+    var html = '';
+    alt.cats.forEach(function(cat) {
+      html += '<div class="cat-section"><div class="cat-title">' + cat.name + '</div>';
+      cat.rows.forEach(function(row) {
+        var label = row[0], bStatus = row[1], oStatus = row[2], note = row[3];
+        var bText = isLang(bStatus) ? bStatus : '';
+        var oText = isLang(oStatus) ? oStatus : '';
+        html += '<div class="spec-row">';
+        html += '<div class="spec-label" data-criterion="' + label.replace(/"/g, '&quot;') + '">' + label + (note ? '<span class="spec-note">' + note + '</span>' : '') + '</div>';
+        html += '<div class="spec-val bouine-val"><span class="spec-icon"><span class="spec-dot ' + bStatus + '"></span><span class="spec-text">' + bText + '</span></span></div>';
+        html += '<div class="spec-val other-val"><span class="spec-icon"><span class="spec-dot ' + oStatus + '"></span><span class="spec-text">' + oText + '</span></span></div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+
+    html += '<div class="verdict"><h3>When to choose bouine</h3><p>' + alt.verdict + '</p></div>';
+    var container = document.getElementById('compareContent');
+    container.innerHTML = html;
+
+    container.querySelectorAll('.spec-label').forEach(function(el) {
+      el.addEventListener('mouseenter', function(e) {
+        var criterion = el.getAttribute('data-criterion');
+        if (criterionHelp[criterion]) {
+          showTooltip(criterion, el.getBoundingClientRect());
+        }
+      });
+      el.addEventListener('mouseleave', hideTooltip);
+      el.addEventListener('click', function(e) {
+        var criterion = el.getAttribute('data-criterion');
+        if (criterionHelp[criterion]) {
+          var tip = ensureTooltip();
+          if (tip.classList.contains('visible')) {
+            hideTooltip();
+          } else {
+            showTooltip(criterion, el.getBoundingClientRect());
+          }
+        }
+      });
+    });
+  }
+
+  render('envoy');
+
+  document.querySelectorAll('.compare-page .selector-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.compare-page .selector-btn').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      btn.classList.add('active');
+      render(btn.dataset.alt);
+    });
+  });
+})();
+</script>
+{{ end }}
