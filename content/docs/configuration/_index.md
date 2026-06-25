@@ -98,6 +98,10 @@ routes:
       key:
         include_headers:
           - Accept-Language
+        exclude_headers:
+          - x-request-id
+          - x-trace-id
+          - x-forwarded-for
 ```
 
 ## Field reference
@@ -173,6 +177,7 @@ Route matching uses `host`, `path_prefix`, and optionally `methods`. Routes are 
 | Field | Default | Description |
 |---|---|---|
 | `include_headers` | `[]` | Headers to include in cache key (replaces Vary) |
+| `exclude_headers` | `[]` | Request header names to strip from the Vary-based variant key, preventing cache fragmentation from per-request headers like `X-Request-Id`. Matched case-insensitively. See [Excluding headers](/docs/configuration/cache-policy/#excluding-headers-from-the-cache-key). |
 | `strip_query_params` | `[]` | Query parameter names to exclude from the cache key, e.g. `[utm_source, fbclid]`. The params are still forwarded to the upstream. See [Stripping query parameters](/docs/configuration/cache-policy/#stripping-query-parameters-from-the-key). |
 
 ### `upstream_pools[].connect`
