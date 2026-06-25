@@ -247,3 +247,58 @@ string (including the tracking params) on a MISS.
 > **Purge note**: `POST /v1/purge` computes the key from the URL you send, without
 > route context. When using `strip_query_params`, send purge URLs **without** the
 > stripped parameters so they match the stored key (same behaviour as Varnish).
+
+## Excluding headers from the cache key
+
+Origins sometimes include per-request headers in `Vary` that should not
+fragment the cache — tracing IDs (`X-Request-Id`, `X-Trace-Id`),
+forwarding headers (`X-Forwarded-For`), or A/B testing cookies. Each
+unique value creates a separate cache entry, wasting storage and reducing
+hit rate.
+
+`exclude_headers` strips the listed request header names from the
+Vary-based variant key. The origin's `Vary` response header is left
+intact and forwarded to the client — only the key computation skips
+the excluded headers:
+
+```yaml
+cache:
+  key:
+    exclude_headers:
+      - x-request-id
+      - x-trace-id
+      - x-forwarded-for
+```
+
+With this config, two requests that differ only in `X-Request-Id` share
+the same cache entry and produce a `HIT`:
+
+```
+Request A  X-Request-Id: abc   →  MISS (stored)
+Request B  X-Request-Id: xyz   →  HIT  (same entry)
+```
+
+### Collapse to primary key
+
+When exclusion removes **all** fields from the Vary list, the variant key
+collapses to the primary key. This means every request with the same
+scheme, host, path, query, and method shares a single cache entry —
+regardless of the excluded header's value.
+
+For example, if the origin sends `Vary: X-Request-Id` and `x-request-id`
+is in `exclude_headers`, the variant key equals the primary key. All
+requests to the same URL get a HIT after the first fetch.
+
+### Case insensitivity
+
+Header names in `exclude_headers` are matched case-insensitively. Both
+`x-request-id` and `X-Request-ID` in the config will match `X-Request-Id`
+in the origin's `Vary` header.
+
+### When NOT to use `exclude_headers`
+
+Do not exclude headers that genuinely affect the response body — such as
+`Accept-Encoding`, `Accept-Language`, or `Accept`. Excluding a
+content-negotiation header causes bouine to serve the wrong variant to
+clients (cache poisoning). Only exclude headers you are certain do not
+change the response content.
