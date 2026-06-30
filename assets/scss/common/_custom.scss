@@ -20,6 +20,11 @@
 .content article > div.text-center {
   text-align: left !important;
 }
+
+// Light mode: increase code block text contrast
+[data-bs-theme="light"] .expressive-code pre > code {
+  color: #b4b9c8;
+}
 #bouine-noise {
   mix-blend-mode: overlay !important;
   opacity: .30 !important;
