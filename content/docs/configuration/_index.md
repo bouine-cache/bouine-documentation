@@ -9,7 +9,7 @@ bouine is configured via a YAML file passed with `--config`. Environment variabl
 
 ## Pages in this section
 
-- [Cache policy](cache-policy/) — TTL selection, stale serving, negative caching, jitter, and cache keys.
+- [Cache policy](cache-policy/) — TTL selection, stale serving, negative caching, jitter, refresh-before-expiry, and cache keys.
 - [Static file serving](static-files/) — serve files from a local directory instead of an upstream pool.
 - [Storage tiers](storage/) — hot and warm tiers, eviction, sizing guidelines.
 - [TLS](tls/) — certificates, SNI, ALPN, OCSP stapling, and automatic reload.
@@ -96,6 +96,10 @@ routes:
       stale_if_error: 300s
       negative_ttl: 5s
       jitter_percent: 10
+      refresh_before_expiry: true
+      refresh_margin_percent: 20
+      refresh_timeout: 5s
+      refresh_concurrency: 16
       key:
         include_headers:
           - Accept-Language
@@ -177,6 +181,10 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `stayin_alive` | `false` | Serve stale indefinitely when upstream is down (see [Stayin Alive](/docs/configuration/cache-policy/#stayin-alive)) |
 | `allow_set_cookie` | `false` | Allow caching responses that carry `Set-Cookie`. Default blocks caching such responses (nginx-style). When `true`, the response is cached but `Set-Cookie` is stripped from the stored copy. See [Set-Cookie caching](/docs/configuration/cache-policy/#set-cookie-caching). |
 | `max_object_size` | `0` | Skip caching responses whose body exceeds this size (e.g. `1MiB`). The response is still proxied. `0` = no limit. |
+| `refresh_before_expiry` | `false` | Enable proactive background conditional revalidation before TTL expiry. See [Refresh before expiry](/docs/configuration/cache-policy/#refresh-before-expiry). |
+| `refresh_margin_percent` | `10` | Percentage of TTL before expiry at which the background refresh fires (1–50). E.g. `20` fires at 80% of TTL. |
+| `refresh_timeout` | `10s` | Maximum duration for a single background refresh fetch (5s–120s) |
+| `refresh_concurrency` | `8` | Maximum concurrent background refresh fetches per route (1–64) |
 
 ### `routes[].cache.key`
 

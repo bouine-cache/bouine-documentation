@@ -1,7 +1,7 @@
 ---
 title: "Cache policy"
 weight: 2
-description: "Understand how bouine chooses TTLs, overrides them per-route, serves stale content, applies negative caching, jitters expirations, and builds cache keys."
+description: "Understand how bouine chooses TTLs, overrides them per-route, serves stale content, applies negative caching, jitters expirations, refreshes proactively before expiry, and builds cache keys."
 ---
 
 
@@ -202,6 +202,94 @@ cache:
 ```
 
 `0` (default) means no limit.
+
+## Refresh before expiry
+
+Refresh-before-expiry fires a **background conditional revalidation**
+before an object's TTL expires, keeping the cache perpetually warm.
+Clients always see cache hits; origin traffic drops to lightweight 304
+responses with no body transfer.
+
+This is distinct from `stale_while_revalidate` (SWR): SWR fires
+*reactively* when a client request arrives after expiry and serves stale
+while revalidating. Refresh-before-expiry fires *proactively* before
+expiry — the object never enters the stale window, and no client request
+is needed to trigger the refresh.
+
+```yaml
+cache:
+  ttl_override: 30s
+  refresh_before_expiry: true
+  refresh_margin_percent: 20      # fire at 80% of TTL (24s into 30s)
+  refresh_timeout: 5s             # max duration for a single refresh fetch
+  refresh_concurrency: 16         # max concurrent background refreshes
+```
+
+### How it works
+
+1. When a cacheable object is stored, bouine schedules a background
+   refresh at `StoredAt + TTL - margin`.
+2. At the scheduled time, a single drainer goroutine fires a conditional
+   request (`If-None-Match` / `If-Modified-Since`) to the origin.
+3. On `304 Not Modified`, the object's TTL is refreshed in place — the
+   object never expires.
+4. On `200 OK`, the object is replaced with the fresh response.
+5. On error, the refresh is rescheduled with backoff (the object remains
+   fresh until its original TTL expires, at which point SWR/miss path
+   takes over).
+
+### Configuration fields
+
+| Field | Default | Description |
+|---|---|---|
+| `refresh_before_expiry` | `false` | Enable proactive background refresh |
+| `refresh_margin_percent` | `10` | Percentage of TTL before expiry to fire (1–50). E.g. `20` fires at 80% of TTL. |
+| `refresh_timeout` | `10s` | Maximum duration for a single background refresh fetch (5s–120s) |
+| `refresh_concurrency` | `8` | Maximum concurrent background refresh fetches per route (1–64) |
+
+### Sizing guidance
+
+- **Memory cost**: ~232–482 B per scheduled object (heap entry +
+  Vary-only request header registry). At 1M objects, this is ~465 MB.
+- **Goroutines**: one drainer + up to `refresh_concurrency` refresh
+  goroutines per route with refresh enabled.
+- **Origin traffic**: refresh fetches are conditional (304-capable), so
+  body transfer is typically zero. The origin only needs to support
+  `ETag` or `Last-Modified` for conditional requests.
+- **Minimum TTL**: objects with TTL < 5s are not scheduled — the refresh
+  window is too tight for a network round-trip.
+- **Negative-cached objects** (404/405/410/501) are never refreshed.
+
+### Interaction with other features
+
+- **SWR**: refresh-before-expiry and SWR are complementary. If a refresh
+  fails and the object goes stale, SWR serves stale content to clients
+  while a revalidation is attempted.
+- **Cluster strong mode**: only the key owner schedules background
+  refresh. Non-owner nodes that cache a peer-fetched object do not
+  schedule redundant refreshes.
+- **Invalidation**: `purge`, `ban`, and invalidating methods (POST/PUT/
+  DELETE) remove the object from the refresh registry. No stale
+  refreshes fire for invalidated keys.
+- **Shutdown**: refresh-enabled handlers are drained before the store
+  closes during shutdown, preventing use-after-close panics.
+
+### When to use it
+
+Use refresh-before-expiry for high-traffic routes where periodic origin
+fetches at TTL expiry create noticeable latency spikes. It is most
+effective for routes with:
+
+- Short to medium TTLs (5s–5m)
+- High request rates (so every expiry event affects many clients)
+- Origins that support conditional requests (ETag / Last-Modified)
+- Large key cardinality (1M+ keys benefit most from zero-miss caching)
+
+Do **not** use it for routes with very long TTLs (1h+) and low traffic —
+the background refresh goroutines add overhead with little benefit over
+letting SWR handle the occasional revalidation.
+
+---
 
 ## Jittered TTLs
 
