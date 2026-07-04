@@ -1,7 +1,7 @@
 ---
 title: "Example configurations"
 weight: 5
-description: "Ready-to-adapt bouine YAML examples for static sites, API gateways, bouine-in-front-of-Cloudflare, and e-commerce routes."
+description: "Ready-to-adapt bouine YAML examples for static sites, self-served static files, API gateways, bouine-in-front-of-Cloudflare, and e-commerce routes."
 ---
 
 
@@ -36,6 +36,44 @@ routes:
       stale_if_error: 86400s
       jitter_percent: 15
 ```
+
+## Self-served static site (no origin server)
+
+bouine can serve files directly from disk — no separate nginx or Caddy
+needed. See [Static file serving](/docs/configuration/static-files/) for
+the full reference.
+
+```yaml
+listen:
+  http: ":8080"
+  admin: ":9000"
+
+routes:
+  - name: assets
+    match: { path_prefix: /assets/ }
+    static:
+      root: /var/www/assets
+      max_file_size: 50MiB
+    request:
+      strip_prefix: /assets/
+    response:
+      header_set:
+        X-Content-Type-Options: nosniff
+        Cache-Control: public, max-age=86400
+
+  - name: root
+    match: {}
+    static:
+      root: /var/www/html
+      index: [index.html]
+    response:
+      header_set:
+        X-Content-Type-Options: nosniff
+```
+
+No `upstream_pools` section is needed. The OS page cache handles hot
+caching. Enable `cache.enabled: true` on static routes when you need
+cluster replication or TTL-based eviction.
 
 ## API gateway
 

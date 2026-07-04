@@ -10,6 +10,7 @@ bouine is configured via a YAML file passed with `--config`. Environment variabl
 ## Pages in this section
 
 - [Cache policy](cache-policy/) — TTL selection, stale serving, negative caching, jitter, and cache keys.
+- [Static file serving](static-files/) — serve files from a local directory instead of an upstream pool.
 - [Storage tiers](storage/) — hot and warm tiers, eviction, sizing guidelines.
 - [TLS](tls/) — certificates, SNI, ALPN, OCSP stapling, and automatic reload.
 - [Clustering](cluster-modes/) — consistency modes, gossip, peer fetch, mTLS, invalidation.
@@ -141,13 +142,18 @@ routes:
 
 Route matching uses `host`, `path_prefix`, and optionally `methods`. Routes are matched in declaration order; the first match wins. Regex-based path matching is not supported in routes — use `path_regex` in [ban predicates](/docs/operations/cache-invalidation/) for invalidation.
 
+A route must specify exactly one of `pool` or `static.root`. The former proxies to an upstream pool; the latter serves files from a local directory. See [Static file serving](static-files/).
+
 | Field | Default | Description |
 |---|---|---|
 | `name` | `""` | Human-readable label used in Prometheus `route` label and the dashboard. Defaults to `host:path_prefix` when empty. |
 | `match.host` | `""` | Match on `Host` header (empty = any) |
 | `match.path_prefix` | `""` | Match on URL path prefix (empty = any) |
 | `match.methods` | `[]` | Restrict to listed HTTP methods, e.g. `[GET, HEAD]`. Empty = all methods. Normalised to upper-case. Lets you give GET and POST on the same path independent cache policies. |
-| `pool` | — | Upstream pool name |
+| `pool` | — | Upstream pool name. Required unless `static.root` is set. |
+| `static.root` | `""` | Absolute path to a directory to serve files from. Required unless `pool` is set. See [Static file serving](static-files/). |
+| `static.index` | `[]` | Index files to try (in order) when the request path maps to a directory, e.g. `[index.html]`. |
+| `static.max_file_size` | `10MiB` | Per-file size cap. Files larger than this are rejected with 413. |
 
 ### `routes[].request`
 

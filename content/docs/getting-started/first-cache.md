@@ -66,3 +66,43 @@ curl -s http://127.0.0.1:9000/metrics | grep bouine_requests_total
 1. First request had no cache object → bouine fetched from origin and stored the response.
 2. Second request found a fresh object in the hot tier → bouine served it immediately.
 3. The response had `X-Cache: HIT`, and the access log included `cache_status=HIT`.
+
+## Alternative: serve files without an origin server
+
+bouine can serve files directly from a local directory — no need to run
+a separate HTTP server. See [Static file serving](/docs/configuration/static-files/)
+for the full reference.
+
+```bash
+mkdir -p /tmp/bouine-static
+printf 'hello from disk\n' > /tmp/bouine-static/index.html
+```
+
+Create `config.yaml`:
+
+```yaml
+listen:
+  http: ":8080"
+  admin: ":9000"
+
+routes:
+  - match: { path_prefix: / }
+    static:
+      root: /tmp/bouine-static
+      index: [index.html]
+```
+
+Run bouine:
+
+```bash
+bouine serve --config config.yaml --log-format json
+```
+
+```bash
+curl -sI http://127.0.0.1:8080/ | grep Content-Type
+# Content-Type: text/html; charset=utf-8
+```
+
+Static routes serve from disk on every request. The OS page cache handles
+hot caching in RAM. To enable bouine's cache layer (for cluster replication
+or TTL-based eviction), set `cache.enabled: true` on the route.
