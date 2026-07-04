@@ -21,3 +21,6 @@ AGENTS.md
 .github/
 .gitmodules
 hugo_stats.json
+
+.env
+.envrc
