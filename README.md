@@ -1,12 +1,12 @@
 # bouine documentation
 
-Source for the [bouine](https://github.com/thylong/bouine) documentation site
-at **https://bouine.thylong.com**.
+Source for the [bouine](https://github.com/bouine-cache/bouine) documentation site
+at **https://bouine.org**.
 
 ## Local development
 
 ```bash
-git clone git@github.com:thylong/bouine-documentation.git
+git clone git@github.com:bouine-cache/bouine-documentation.git
 cd bouine-documentation
 git submodule update --init
 npm install

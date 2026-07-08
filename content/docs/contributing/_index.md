@@ -21,7 +21,7 @@ Thanks for improving bouine. This project values correctness, performance, and o
 ## Setup
 
 ```bash
-git clone https://github.com/thylong/bouine.git
+git clone https://github.com/bouine-cache/bouine.git
 cd bouine
 make hooks
 make all

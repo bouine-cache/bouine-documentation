@@ -216,7 +216,7 @@ Each node cold-starts independently. Over time, hit rate naturally plateaus. If 
 Use `buildx` and cross-compile rather than emulating amd64:
 
 ```bash
-docker buildx build --platform linux/amd64 -t thylong/bouine:dev --load .
+docker buildx build --platform linux/amd64 -t bouinecache/bouine:dev --load .
 ```
 
 bouine's Dockerfile uses `BUILDPLATFORM` and `TARGETARCH` so Go builds natively.
@@ -227,7 +227,7 @@ bouine's Dockerfile uses `BUILDPLATFORM` and `TARGETARCH` so Go builds natively.
 
 For detailed procedures, see the operator runbooks in the bouine repository (`docs/runbook/`):
 
-- [00-lifecycle](https://github.com/thylong/bouine/blob/main/docs/runbook/00-lifecycle.md) — start, stop, reload, drain
-- [10-cluster-modes](https://github.com/thylong/bouine/blob/main/docs/runbook/10-cluster-modes.md) — verify, diagnose, and switch modes
-- [20-purge-ban](https://github.com/thylong/bouine/blob/main/docs/runbook/20-purge-ban.md) — cache invalidation operations
-- [30-rolling-restart](https://github.com/thylong/bouine/blob/main/docs/runbook/30-rolling-restart.md) — zero-5xx rolling restart
+- [00-lifecycle](https://github.com/bouine-cache/bouine/blob/main/docs/runbook/00-lifecycle.md) — start, stop, reload, drain
+- [10-cluster-modes](https://github.com/bouine-cache/bouine/blob/main/docs/runbook/10-cluster-modes.md) — verify, diagnose, and switch modes
+- [20-purge-ban](https://github.com/bouine-cache/bouine/blob/main/docs/runbook/20-purge-ban.md) — cache invalidation operations
+- [30-rolling-restart](https://github.com/bouine-cache/bouine/blob/main/docs/runbook/30-rolling-restart.md) — zero-5xx rolling restart

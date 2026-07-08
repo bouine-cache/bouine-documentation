@@ -7,12 +7,12 @@ description: "Deploy bouine to Kubernetes with Helm, configure StatefulSet gossi
 
 ## Add the chart repository
 
-bouine publishes a Helm chart repository at **`https://charts.thylong.com`**,
+bouine publishes a Helm chart repository at **`https://charts.bouine.org`**,
 indexed on [Artifact Hub](https://artifacthub.io/packages/search?repo=bouine).
-The chart pulls the `thylong/bouine` image from Docker Hub by default.
+The chart pulls the `bouinecache/bouine` image from Docker Hub by default.
 
 ```bash
-helm repo add bouine https://charts.thylong.com
+helm repo add bouine https://charts.bouine.org
 helm repo update
 helm search repo bouine
 ```

@@ -4,12 +4,12 @@ weight: 6
 description: "All configurable values for the bouine Helm chart with defaults, descriptions, and production deployment tips."
 ---
 
-The Helm chart deploys bouine as a StatefulSet with headless Service for gossip peer discovery. Source: [`deploy/helm/bouine/`](https://github.com/thylong/bouine/tree/main/deploy/helm/bouine).
+The Helm chart deploys bouine as a StatefulSet with headless Service for gossip peer discovery. Source: [`deploy/helm/bouine/`](https://github.com/bouine-cache/bouine/tree/main/deploy/helm/bouine).
 
 ## Install
 
 ```bash
-helm repo add bouine https://charts.thylong.com
+helm repo add bouine https://charts.bouine.org
 helm repo update
 
 helm install bouine bouine/bouine \
@@ -28,7 +28,7 @@ directory `deploy/helm/bouine`.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `image.repository` | `thylong/bouine` | Container image repository (Docker Hub) |
+| `image.repository` | `bouinecache/bouine` | Container image repository (Docker Hub) |
 | `image.tag` | `""` (appVersion) | Image tag; defaults to chart's `appVersion` |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy |
 | `nameOverride` | `""` | Override chart name |
