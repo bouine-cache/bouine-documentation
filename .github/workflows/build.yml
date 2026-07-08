@@ -39,4 +39,4 @@ jobs:
           sudo dpkg -i hugo.deb
 
       - name: Build (production)
-        run: hugo --environment production --minify --gc --baseURL "https://bouine.thylong.com/"
+        run: hugo --environment production --minify --gc --baseURL "https://bouine.org/"

@@ -11,7 +11,7 @@ description: "Run the official bouine Docker image, mount custom configuration, 
 docker run --rm \
   -p 8080:80 \
   -p 9000:9000 \
-  thylong/bouine:latest
+  bouinecache/bouine:latest
 ```
 
 ## Mount a config file
@@ -21,7 +21,7 @@ docker run --rm \
   -p 8080:80 \
   -p 9000:9000 \
   -v "$PWD/config.yaml:/etc/bouine/config.yaml:ro" \
-  thylong/bouine:latest
+  bouinecache/bouine:latest
 ```
 
 ## Build locally
@@ -30,7 +30,7 @@ On Apple Silicon targeting a Linux amd64 cluster:
 
 ```bash
 docker buildx build --platform linux/amd64 \
-  -t thylong/bouine:latest \
+  -t bouinecache/bouine:latest \
   --push .
 ```
 
