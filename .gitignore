@@ -10,3 +10,5 @@ compare-prototypes/
 
 .env
 .envrc
+kubeconfig.yaml
+kubeconfig.yaml

@@ -2,7 +2,7 @@
 
 CONTAINER   := rg.fr-par.scw.cloud/heula/bouine-documentation
 TAG         := latest
-INNERSPACE  := ../../innerspace
+BOUINE_INFRA := ../../bouine-infra
 NAMESPACE   := thylong-innerspace
 
 help: ## Show this help.
@@ -31,7 +31,7 @@ auth-registry: ## Authenticate Docker to the Scaleway registry (needs SCW_SECRET
 docker-push: docker-build ## Build and push the image to the registry.
 	docker push $(CONTAINER):$(TAG)
 
-deploy: docker-push ## Push the image and roll the deployment in the innerspace cluster.
-	kubectl apply -k $(INNERSPACE)/k8s/
+deploy: docker-push ## Push the image and roll the deployment in the k3s cluster.
+	kubectl apply -k $(BOUINE_INFRA)/k8s/
 	kubectl rollout restart deployment/bouine-docs -n $(NAMESPACE)
 	kubectl rollout status deployment/bouine-docs -n $(NAMESPACE) --timeout=120s
