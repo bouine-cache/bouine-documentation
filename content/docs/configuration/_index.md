@@ -100,6 +100,11 @@ routes:
       refresh_margin_percent: 20
       refresh_timeout: 5s
       refresh_concurrency: 16
+      refresh_min_hits: 3
+      refresh_persist_cycles: 2
+      refresh_min_score: 1048576
+      refresh_max_rps: 100
+      refresh_reactive_first: true
       key:
         include_headers:
           - Accept-Language
@@ -185,6 +190,11 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `refresh_margin_percent` | `10` | Percentage of TTL before expiry at which the background refresh fires (1–50). E.g. `20` fires at 80% of TTL. |
 | `refresh_timeout` | `10s` | Maximum duration for a single background refresh fetch (5s–120s) |
 | `refresh_concurrency` | `8` | Maximum concurrent background refresh fetches per route (1–64) |
+| `refresh_min_hits` | `0` | Minimum cache hits during a TTL window for an object to qualify for re-scheduling after a refresh. `0` disables the gate. See [Popularity gates](/docs/configuration/cache-policy/#popularity-gates). |
+| `refresh_persist_cycles` | `0` | Additional TTL cycles to keep refreshing after the popularity gate would block. Requires `refresh_min_hits > 0`. See [Persist cycles](/docs/configuration/cache-policy/#persist-cycles). |
+| `refresh_min_score` | `0` | Minimum refresh priority score (`staleHits × bodySize`) for re-scheduling. Requires `refresh_min_hits > 0`. See [Popularity gates](/docs/configuration/cache-policy/#popularity-gates). |
+| `refresh_max_rps` | `0` | Caps background refresh fetches per second per route (0 or 1–10000). `0` = no limit. See [Rate limiting](/docs/configuration/cache-policy/#rate-limiting). |
+| `refresh_reactive_first` | `false` | SWR-first mode: new objects rely on stale-while-revalidate instead of proactive refresh. Requires `stale_while_revalidate > 0` and `refresh_min_hits > 0`. See [Reactive-first mode](/docs/configuration/cache-policy/#reactive-first-mode). |
 
 ### `routes[].cache.key`
 
