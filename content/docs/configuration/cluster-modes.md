@@ -11,7 +11,7 @@ Cluster mode lets multiple bouine pods share cache reads, broadcast invalidation
 ```yaml
 cluster:
   enabled: true
-  mode: strong        # "strong" (default) | "eventual" | "full"
+  mode: strong        # "strong" (default) | "eventual"
 ```
 
 Use this decision guide:
@@ -40,7 +40,7 @@ listen:
 
 cluster:
   enabled: true
-  mode: strong         # "strong" (default) | "eventual" | "full"
+  mode: strong         # "strong" (default) | "eventual"
   join:
     - "bouine-0.bouine-headless.default.svc.cluster.local:8443"
     - "bouine-1.bouine-headless.default.svc.cluster.local:8443"
@@ -119,34 +119,6 @@ Every node is independent — no sharding, no peer-fetch. Each node caches whate
 
 ---
 
-## Full mode
-
-Every node holds a full replica of the cached object set. Objects are actively replicated via gossip on fill.
-
-{{< full-mode-diagram >}}
-
-**Request flow:**
-
-1. Node receives a request, looks up in local store.
-2. HIT → returns immediately. MISS → fetches from origin directly.
-3. On a cacheable store, the full object is broadcast to all peers via gossip.
-
-**Invalidation:** Purge and ban use HTTP fan-out (sub-second). Object replication uses gossip (~1 s convergence).
-
-**Memory and bandwidth:**
-
-- Each node needs enough RAM for the **entire working set** (`hot_max_bytes` must cover it).
-- Replication bandwidth: `fills_per_second × avg_response_bytes × (cluster_size - 1)`.
-- Example: 1k fills/s × 50 KiB × 4 peers = ~200 MB/s per node.
-- Only cacheable responses are replicated (not `no-store`, not errors, not bypass).
-
-**When to use:**
-
-- Small clusters (2–5 nodes) where memory is plentiful.
-- Read-heavy workloads where cache misses are expensive.
-- Maximum hit rate and resilience matter more than memory efficiency.
-
----
 
 ## Invalidation propagation summary
 

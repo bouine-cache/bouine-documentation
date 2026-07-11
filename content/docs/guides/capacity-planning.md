@@ -41,7 +41,7 @@ If you cannot estimate, start with 2 GiB and monitor `bouine_hot_store_bytes / b
 
 ```
 hot_max_bytes = working_set ÷ N × 1.2   (strong mode, with 20% headroom)
-hot_max_bytes = working_set × 1.2        (eventual or full mode)
+hot_max_bytes = working_set × 1.2        (eventual mode)
 ```
 
 The 20% headroom prevents constant eviction pressure. SIEVE eviction works best when the cache is not permanently full.
@@ -110,21 +110,6 @@ bash bench/loadtest/scenarios/4.5_rolling_update/run.sh
 | `bouine_requests_total{cache_result="HIT"}` / total | > 0.8 for static content | Check TTLs, working set size |
 | `bouine_peer_fetch_duration_seconds` p99 | < 5 ms | Check cluster network health |
 
-## Full mode bandwidth budget
-
-In `full` mode, every cacheable response is replicated to all peers:
-
-```
-replication_bandwidth = fills_per_second × avg_response_bytes × (N - 1)
-```
-
-| fills/s | avg size | 3 nodes | 5 nodes |
-|---------|----------|---------|---------|
-| 100 | 10 KiB | 2 MB/s | 4 MB/s |
-| 1 000 | 50 KiB | 100 MB/s | 200 MB/s |
-| 5 000 | 50 KiB | 500 MB/s | 1 GB/s |
-
-If bandwidth exceeds your network capacity, switch to `strong` mode (one copy per key, no replication).
 
 ## Example: e-commerce deployment
 

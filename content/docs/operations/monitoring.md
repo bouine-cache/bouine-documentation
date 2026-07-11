@@ -59,12 +59,9 @@ bouine_hot_store_bytes / <hot_max_bytes_from_config>
 | `bouine_peer_fetch_misses_total` | — | `strong` |
 | `bouine_peer_fetch_hop_limit_hits_total` | — | `strong` |
 | `bouine_peer_fetch_duration_seconds` | — | `strong` |
-| `bouine_cluster_invalidations_http_total` | `type` | `strong`, `full` |
+| `bouine_cluster_invalidations_http_total` | `type` | `strong` |
 | `bouine_cluster_invalidations_gossip_total` | `type` | all |
-| `bouine_cluster_broadcast_failures_total` | `type`, `reason` | `strong`, `full` |
-| `bouine_cluster_replications_sent_total` | — | `full` |
-| `bouine_cluster_replications_received_total` | — | `full` |
-| `bouine_cluster_replication_bytes_total` | `direction` | `full` |
+| `bouine_cluster_broadcast_failures_total` | `type`, `reason` | `strong` |
 
 ### Cloudflare propagation
 

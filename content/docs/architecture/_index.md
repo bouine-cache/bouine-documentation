@@ -65,7 +65,7 @@ Random ±N% applied to every TTL to prevent synchronized expiry stampedes across
 
 ## Clustering
 
-bouine supports three consistency modes (see [Clustering](/docs/configuration/cluster-modes/)):
+bouine supports two consistency modes (see [Clustering](/docs/configuration/cluster-modes/)):
 
 ### Strong mode (default)
 
@@ -75,9 +75,6 @@ bouine supports three consistency modes (see [Clustering](/docs/configuration/cl
 
 Every node is independent — no sharding, no peer-fetch. Invalidations propagate via gossip only. Each node caches whatever it receives from origin.
 
-### Full mode
-
-Every node holds a full replica of the cached object set. Objects are actively replicated via gossip on every cacheable fill. Invalidations use HTTP fan-out (sub-second, same as strong).
 
 ### Membership (all modes)
 
