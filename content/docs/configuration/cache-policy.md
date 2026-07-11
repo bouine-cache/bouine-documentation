@@ -223,12 +223,18 @@ cache:
   refresh_margin_percent: 20      # fire at 80% of TTL (24s into 30s)
   refresh_timeout: 5s             # max duration for a single refresh fetch
   refresh_concurrency: 16         # max concurrent background refreshes
+  refresh_min_hits: 3             # only re-schedule objects hit >= 3 times
+  refresh_persist_cycles: 2       # keep refreshing 2 cycles after popularity drops
+  refresh_min_score: 1048576      # 1 MiB-hit score gate (staleHits × bodySize)
+  refresh_max_rps: 100            # cap at 100 refresh fetches/s per route
+  refresh_reactive_first: true    # SWR-first, promote popular objects to proactive
 ```
 
 ### How it works
 
 1. When a cacheable object is stored, bouine schedules a background
-   refresh at `StoredAt + TTL - margin`.
+   refresh at `StoredAt + TTL - margin` (unless `refresh_reactive_first`
+   is enabled — see [Reactive-first mode](#reactive-first-mode) below).
 2. At the scheduled time, a single drainer goroutine fires a conditional
    request (`If-None-Match` / `If-Modified-Since`) to the origin.
 3. On `304 Not Modified`, the object's TTL is refreshed in place — the
@@ -238,6 +244,11 @@ cache:
    fresh until its original TTL expires, at which point SWR/miss path
    takes over).
 
+After each refresh completes, bouine evaluates the object's popularity
+using the [popularity gates](#popularity-gates) below. Objects that fall
+below the configured thresholds are not re-scheduled and expire
+naturally, reducing origin traffic for long-tail content.
+
 ### Configuration fields
 
 | Field | Default | Description |
@@ -246,6 +257,77 @@ cache:
 | `refresh_margin_percent` | `10` | Percentage of TTL before expiry to fire (1–50). E.g. `20` fires at 80% of TTL. |
 | `refresh_timeout` | `10s` | Maximum duration for a single background refresh fetch (5s–120s) |
 | `refresh_concurrency` | `8` | Maximum concurrent background refresh fetches per route (1–64) |
+| `refresh_min_hits` | `0` | Minimum cache hits during a TTL window for an object to qualify for re-scheduling after a refresh. `0` disables the gate (every object is refreshed). `>0` means only objects hit at least N times are re-scheduled; unpopular long-tail objects expire naturally. |
+| `refresh_persist_cycles` | `0` | Number of additional TTL cycles to keep refreshing after the popularity gate (`refresh_min_hits`) would block. Each refresh with hits below the threshold decrements the counter; a popular refresh resets it. `0` disables persistence — the gate kills re-scheduling immediately. Requires `refresh_min_hits > 0`. |
+| `refresh_min_score` | `0` | Minimum refresh priority score (staleHits × object body size in bytes) for re-scheduling. Weights the decision by object size: a 4 MB object with 1 hit outranks a 512 B object with 100 hits. `0` disables the score gate. Requires `refresh_before_expiry` and `refresh_min_hits > 0`. |
+| `refresh_max_rps` | `0` | Caps background refresh fetches per second per route. When the cap is reached, pending refreshes are deferred with jittered backoff rather than dropped. `0` means no limit. Range 0 or 1–10000. |
+| `refresh_reactive_first` | `false` | Changes the initial refresh strategy from proactive to reactive. New objects are not scheduled for proactive refresh; instead they rely on SWR — if accessed while stale, a background revalidation refreshes the object, and the popularity gate decides whether to promote it to proactive refresh for subsequent windows. Requires `stale_while_revalidate > 0` and `refresh_min_hits > 0`. |
+
+### Popularity gates
+
+When `refresh_min_hits` or `refresh_min_score` is set, bouine evaluates
+popularity **after each background refresh completes** (not on the
+initial store). The object's per-window hit count (`staleHits`) and body
+size are checked against the configured thresholds:
+
+- **`refresh_min_hits`**: the hit count during the previous TTL window
+  must be >= N. This filters out long-tail objects that were cached once
+  but rarely accessed again.
+- **`refresh_min_score`**: the score (`staleHits × obj.BodySize`) must
+  be >= N. This adds a size-weighted dimension — a large object with few
+  hits may be more valuable to keep warm than a small object with many
+  hits.
+
+When both gates are set, **both must pass** for the object to be
+re-scheduled. If either fails, the object is not re-scheduled and will
+expire naturally at the end of its current TTL.
+
+> The first TTL window always gets one refresh cycle — the popularity
+> gate only applies on **re-scheduling after a refresh completes**.
+
+### Persist cycles
+
+When `refresh_persist_cycles > 0` and the popularity gate would block
+re-scheduling, the object gets a grace period: it continues to be
+refreshed for N additional TTL cycles. Each cycle where hits remain
+below `refresh_min_hits` decrements the persist counter. If a popular
+refresh occurs (hits >= `refresh_min_hits`), the counter is reset to the
+configured value.
+
+This prevents objects from falling off the refresh schedule due to a
+temporary traffic dip. Set `refresh_persist_cycles` to 2–3 for routes
+with bursty traffic patterns where popularity fluctuates.
+
+### Rate limiting
+
+`refresh_max_rps` caps the number of background refresh fetches per
+second per route. When the cap is reached, the refresh is not dropped —
+it is re-scheduled with a jittered backoff (100–500 ms). This prevents
+refresh bursts from overwhelming the origin, which is especially useful
+when:
+
+- Many objects share the same TTL and would refresh simultaneously
+- The origin has rate limits or costs per request
+- You want to bound the maximum origin load from refresh traffic
+
+### Reactive-first mode
+
+When `refresh_reactive_first: true`, new objects are **not** scheduled
+for proactive background refresh. Instead, they rely on
+`stale_while_revalidate`:
+
+1. The object is cached normally and served fresh until its TTL expires.
+2. If a client requests it while stale, SWR serves the stale copy and
+   triggers a background revalidation.
+3. After the revalidation completes, the popularity gate evaluates
+   whether to promote the object to **proactive** refresh for subsequent
+   TTL windows.
+
+This mode is ideal for routes with high key cardinality where most
+objects are accessed only once or twice — proactive refresh would waste
+origin requests on objects that will never be accessed again. Only
+objects that prove their popularity (by being accessed while stale and
+passing the `refresh_min_hits` gate) graduate to proactive refresh.
 
 ### Sizing guidance
 
@@ -256,6 +338,8 @@ cache:
 - **Origin traffic**: refresh fetches are conditional (304-capable), so
   body transfer is typically zero. The origin only needs to support
   `ETag` or `Last-Modified` for conditional requests.
+- **Rate-limited traffic**: when `refresh_max_rps` is set, the maximum
+  origin load from refreshes is bounded at N requests/s per route.
 - **Minimum TTL**: objects with TTL < 5s are not scheduled — the refresh
   window is too tight for a network round-trip.
 - **Negative-cached objects** (404/405/410/501) are never refreshed.
@@ -264,7 +348,8 @@ cache:
 
 - **SWR**: refresh-before-expiry and SWR are complementary. If a refresh
   fails and the object goes stale, SWR serves stale content to clients
-  while a revalidation is attempted.
+  while a revalidation is attempted. In reactive-first mode, SWR is the
+  primary trigger for the initial refresh cycle.
 - **Cluster strong mode**: only the key owner schedules background
   refresh. Non-owner nodes that cache a peer-fetched object do not
   schedule redundant refreshes.
@@ -288,6 +373,10 @@ effective for routes with:
 Do **not** use it for routes with very long TTLs (1h+) and low traffic —
 the background refresh goroutines add overhead with little benefit over
 letting SWR handle the occasional revalidation.
+
+For routes with high key cardinality and a long tail of rarely-accessed
+objects, combine `refresh_min_hits` with `refresh_reactive_first` to
+ensure only popular objects consume refresh bandwidth.
 
 ---
 

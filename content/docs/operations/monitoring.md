@@ -71,6 +71,36 @@ bouine_hot_store_bytes / <hot_max_bytes_from_config>
 | `bouine_cloudflare_purge_duration_seconds` | `operation` | Latency of CF API calls |
 | `bouine_cloudflare_purge_skipped_total` | `reason` | Invalidations not forwarded to CF |
 
+### Refresh before expiry
+
+These metrics are emitted when `refresh_before_expiry` is enabled on at
+least one route. All carry a `route` label matching the route name.
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `bouine_refresh_total` | counter | `route`, `result` | Background refresh fetches by result (`304`, `200`, `error`, `persist_cycle`). |
+| `bouine_refresh_errors_total` | counter | `route`, `error_type` | Failed background refresh fetches by error type. |
+| `bouine_refresh_skips_total` | counter | `route`, `reason` | Skipped background refreshes by reason (`not_found`, `stale`, `semaphore_full`, `rate_limited`, `not_registered`, `bad_url`, `below_min_hits`, `negative`). |
+| `bouine_refresh_in_flight` | gauge | `route` | Current in-flight background refresh goroutines. |
+| `bouine_refresh_scheduled` | gauge | `route` | Entries currently in the refresh scheduler heap. |
+| `bouine_refresh_registry_size` | gauge | `route` | Entries currently in the refresh registry. |
+
+**Refresh rate** (PromQL):
+```promql
+sum(rate(bouine_refresh_total[1m])) by (route)
+```
+
+**Refresh skip ratio** (PromQL):
+```promql
+sum(rate(bouine_refresh_skips_total{reason="below_min_hits"}[5m]))
+/
+sum(rate(bouine_refresh_total[5m]))
+```
+
+A high `below_min_hits` skip ratio indicates the popularity gate
+(`refresh_min_hits`) is filtering out many objects — adjust the
+threshold if too many popular objects are expiring.
+
 ### Go runtime
 
 The standard `go_*` and `process_*` metrics from the Prometheus Go client are automatically included. The most operationally relevant:
