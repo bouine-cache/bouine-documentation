@@ -4,6 +4,12 @@ Documentation website for [bouine](https://github.com/thylong/bouine) — a Kube
 
 ---
 
+## Critical Rules
+
+- **NEVER restart the k3s cluster or any k3s/node systemd service (`systemctl restart k3s`, `systemctl restart containerd`, etc.) without explicit approval from the owner.** Restarting k3s causes downtime on all workloads on the node. Use alternative approaches (e.g., `k3s ctr images import` to side-load images) that do not require a service restart.
+
+---
+
 ## Essential Commands
 
 All commands go through `make` (which delegates to npm/hugo):
