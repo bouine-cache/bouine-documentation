@@ -14,7 +14,6 @@ description: "Troubleshoot common bouine production issues: cache misses, cluste
 | HIT p99 spikes to 50–100 ms under load | **High** | [GC stop-the-world pauses](#hit-p99-spikes-to-50100-ms-under-load) |
 | `X-Cache` always MISS | **Medium** | [Cache misses](#x-cache-is-always-miss) |
 | Stale reads on one node | **Medium** | [Stale reads](#stale-reads) |
-| Memory pressure in full mode | **Medium** | [Memory pressure](#memory-pressure-in-full-mode) |
 | Low hit rate in eventual mode | **Low** | [Low hit rate](#low-hit-rate-in-eventual-mode) |
 | Docker build slow on Apple Silicon | **Low** | [Docker build](#docker-build-is-slow-on-apple-silicon) |
 
@@ -184,7 +183,6 @@ kubectl logs statefulset/bouine -n bouine | grep cache_status
 ## Stale reads
 
 - **In `eventual` mode**: expected during gossip convergence (1–5 s). If persistent, check `bouine_cluster_invalidations_gossip_total` — if flat, the gossip link is broken. Restart the node.
-- **In `full` mode**: check `bouine_cluster_replications_received_total`. If zero despite `bouine_cluster_replications_sent_total > 0`, the gossip queue may be full.
 
 ---
 
@@ -207,7 +205,7 @@ kubectl logs statefulset/bouine -n bouine | grep cache_status
 
 ## Low hit rate in `eventual` mode
 
-Each node cold-starts independently. Over time, hit rate naturally plateaus. If load is unevenly distributed across nodes (e.g. session affinity), some nodes may have much lower hit rates. Consider `strong` or `full` mode.
+Each node cold-starts independently. Over time, hit rate naturally plateaus. If load is unevenly distributed across nodes (e.g. session affinity), some nodes may have much lower hit rates. Consider `strong` mode.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: "Cluster consistency modes"
 weight: 3.5
-description: "Verify, diagnose, and switch between strong, eventual, and full cluster consistency modes."
+description: "Verify, diagnose, and switch between strong and eventual cluster consistency modes."
 ---
 
 ## Verify your mode
@@ -160,7 +160,7 @@ No data migration needed — each node starts with an empty cache.
 2. Add `replicas` and `hop_limit` fields if missing.
 3. Rolling restart. The consistent-hash ring forms within seconds of all nodes
    joining.
-4. Cache state from `eventual`/`full` is **not preserved** — nodes start with
+4. Cache state from `eventual` is **not preserved** — nodes start with
    empty caches. Expect elevated miss rates for the first few minutes until
    caches warm up.
 
@@ -208,11 +208,8 @@ No data migration needed — each node starts with an empty cache.
 
 | Symptom | Mode | Probable cause | Check |
 |---|---|---|---|
-| Purge doesn't propagate | `strong`/`full` | Admin port unreachable | `bouine_cluster_invalidations_http_total` |
+| Purge doesn't propagate | `strong` | Admin port unreachable | `bouine_cluster_invalidations_http_total` |
 | Purge doesn't propagate | `eventual` | Gossip partition | `bouine_cluster_invalidations_gossip_total`, peers list |
 | Stale reads | `eventual` | Gossip convergence window | Wait 5 s, re-check. If persistent, check gossip. |
-| Stale reads | `full` | Replication not arriving | `bouine_cluster_replications_received_total` |
-| Low hit rate | `eventual` | Uneven node fill | Check per-node hit rates, consider `full` or `strong` |
-| High memory | `full` | Working set > hot_max_bytes | Increase `hot_max_bytes` or switch to `strong` |
-| High bandwidth | `full` | Fill rate × object size too high | Reduce cluster size or switch mode |
+| Low hit rate | `eventual` | Uneven node fill | Check per-node hit rates, consider `strong` |
 | Node join fails | all | DNS not resolving | `kubectl get endpoints`, verify `publishNotReadyAddresses` |

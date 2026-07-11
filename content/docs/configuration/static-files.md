@@ -64,7 +64,7 @@ doubles memory usage for zero latency benefit on a single node.
 
 Enable cache explicitly when you need:
 
-- **Cluster replication** — peers without local files can serve cached copies (full mode).
+- **Cluster invalidation** — peers without local files can serve cached copies.
 - **TTL-based eviction** — automatic expiry and revalidation.
 - **Stale serving** — `stale_while_revalidate` / `stale_if_error` for static files.
 
@@ -84,7 +84,7 @@ routes:
 When cache is enabled, the static handler is wrapped in the cache handler
 as its "upstream." On a cache miss, bouine reads from disk and stores the
 response. On a hit, bouine serves from cache without touching the filesystem.
-All cache features (TTL, SWR, SIE, eviction, cluster replication) apply
+All cache features (TTL, SWR, SIE, eviction) apply
 identically to proxied responses.
 
 ## Security
