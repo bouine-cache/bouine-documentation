@@ -29,8 +29,7 @@ helm install bouine bouine/bouine \
   --namespace bouine --create-namespace \
   --set "config.upstream_pools[0].name=app" \
   --set "config.upstream_pools[0].targets[0]=app.default.svc:8080" \
-  --set "config.routes[0].pool=app" \
-  --set config.cluster.enabled=true
+  --set "config.routes[0].pool=app"
 ```
 
 This deploys a StatefulSet with gossip clustering, a headless Service for

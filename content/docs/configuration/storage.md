@@ -13,13 +13,11 @@ The primary cache store. Every cache hit is served from here.
 ```yaml
 storage:
   hot_max_bytes: 2GiB
-  eviction: sieve
 ```
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | `hot_max_bytes` | — (required) | Maximum RAM for cached objects. See [size units](/docs/configuration/#size-units). |
-| `eviction` | `sieve` | Eviction algorithm. SIEVE is the default and recommended — O(1) per operation, near-LRU-K hit ratio. |
 
 ### How SIEVE works
 
@@ -90,10 +88,7 @@ warmVolume:
 |------|----------------|
 | `strong` | working set ÷ N (sharded) |
 | `eventual` | 1–N× (depends on traffic overlap) |
-| `full` | N× (every node holds everything) |
-
-In `full` mode, `hot_max_bytes` must cover the **entire** working set on every node. See [Clustering](/docs/configuration/cluster-modes/) for bandwidth and memory budgets.
 
 ## Configuration not reloadable
 
-Storage settings (`hot_max_bytes`, `warm_dir`, `warm_max_bytes`, `eviction`) require a restart to take effect.
+Storage settings (`hot_max_bytes`, `warm_dir`, `warm_max_bytes`) require a restart to take effect.

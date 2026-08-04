@@ -54,10 +54,7 @@ Rendered into a ConfigMap and mounted at `/etc/bouine/config.yaml`.
 | `config.storage.hot_max_bytes` | `2GiB` | RAM cache size |
 | `config.storage.warm_dir` | `/var/lib/bouine` | Warm-tier mmap directory |
 | `config.storage.warm_max_bytes` | `20GiB` | Warm-tier size limit |
-| `config.storage.eviction` | `sieve` | Eviction algorithm |
-| `config.cluster.enabled` | `true` | Enable gossip clustering |
 | `config.cluster.join` | `[]` | Seed addresses (auto-populated from headless Service DNS) |
-| `config.cluster.replicas` | `2` | Write replication factor (strong mode) |
 | `config.cluster.hop_limit` | `2` | Max peer-fetch hops (strong mode) |
 | `config.upstream_pools` | `[]` | Upstream pool definitions |
 | `config.routes` | `[]` | Route definitions |
