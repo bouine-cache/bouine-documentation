@@ -20,7 +20,7 @@ This guide walks you through deploying a complete observability stack for bouine
                  scrape :9000│    │OTLP :4318
          tail pod logs (k8s API)  │
                                   │
-              bouine pods (thylong-innerspace)
+              bouine pods
 ```
 
 **Grafana Alloy** replaces three separate agents:

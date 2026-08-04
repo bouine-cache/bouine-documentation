@@ -1,6 +1,6 @@
 # Agent Guide for `bouine-documentation`
 
-Documentation website for [bouine](https://github.com/thylong/bouine) — a Kubernetes-native HTTP reverse-proxy cache written in Go.
+Documentation website for [bouine](https://github.com/bouine-cache/bouine) — a Kubernetes-native HTTP reverse-proxy cache written in Go.
 
 ---
 
@@ -237,7 +237,7 @@ The `editPage` feature is enabled — it links each docs page to its source on G
 ```toml
 [params.doks]
   editPage = true
-  docsRepo = "https://github.com/thylong/bouine-documentation"
+  docsRepo = "https://github.com/bouine-cache/bouine-documentation"
   docsRepoBranch = "main"
 ```
 
@@ -245,7 +245,7 @@ The `editPage` feature is enabled — it links each docs page to its source on G
 
 ## CI / Deployment
 
-There is no `.github/workflows/` in this repository. Deployment is likely handled externally (e.g., Cloudflare Pages, Netlify, or another static host). The `baseURL` in `hugo.toml` points to `https://bouine.dev/`.
+There is no `.github/workflows/` in this repository. Deployment is likely handled externally (e.g., Cloudflare Pages, Netlify, or another static host). The `baseURL` in `hugo.toml` points to `https://bouine.org/`.
 
 If adding CI, the build command should be:
 ```bash
@@ -271,7 +271,7 @@ Output is `public/`.
 
 6. **Node version enforcement** — Use Node >= 24.13.0. Older versions may cause issues with `@thulite/doks-core` or other dependencies.
 
-7. **No GitHub Actions here** — This is the *documentation* repo, not the bouine source repo. The bouine Go source lives at `github.com/thylong/bouine`.
+7. **No GitHub Actions here** — This is the *documentation* repo, not the bouine source repo. The bouine Go source lives at `github.com/bouine-cache/bouine`.
 
 8. **Language support** — German (`de`) and Dutch (`nl`) are explicitly disabled in `hugo.toml`. Only English is built. Do not add multilingual content without also enabling the language.
 
