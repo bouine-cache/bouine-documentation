@@ -7,4 +7,4 @@ Report issues in the documentation itself (incorrect or misleading
 instructions, missing security warnings) via a GitHub issue or by
 following the same private reporting process as the main bouine repository:
 
-→ https://github.com/thylong/bouine/security/advisories/new
+→ https://github.com/bouine-cache/bouine/security/advisories/new
