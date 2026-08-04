@@ -12,7 +12,7 @@ bouine is configured via a YAML file passed with `--config`. Environment variabl
 - [Cache policy](cache-policy/) — TTL selection, stale serving, negative caching, jitter, refresh-before-expiry, and cache keys.
 - [Static file serving](static-files/) — serve files from a local directory instead of an upstream pool.
 - [Storage tiers](storage/) — hot and warm tiers, eviction, sizing guidelines.
-- [TLS](tls/) — certificates, SNI, ALPN, OCSP stapling, and automatic reload.
+- [TLS](tls/) — certificates, SNI, and automatic reload.
 - [Clustering](cluster-modes/) — consistency modes, gossip, peer fetch, mTLS, invalidation.
 - [Helm chart reference](helm/) — all `values.yaml` keys with defaults.
 
@@ -25,7 +25,6 @@ listen:
 
 storage:
   hot_max_bytes: 256MiB
-  eviction: sieve
 
 upstream_pools:
   - name: app
@@ -52,22 +51,18 @@ tls:
     - cert_file: /etc/bouine/tls/cert.pem
       key_file: /etc/bouine/tls/key.pem
       sni: ["example.com", "*.example.com"]
-  alpn: [h2, http/1.1]
   min_version: "1.2"
 
 storage:
   hot_max_bytes: 2GiB
   warm_dir: /var/lib/bouine
   warm_max_bytes: 50GiB
-  eviction: sieve
 
 cluster:
-  enabled: true
   join:
     - "bouine-0.bouine-headless.ns.svc.cluster.local:8443"
     - "bouine-1.bouine-headless.ns.svc.cluster.local:8443"
     - "bouine-2.bouine-headless.ns.svc.cluster.local:8443"
-  replicas: 2
   hop_limit: 2
 
 upstream_pools:
@@ -132,16 +127,13 @@ routes:
 | `hot_max_bytes` | — | RAM cache size. See [size units](#size-units). Example: `2GiB`. |
 | `warm_dir` | `""` | Path for mmap warm-tier segments. Empty disables. See [Storage tiers](storage/). |
 | `warm_max_bytes` | `""` | Max warm-tier disk usage |
-| `eviction` | `sieve` | Eviction algorithm. `sieve` (default, recommended). |
 
 ### `cluster`
 
 | Field | Default | Description |
 |---|---|---|
-| `enabled` | `false` | Enable gossip clustering |
-| `mode` | `strong` | Consistency mode: `strong`, `eventual`, or `full`. See [Clustering](cluster-modes/). |
+| `mode` | `strong` | Consistency mode: `strong` or `eventual`. The cluster is enabled when `listen.cluster` is set. See [Clustering](cluster-modes/). |
 | `join` | `[]` | Seed addresses (StatefulSet pod DNS) |
-| `replicas` | `1` | Write replication factor (strong mode only) |
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback (strong mode only) |
 | `tls.ca_bundle` | `""` | CA certificate path for peer-to-peer mTLS. Empty = plain HTTP. |
 | `tls.cert_file` | `""` | Client certificate for mTLS |

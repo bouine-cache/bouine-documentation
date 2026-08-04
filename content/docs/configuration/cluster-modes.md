@@ -9,8 +9,10 @@ Cluster mode lets multiple bouine pods share cache reads, broadcast invalidation
 ## Choosing a mode
 
 ```yaml
+listen:
+  cluster: ":8443"
+
 cluster:
-  enabled: true
   mode: strong        # "strong" (default) | "eventual"
 ```
 
@@ -18,17 +20,6 @@ Use this decision guide:
 
 - **Memory-constrained or large cluster (3–50+ nodes)?** → `strong` — one copy per key, peer-fetch on miss.
 - **Geo-distributed or CDN edge PoPs?** → `eventual` — independent caching, gossip-only invalidation, zero miss-latency penalty.
-- **Small cluster (2–5 nodes) where hits matter more than RAM?** → `full` — every node holds every key.
-
-| Concern | `strong` | `eventual` | `full` |
-|---------|----------|------------|--------|
-| **Hit rate** (warm) | High — keys concentrated on owner | Medium — each node cold-starts | Highest — all keys on all nodes |
-| **Miss latency** | +1 RTT (peer-fetch) | Direct to origin | Direct to origin |
-| **Memory per node** | Working set ÷ N | 1–N× (overlap varies) | N× (full working set) |
-| **Node failure impact** | Owner keys → cold miss | None | None |
-| **Invalidation speed** | Sub-second (HTTP fan-out + gossip) | 1–5 s (gossip only) | Sub-second (HTTP fan-out + gossip) |
-| **Cross-node traffic** | Peer-fetch RPCs + fan-out | Gossip only | Gossip replication + fan-out |
-| **Ideal cluster size** | 3–50+ | 2–50+ | 2–5 |
 
 ---
 
@@ -39,13 +30,11 @@ listen:
   cluster: ":8443"
 
 cluster:
-  enabled: true
   mode: strong         # "strong" (default) | "eventual"
   join:
     - "bouine-0.bouine-headless.default.svc.cluster.local:8443"
     - "bouine-1.bouine-headless.default.svc.cluster.local:8443"
     - "bouine-2.bouine-headless.default.svc.cluster.local:8443"
-  replicas: 2          # only used in strong mode
   hop_limit: 2         # only used in strong mode
 ```
 
@@ -122,11 +111,11 @@ Every node is independent — no sharding, no peer-fetch. Each node caches whate
 
 ## Invalidation propagation summary
 
-| Operation | `strong` | `eventual` | `full` |
-|---|---|---|---|
-| Purge | HTTP fan-out + gossip | Gossip only | HTTP fan-out + gossip |
-| Ban | HTTP fan-out + gossip | Gossip only | HTTP fan-out + gossip |
-| Refresh | HTTP POST to owner | Gossip only | HTTP fan-out to all |
+| Operation | `strong` | `eventual` |
+|---|---|---|
+| Purge | HTTP fan-out + gossip | Gossip only |
+| Ban | HTTP fan-out + gossip | Gossip only |
+| Refresh | HTTP POST to owner | Gossip only |
 
 ---
 

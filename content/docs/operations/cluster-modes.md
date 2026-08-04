@@ -157,7 +157,7 @@ No data migration needed — each node starts with an empty cache.
 ### From `eventual` or `full` to `strong`
 
 1. Update `cluster.mode: strong` in your ConfigMap.
-2. Add `replicas` and `hop_limit` fields if missing.
+2. Add `hop_limit` field if missing.
 3. Rolling restart. The consistent-hash ring forms within seconds of all nodes
    joining.
 4. Cache state from `eventual` is **not preserved** — nodes start with

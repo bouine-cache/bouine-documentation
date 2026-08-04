@@ -14,7 +14,6 @@ listen:
 
 storage:
   hot_max_bytes: 64Mo
-  eviction: sieve
 
 upstream_pools:
   - name: site
@@ -148,7 +147,6 @@ storage:
   hot_max_bytes: 512Mo
   warm_dir: /var/cache/bouine
   warm_max_bytes: 10Go
-  eviction: sieve
 
 upstream_pools:
   - name: api

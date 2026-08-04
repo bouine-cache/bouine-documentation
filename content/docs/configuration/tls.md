@@ -1,7 +1,7 @@
 ---
 title: "TLS"
 weight: 4
-description: "Configure TLS termination with certificate management, ALPN negotiation, OCSP stapling, and automatic reload."
+description: "Configure TLS termination with certificate management, SNI, and automatic reload."
 ---
 
 bouine terminates TLS natively for HTTP/1.1 and HTTP/2. No external TLS proxy is needed.
@@ -43,9 +43,7 @@ bouine selects the certificate whose `sni` list matches the client's SNI extensi
 | `tls.certs[].cert_file` | — | Path to the PEM certificate (or chain) |
 | `tls.certs[].key_file` | — | Path to the PEM private key |
 | `tls.certs[].sni` | `[]` | Hostnames this cert serves; empty = default cert |
-| `tls.alpn` | `[h2, http/1.1]` | ALPN protocols to advertise |
 | `tls.min_version` | `"1.2"` | Minimum TLS version (`"1.2"` or `"1.3"`) |
-| `tls.ocsp_stapling` | `""` | OCSP stapling mode (empty = disabled) |
 
 ## Certificate rotation
 
@@ -83,7 +81,6 @@ Peer-to-peer RPCs (`/v1/peer/fetch`, gossip) use a **separate** TLS configuratio
 
 ```yaml
 cluster:
-  enabled: true
   tls:
     ca_bundle: /etc/bouine/cluster-ca.crt
     cert_file: /etc/bouine/cluster-client.crt
