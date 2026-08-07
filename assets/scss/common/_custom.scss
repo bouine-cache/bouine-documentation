@@ -1,8 +1,8 @@
-// Light mode: show white logo, hide dark logo
+// Light mode: show black logo, hide white logo
 [data-bs-theme="light"] .bouine-logo-light { display: inline-block; }
 [data-bs-theme="light"] .bouine-logo-dark  { display: none; }
 
-// Dark mode: hide white logo, show dark logo
+// Dark mode: hide black logo, show white logo
 [data-bs-theme="dark"] .bouine-logo-light { display: none; }
 [data-bs-theme="dark"] .bouine-logo-dark  { display: inline-block; }
 
@@ -14,6 +14,12 @@
 @media (prefers-color-scheme: dark) {
   [data-bs-theme="auto"] .bouine-logo-light { display: none; }
   [data-bs-theme="auto"] .bouine-logo-dark  { display: inline-block; }
+}
+
+// Homepage hero logo
+.bouine-logo-hero {
+  width: 240px;
+  height: auto;
 }
 
 // Docs pages: left-align content within the centered column
