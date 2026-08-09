@@ -146,7 +146,7 @@ summarylength = 30
     endLevel = 4
 
 [outputs]
-  home = ['HTML', 'RSS', 'sitemap', 'searchIndex', 'llms']
+  home = ['HTML', 'RSS', 'sitemap', 'searchIndex', 'llms', 'markdown']
   page = ['HTML', 'markdown']
   section = ['HTML', 'RSS', 'sitemap']
 
