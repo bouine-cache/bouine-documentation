@@ -14,6 +14,7 @@ bouine is configured via a YAML file passed with `--config`. Environment variabl
 - [Storage tiers](storage/) — hot and warm tiers, eviction, sizing guidelines.
 - [TLS](tls/) — certificates, SNI, and automatic reload.
 - [Clustering](cluster-modes/) — consistency modes, gossip, peer fetch, mTLS, invalidation.
+- [Experimental features](experimental/) — opt-in features like the H1 fast path.
 - [Helm chart reference](helm/) — all `values.yaml` keys with defaults.
 
 ## Minimal working config
@@ -252,6 +253,14 @@ Optional Cloudflare Cache API propagation. See [Cloudflare CDN propagation](/doc
 | `propagate.purge` | `true` | Forward `POST /v1/purge` to CF `PurgeSingleFile` |
 | `propagate.ban` | `true` | Forward `POST /v1/ban` to CF (tags / prefixes / hostnames) |
 | `propagate.refresh` | `true` | Forward `POST /v1/refresh` to CF `PurgeSingleFile` |
+
+### `experimental`
+
+Opt-in features that are not yet stable. All fields default to off. See [Experimental features](experimental/).
+
+| Field | Default | Description |
+|---|---|---|
+| `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to `net/http`. |
 
 ---
 
