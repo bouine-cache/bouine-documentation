@@ -1,0 +1,183 @@
+# Homepage
+[getStarted]
+  other = "开始使用"
+
+[cloudNative]
+  other = "云原生"
+
+[cloudNativeDesc]
+  other = "可观测的缓存，位于 API、静态站点或 SSR 前面 — 提供指标、日志和清除 API。"
+
+[controlPlane]
+  other = "控制平面"
+
+[controlPlaneDesc]
+  other = "协调您的缓存层，同步扩缩容、安全失效传播等。"
+
+[batteryIncluded]
+  other = "开箱即用"
+
+[batteryIncludedDesc]
+  other = "真正的独立运行，无需外部 K/V 存储，无需外部控制平面，RFC 9111 一致性测试通过。"
+
+[whyBouine]
+  other = "为什么选择 bouine？"
+
+[rfc9111]
+  other = "RFC 9111"
+
+[rfc9111Desc]
+  other = "cache-tests 上 94% 通过率。`stale-while-revalidate`、`stale-if-error` 内置支持。"
+
+[noExternalKV]
+  other = "无需外部 KV"
+
+[noExternalKVDesc]
+  other = "嵌入式 RAM 热层，可选磁盘温层。无需 Redis，无需 Memcached。"
+
+[fastReliable]
+  other = "快速可靠"
+
+[fastReliableDesc]
+  other = "100 ns/op，缓存命中时零分配。通过基准测试门控阻止性能回归。"
+
+[cloudNativeFeature]
+  other = "云原生"
+
+[cloudNativeFeatureDesc]
+  other = "Helm chart、Prometheus 指标、OpenTelemetry 链路追踪、结构化访问日志和 pprof。"
+
+[preciseInvalidation]
+  other = "精准失效"
+
+[preciseInvalidationDesc]
+  other = "按 URL 清除、谓词 ban、软清除刷新。自动广播到所有集群节点。"
+
+[modern]
+  other = "现代化"
+
+[modernDesc]
+  other = "故障时自动服务过期内容、请求合并、条件清除 — 无需万行 VCL。"
+
+[readyToReplace]
+  other = "准备好替换您的缓存层了吗？"
+
+[readyToReplaceDesc]
+  other = "您在 Varnish 前面跑 NGINX，在 Redis 前面跑 Varnish，没人知道哪层在服务什么。我们都经历过。来解决它。"
+
+[viewInstallOptions]
+  other = "查看安装选项 →"
+
+# Header
+[navBarButtonText]
+  other = "开始使用"
+
+[searchWebsite]
+  other = "搜索网站"
+
+[openSectionNav]
+  other = "打开分区导航菜单"
+
+[openMainNav]
+  other = "打开主导航菜单"
+
+[close]
+  other = "关闭"
+
+# Compare page
+[home]
+  other = "首页"
+
+[compareSubheading]
+  other = "按 DevOps、SRE 和工程标准逐项对比。"
+
+[switchOpponent]
+  other = "切换对比对象"
+
+[criterion]
+  other = "标准"
+
+[whenToChoose]
+  other = "何时选择 bouine"
+
+# Compare criterion help tooltips
+[criterionK8sDeploy]
+  other = "一流的 StatefulSet 支持，通过 headless Service DNS 引导、Pod 发现和 Helm 管理的滚动更新。"
+
+[criterionHelmChart]
+  other = "官方维护的 Helm chart，提供完整的 values.yaml 参考和生产默认值。"
+
+[criterionYamlConfig]
+  other = "声明式 YAML 配置，替代自定义 DSL（nginx.conf、HAProxy cfg、VCL、Caddyfile）。"
+
+[criterionHotReload]
+  other = "重新加载配置而不中断活跃连接或重启进程。"
+
+[criterionSingleBinary]
+  other = "无动态模块，无共享库依赖 — 单个二进制文件到处部署。"
+
+[criterionPrometheus]
+  other = "原生 /metrics 端点，暴露缓存命中率、延迟直方图和集群健康状态，无需外部 exporter。"
+
+[criterionOtel]
+  other = "原生 OTel span 覆盖完整的缓存命中/未命中/peer-fetch 生命周期，可通过任何 OTel 兼容后端追踪。"
+
+[criterionDistributedClustering]
+  other = "内置基于 gossip 的集群，支持多种一致性模式（强一致、最终一致、全量）— 无需外部控制平面。"
+
+[criterionSubSecondInvalidation]
+  other = "清除和 ban 操作通过 HTTP 扇出在一秒内到达所有集群节点，而非仅依赖 gossip 收敛。"
+
+[criterionStaleIfError]
+  other = "当源站返回 5xx 错误或超时时，提供缓存的过期内容，防止用户面故障。"
+
+[criterionStayinAlive]
+  other = "当上游完全宕机时无限期提供过期内容 — 缓存在中断期间成为源站。"
+
+[criterionDashboard]
+  other = "实时运维仪表板，显示指标、路由性能、集群健康状况和一键清除 — 无需外部工具。"
+
+[criterionMtls]
+  other = "集群节点之间的双向 TLS 加密，保护 gossip 和 peer-fetch 流量。"
+
+[criterionRfc9111]
+  other = "直接实现 HTTP 缓存规范（RFC 9111）。bouine 在 cache-tests.fyi 一致性套件上得分 94%。"
+
+[criterionVary]
+  other = "尊重 Vary 响应头用于缓存键推导，按请求头提供正确的变体。"
+
+[criterionSurrogateKeys]
+  other = "源站可以通过 Surrogate-Key / Cache-Tag 头标记响应，用于跨多个 URL 的分组失效。"
+
+[criterionRequestCoalescing]
+  other = "对相同缓存键的并发请求去重 — 只有一个请求到达源站，其余等待缓存响应。"
+
+[criterionNegativeCaching]
+  other = "以每路由可配置的 TTL 缓存错误响应（404、405、410、501），保护源站免受重复错误流量。"
+
+[criterionProgrammable]
+  other = "通过脚本语言（Lua、WASM、VCL、njs）或插件注入自定义请求/响应处理逻辑的能力。"
+
+[criterionImplLanguage]
+  other = "代理/缓存的主要编写语言。影响贡献难度、构建速度和运行时内存模型。"
+
+[criterionNoExternalKV]
+  other = "嵌入式 RAM 热层，可选磁盘温层。无需 Redis、Memcached 或外部控制平面进程。"
+
+[criterionSieve]
+  other = "SIEVE 淘汰算法：简单，命中率接近 LRU-K，每次操作 O(1)。替代方案通常使用标准 LRU。"
+
+[criterionConsistentHash]
+  other = "每个真实节点 256 个虚拟节点用于一致性哈希。缓存未命中时，请求节点在访问源站前先检查拥有者节点。约 0.3ms 额外延迟。"
+
+[criterionJitteredTtls]
+  other = "对每个 TTL 应用随机 ±N%，防止缓存条目之间同步过期导致的请求洪峰。"
+
+[criterionBackgroundSwr]
+  other = "立即提供过期内容，同时后台 goroutine 向源站重新验证。并发限制为 256 个 goroutine。"
+
+[criterionHedgedFetch]
+  other = "在可配置超时后发送重复请求；先到的响应胜出，降低慢源站的尾延迟。"
+
+[criterionZeroAlloc]
+  other = "缓存命中路径在热路径上零字节分配（40 ns/op，0 allocs）。CI 中通过基准测试门控阻止性能回归。"
