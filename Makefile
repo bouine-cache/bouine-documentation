@@ -2,7 +2,7 @@
 
 CONTAINER   := rg.fr-par.scw.cloud/heula/bouine-documentation
 TAG         := latest
-BOUINE_INFRA := ../../bouine-infra
+BOUINE_INFRA := ../bouine-infra
 NAMESPACE   := thylong-innerspace
 
 help: ## Show this help.
@@ -25,8 +25,8 @@ docker-build: ## Build the container image (linux/amd64).
 	git submodule update --init
 	docker buildx build --platform linux/amd64 -t $(CONTAINER):$(TAG) --load .
 
-auth-registry: ## Authenticate Docker to the Scaleway registry (needs SCW_SECRET_KEY).
-	@echo $$SCW_SECRET_KEY | docker login rg.fr-par.scw.cloud -u nologin --password-stdin
+auth-registry: ## Authenticate Docker to the Scaleway registry (needs SCW_ACCESS_KEY and SCW_SECRET_KEY).
+	@echo $$SCW_SECRET_KEY | docker login rg.fr-par.scw.cloud -u $$SCW_ACCESS_KEY --password-stdin
 
 docker-push: docker-build ## Build and push the image to the registry.
 	docker push $(CONTAINER):$(TAG)
