@@ -248,7 +248,7 @@
         <ul id="socialMenu" class="nav flex-row order-lg-4">
           {{ range .Site.Menus.social -}}
             <li class="nav-item">
-              <a class="nav-link social-link" href="{{ .URL | relURL }}">{{ .Pre | safeHTML }}<small class="ms-2 visually-hidden">{{ .Name | safeHTML }}</small></a>
+              <a class="nav-link social-link" href="{{ .URL | relURL }}"{{ if hasPrefix .URL "http" }} target="_blank" rel="noopener noreferrer"{{ end }}>{{ .Pre | safeHTML }}<small class="ms-2 visually-hidden">{{ .Name | safeHTML }}</small></a>
             </li>
           {{ end -}}
         </ul>
