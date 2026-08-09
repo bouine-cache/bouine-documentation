@@ -26,7 +26,7 @@
     {{ partial "main/showFlexSearch" . }}
     {{ $showFlexSearch := .Scratch.Get "showFlexSearch" -}}
     {{ if $showFlexSearch -}}
-    <button type="button" id="searchToggleMobile" class="btn btn-link nav-link mx-2 d-lg-none" aria-label="Search website">
+    <button type="button" id="searchToggleMobile" class="btn btn-link nav-link mx-2 d-lg-none" aria-label="{{ i18n "searchWebsite" }}">
       <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
         <circle cx="10" cy="10" r="7"></circle>
@@ -37,7 +37,7 @@
 
     <!-- Section navigation -->
     {{ if (in site.Params.doks.sectionNav .Section) -}}
-    <button class="btn btn-link d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavSection" aria-controls="offcanvasNavSection" aria-label="Open section navigation menu">
+    <button class="btn btn-link d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavSection" aria-controls="offcanvasNavSection" aria-label="{{ i18n "openSectionNav" }}">
       <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-dots-vertical" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
         <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path>
@@ -51,7 +51,7 @@
       {{ end -}}
       <div class="offcanvas-header">
         <h5 class="offcanvas-title" id="offcanvasNavSectionLabel">{{ .Section | humanize }}</h5>
-        <button type="button" class="btn btn-link nav-link p-0 ms-auto" data-bs-dismiss="offcanvas" aria-label="Close">
+        <button type="button" class="btn btn-link nav-link p-0 ms-auto" data-bs-dismiss="offcanvas" aria-label="{{ i18n "close" }}">
           <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-x" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
             <path d="M18 6l-12 12"></path>
@@ -73,7 +73,7 @@
     {{ end -}}
 
     <!-- Main navigation button -->
-    <button class="btn btn-link nav-link mx-2 order-3 d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavMain" aria-controls="offcanvasNavMain" aria-label="Open main navigation menu">
+    <button class="btn btn-link nav-link mx-2 order-3 d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavMain" aria-controls="offcanvasNavMain" aria-label="{{ i18n "openMainNav" }}">
       <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-menu" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
         <line x1="4" y1="8" x2="20" y2="8"></line>
@@ -88,7 +88,7 @@
       {{ end -}}
       <div class="offcanvas-header">
         <h5 class="offcanvas-title" id="offcanvasNavMainLabel">{{ site.Title }}</h5>
-        <button type="button" class="btn btn-link nav-link p-0 ms-auto" data-bs-dismiss="offcanvas" aria-label="Close">
+        <button type="button" class="btn btn-link nav-link p-0 ms-auto" data-bs-dismiss="offcanvas" aria-label="{{ i18n "close" }}">
           <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-x" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
             <path d="M18 6l-12 12"></path>
@@ -129,13 +129,13 @@
                 <ul class="dropdown-menu shadow rounded border-0">
                   {{ range .Children -}}
                   {{- $active = eq .Name $current.Title -}}
-                    <li><a class="dropdown-item{{ if $active }} active{{ end }}" href="{{ .URL | relURL }}"{{ if $active }} aria-current="true"{{ end }}>{{ .Name }}</a></li>
+                    <li><a class="dropdown-item{{ if $active }} active{{ end }}" href="{{ .URL | relLangURL }}"{{ if $active }} aria-current="true"{{ end }}>{{ .Name }}</a></li>
                   {{ end -}}
                 </ul>
               </li>
             {{ else -}}
               <li class="nav-item">
-                <a class="nav-link{{ if $active }} active{{ end }}" href="{{ .URL | relURL }}"{{ if $active }} aria-current="true"{{ end }}>{{ .Name }}</a>
+                <a class="nav-link{{ if $active }} active{{ end }}" href="{{ .URL | relLangURL }}"{{ if $active }} aria-current="true"{{ end }}>{{ .Name }}</a>
               </li>
             {{ end -}}
           {{ end -}}
@@ -145,7 +145,7 @@
         {{ partial "main/showFlexSearch" . }}
         {{ $showFlexSearch := .Scratch.Get "showFlexSearch" -}}
         {{ if $showFlexSearch -}}
-        <button type="button" id="searchToggleDesktop" class="btn btn-link nav-link p-2 d-none d-lg-block" aria-label="Search website">
+        <button type="button" id="searchToggleDesktop" class="btn btn-link nav-link p-2 d-none d-lg-block" aria-label="{{ i18n "searchWebsite" }}">
           <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
             <circle cx="10" cy="10" r="7"></circle>
@@ -257,14 +257,14 @@
 
         <!-- Navbar button mobile -->
         {{ if site.Params.doks.navBarButton -}}
-          <a class="btn btn-primary rounded-pill mt-2 btn-block d-lg-none" href="{{ site.Params.doks.navBarButtonUrl | relURL }}" role="button">{{ site.Params.doks.navBarButtonText }}</a>
+          <a class="btn btn-primary rounded-pill mt-2 btn-block d-lg-none" href="{{ site.Params.doks.navBarButtonUrl | relLangURL }}" role="button">{{ i18n "navBarButtonText" }}</a>
         {{ end -}}
       </div>
     </div>
 
     <!-- Navbar button desktop -->
     {{ if site.Params.doks.navBarButton -}}
-      <a class="btn btn-primary rounded-pill ms-3 me-2 px-4 order-lg-3 d-none d-lg-block" href="{{ site.Params.doks.navBarButtonUrl | relURL }}" role="button">{{ site.Params.doks.navBarButtonText }}</a>
+      <a class="btn btn-primary rounded-pill ms-3 me-2 px-4 order-lg-3 d-none d-lg-block" href="{{ site.Params.doks.navBarButtonUrl | relLangURL }}" role="button">{{ i18n "navBarButtonText" }}</a>
     {{ end -}}
 
   </div>

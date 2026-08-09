@@ -1,0 +1,183 @@
+# Homepage
+[getStarted]
+  other = "Commencer"
+
+[cloudNative]
+  other = "Cloud Native"
+
+[cloudNativeDesc]
+  other = "Un cache observable devant vos API, sites statiques ou SSR — avec métriques, logs et API de purge."
+
+[controlPlane]
+  other = "Plan de contrôle"
+
+[controlPlaneDesc]
+  other = "Coordonnez vos couches de cache, synchronisez le scaling, la propagation d'invalidation sécurisée, et plus encore."
+
+[batteryIncluded]
+  other = "Tout inclus"
+
+[batteryIncludedDesc]
+  other = "Vraiment autonome, aucun K/V store externe, aucun plan de contrôle externe, conformité RFC 9111 testée."
+
+[whyBouine]
+  other = "Pourquoi bouine ?"
+
+[rfc9111]
+  other = "RFC 9111"
+
+[rfc9111Desc]
+  other = "94% sur cache-tests. `stale-while-revalidate`, `stale-if-error`, intégrés."
+
+[noExternalKV]
+  other = "Aucun K/V externe"
+
+[noExternalKVDesc]
+  other = "Tier chaud embarqué en RAM, tier tiède optionnel sur disque. Pas de Redis, pas de Memcached."
+
+[fastReliable]
+  other = "Rapide et fiable"
+
+[fastReliableDesc]
+  other = "100 ns/op, 0 allocation sur les cache hits. Protégé par benchmarks pour bloquer les régressions."
+
+[cloudNativeFeature]
+  other = "Cloud Native"
+
+[cloudNativeFeatureDesc]
+  other = "Chart Helm, métriques Prometheus, traces OpenTelemetry, logs d'accès structurés et pprof."
+
+[preciseInvalidation]
+  other = "Invalidation précise"
+
+[preciseInvalidationDesc]
+  other = "Purge par URL, bans par prédicat, refresh en soft-purge. Diffusé à tous les peers du cluster automatiquement."
+
+[modern]
+  other = "Moderne"
+
+[modernDesc]
+  other = "Servir le stale automatiquement en cas de panne, collapsing de requêtes, purge conditionnelle sans 10 000 lignes de VCL."
+
+[readyToReplace]
+  other = "Prêt à remplacer votre couche de cache ?"
+
+[readyToReplaceDesc]
+  other = "Vous faites tourner NGINX devant Varnish devant Redis et personne ne sait quelle layer sert quoi. On connaît ça. Réglons le problème."
+
+[viewInstallOptions]
+  other = "Voir les options d'installation →"
+
+# Header
+[navBarButtonText]
+  other = "Commencer"
+
+[searchWebsite]
+  other = "Rechercher sur le site"
+
+[openSectionNav]
+  other = "Ouvrir le menu de navigation de section"
+
+[openMainNav]
+  other = "Ouvrir le menu de navigation principal"
+
+[close]
+  other = "Fermer"
+
+# Compare page
+[home]
+  other = "Accueil"
+
+[compareSubheading]
+  other = "Comparaison critère par critère sur les attentes DevOps, SRE et ingénierie."
+
+[switchOpponent]
+  other = "Changer d'alternative"
+
+[criterion]
+  other = "Critère"
+
+[whenToChoose]
+  other = "Quand choisir bouine"
+
+# Compare criterion help tooltips
+[criterionK8sDeploy]
+  other = "Support StatefulSet de premier ordre avec bootstrapping DNS headless Service, découverte des pods et rolling updates gérés par Helm."
+
+[criterionHelmChart]
+  other = "Chart Helm officielle et maintenue avec une référence values.yaml complète et des valeurs de production par défaut."
+
+[criterionYamlConfig]
+  other = "Configuration déclarative en YAML au lieu d'un DSL propriétaire (nginx.conf, cfg HAProxy, VCL, Caddyfile)."
+
+[criterionHotReload]
+  other = "Recharger la configuration sans couper les connexions actives ni redémarrer le processus."
+
+[criterionSingleBinary]
+  other = "Aucun module dynamique, aucune dépendance de bibliothèque partagée — un binaire se déploie partout."
+
+[criterionPrometheus]
+  other = "Endpoint /metrics natif exposant les ratios cache hit/miss, histogrammes de latence et santé du cluster sans exporters externes."
+
+[criterionOtel]
+  other = "Spans OTel natifs pour tout le cycle cache hit/miss/peer-fetch, traçables dans n'importe quel backend compatible OTel."
+
+[criterionDistributedClustering]
+  other = "Clustering gossip embarqué avec plusieurs modes de cohérence (fort, eventual, full) — aucun plan de contrôle externe requis."
+
+[criterionSubSecondInvalidation]
+  other = "Les opérations de purge et de ban atteignent tous les peers du cluster en moins d'une seconde via HTTP fan-out, pas seulement par convergence gossip."
+
+[criterionStaleIfError]
+  other = "Servir le contenu stale mis en cache quand l'origine renvoie des erreurs 5xx ou timeout, évitant les dégradations côté utilisateur."
+
+[criterionStayinAlive]
+  other = "Servir le stale indéfiniment quand l'upstream est complètement en panne — le cache devient l'origine pendant les outages."
+
+[criterionDashboard]
+  other = "Dashboard opérateur en temps réel affichant métriques, performance des routes, santé du cluster et invalidation en un clic — aucun outil externe requis."
+
+[criterionMtls]
+  other = "Chiffrement mTLS entre les nœuds du cluster pour sécuriser le trafic gossip et peer-fetch."
+
+[criterionRfc9111]
+  other = "Implémente directement la spécification de cache HTTP (RFC 9111). bouine obtient 94% sur la suite de conformité cache-tests.fyi."
+
+[criterionVary]
+  other = "Respecte l'en-tête Vary pour la dérivation de la cache key, servant la bonne variante selon les en-têtes de requête."
+
+[criterionSurrogateKeys]
+  other = "L'origine peut taguer les réponses avec les en-têtes Surrogate-Key / Cache-Tag pour une invalidation groupée sur plusieurs URLs à la fois."
+
+[criterionRequestCoalescing]
+  other = "Déduplique les requêtes concurrentes pour la même cache key — une seule requête atteint l'origine, les autres attendent la réponse mise en cache."
+
+[criterionNegativeCaching]
+  other = "Met en cache les réponses d'erreur (404, 405, 410, 501) avec un TTL configurable par route pour protéger l'origine du trafic d'erreur répété."
+
+[criterionProgrammable]
+  other = "Capacité à injecter de la logique de traitement requête/réponse via un langage de script (Lua, WASM, VCL, njs) ou des plugins."
+
+[criterionImplLanguage]
+  other = "Le langage principal dans lequel le proxy/cache est écrit. Affecte la facilité de contribution, la vitesse de build et le modèle mémoire runtime."
+
+[criterionNoExternalKV]
+  other = "Tier chaud embarqué en RAM avec tier tiède optionnel sur disque. Pas de Redis, pas de Memcached, aucun processus de plan de contrôle externe à opérer."
+
+[criterionSieve]
+  other = "Algorithme d'éviction SIEVE : simple, ratio de hit proche du LRU-K, O(1) par opération. Les alternatives utilisent généralement le LRU standard."
+
+[criterionConsistentHash]
+  other = "256 nœuds virtuels par nœud réel pour le consistent hashing. Sur un cache miss, le nœud demandeur vérifie le nœud propriétaire avant d'aller à l'origine. ~0.3ms de latence ajoutée."
+
+[criterionJitteredTtls]
+  other = "Application d'un aléa ±N% sur chaque TTL pour éviter les stampedes d'expiration synchronisée entre les entrées en cache."
+
+[criterionBackgroundSwr]
+  other = "Sert le stale immédiatement pendant qu'une goroutine de fond se revalide auprès de l'origine. Concurrence bornée à 256 goroutines."
+
+[criterionHedgedFetch]
+  other = "Émet une requête dupliquée après un timeout configurable ; la première réponse gagne, réduisant la latence de queue sur les origines lentes."
+
+[criterionZeroAlloc]
+  other = "Le chemin de cache hit alloue zéro octet sur le hot path (40 ns/op, 0 alloc). Protégé par benchmarks en CI pour bloquer les régressions de performance."
