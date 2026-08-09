@@ -1,0 +1,28 @@
+{
+  "catalog": [
+    {
+      "rel": "service-doc",
+      "href": "https://bouine.org/llms.txt",
+      "type": "text/plain",
+      "title": "LLM-friendly documentation aggregation"
+    },
+    {
+      "rel": "service-desc",
+      "href": "https://bouine.org/search-index.json",
+      "type": "application/json",
+      "title": "Search index"
+    },
+    {
+      "rel": "describedby",
+      "href": "https://bouine.org/sitemap.xml",
+      "type": "application/xml",
+      "title": "Sitemap"
+    },
+    {
+      "rel": "alternate",
+      "href": "https://bouine.org/index.xml",
+      "type": "application/rss+xml",
+      "title": "RSS feed"
+    }
+  ]
+}
