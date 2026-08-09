@@ -1,28 +1,28 @@
 ---
 title: "Documentation"
 weight: 1
-description: "Complete user and contributor documentation for installing, configuring, operating, troubleshooting, and extending bouine safely."
+description: "Documentation complète pour les utilisateurs et contributeurs : installation, configuration, exploitation, dépannage et extension de bouine en toute sécurité."
 ---
 
 
-## I want to…
+## Je veux…
 
-| Goal | Start here |
+| Objectif | Commencer ici |
 |------|-----------|
-| **Try bouine locally** in 5 minutes | [Quick start →](getting-started/first-cache/) |
-| **Deploy on Kubernetes** with Helm | [Deploy on Kubernetes →](getting-started/kubernetes/) |
-| **Replace Varnish or NGINX** | [Migration guides →](guides/) |
-| **Configure cache policy, TLS, or clustering** | [Configuration →](configuration/) |
-| **Operate bouine in production** (invalidation, monitoring, upgrades) | [Operations →](operations/) |
-| **Understand the internals** | [Architecture →](architecture/) |
-| **Contribute to bouine** | [Contributing →](contributing/) |
+| **Essayer bouine localement** en 5 minutes | [Démarrage rapide →](getting-started/first-cache/) |
+| **Déployer sur Kubernetes** avec Helm | [Déployer sur Kubernetes →](getting-started/kubernetes/) |
+| **Remplacer Varnish ou NGINX** | [Guides de migration →](guides/) |
+| **Configurer la politique de cache, TLS ou le clustering** | [Configuration →](configuration/) |
+| **Exploiter bouine en production** (invalidation, supervision, mises à jour) | [Exploitation →](operations/) |
+| **Comprendre les internes** | [Architecture →](architecture/) |
+| **Contribuer à bouine** | [Contribuer →](contributing/) |
 
 ## Sections
 
-- [Getting started](getting-started/) — install, quick start, Docker, Kubernetes, and example configs.
-- [Configuration](configuration/) — YAML reference, cache policy, storage tiers, TLS, clustering, and Helm chart values.
-- [Operations](operations/) — lifecycle, invalidation, monitoring, dashboard, Kubernetes ops, and troubleshooting.
-- [Architecture](architecture/) — layered design, cache engine, storage, clustering, and performance.
-- [Guides](guides/) — migration from Varnish or NGINX, reverse proxy examples, and capacity planning.
-- [Contributing](contributing/) — contributor workflow, codebase map, and security.
-- [Reference](reference/) — CLI commands, admin API, and response headers.
+- [Démarrage](getting-started/) — installation, démarrage rapide, Docker, Kubernetes et exemples de configuration.
+- [Configuration](configuration/) — référence YAML, politique de cache, niveaux de stockage, TLS, clustering et valeurs du chart Helm.
+- [Exploitation](operations/) — cycle de vie, invalidation, supervision, tableau de bord, opérations Kubernetes et dépannage.
+- [Architecture](architecture/) — conception en couches, moteur de cache, stockage, clustering et performance.
+- [Guides](guides/) — migration depuis Varnish ou NGINX, exemples de proxy inverse et planification de capacité.
+- [Contribuer](contributing/) — flux de travail des contributeurs, carte du code et sécurité.
+- [Référence](reference/) — commandes CLI, API d'administration et en-têtes de réponse.

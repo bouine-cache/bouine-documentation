@@ -1,11 +1,11 @@
 ---
 title: "Démarrage rapide"
 weight: 2
-description: "Start a small origin server, put bouine in front of it, and verify MISS then HIT behavior through headers and metrics."
+description: "Démarrez un petit serveur d'origine, placez bouine devant celui-ci et vérifiez le comportement MISS puis HIT via les en-têtes et les métriques."
 ---
 
 
-Start a tiny origin server:
+Démarrez un petit serveur d'origine :
 
 ```bash
 mkdir -p /tmp/bouine-origin
@@ -13,7 +13,7 @@ printf 'hello from origin\n' > /tmp/bouine-origin/index.html
 python3 -m http.server 3000 --directory /tmp/bouine-origin
 ```
 
-Create `config.yaml`:
+Créez `config.yaml` :
 
 ```yaml
 listen:
@@ -36,13 +36,13 @@ routes:
       stale_if_error: 300s
 ```
 
-Run bouine:
+Exécutez bouine :
 
 ```bash
 bouine serve --config config.yaml --log-format json
 ```
 
-Verify caching:
+Vérifiez la mise en cache :
 
 ```bash
 curl -sI http://127.0.0.1:8080/ | grep X-Cache
@@ -52,7 +52,7 @@ curl -sI http://127.0.0.1:8080/ | grep X-Cache
 # X-Cache: HIT
 ```
 
-Check health and metrics:
+Vérifiez la santé et les métriques :
 
 ```bash
 curl -s http://127.0.0.1:9000/healthz
@@ -60,24 +60,24 @@ curl -s http://127.0.0.1:9000/readyz
 curl -s http://127.0.0.1:9000/metrics | grep bouine_requests_total
 ```
 
-## What happened?
+## Que s'est-il passé ?
 
-1. First request had no cache object → bouine fetched from origin and stored the response.
-2. Second request found a fresh object in the hot tier → bouine served it immediately.
-3. The response had `X-Cache: HIT`, and the access log included `cache_status=HIT`.
+1. La première requête n'avait pas d'objet en cache → bouine a récupéré la réponse depuis l'origine et l'a stockée.
+2. La deuxième requête a trouvé un objet frais dans le hot tier → bouine l'a servie immédiatement.
+3. La réponse avait `X-Cache: HIT` et le journal d'accès incluait `cache_status=HIT`.
 
-## Alternative: serve files without an origin server
+## Alternative : servir des fichiers sans serveur d'origine
 
-bouine can serve files directly from a local directory — no need to run
-a separate HTTP server. See [Static file serving](/docs/configuration/static-files/)
-for the full reference.
+bouine peut servir des fichiers directement depuis un répertoire local — pas besoin
+d'exécuter un serveur HTTP distinct. Voir [Servir des fichiers statiques](/docs/configuration/static-files/)
+pour la référence complète.
 
 ```bash
 mkdir -p /tmp/bouine-static
 printf 'hello from disk\n' > /tmp/bouine-static/index.html
 ```
 
-Create `config.yaml`:
+Créez `config.yaml` :
 
 ```yaml
 listen:
@@ -91,7 +91,7 @@ routes:
       index: [index.html]
 ```
 
-Run bouine:
+Exécutez bouine :
 
 ```bash
 bouine serve --config config.yaml --log-format json
@@ -102,6 +102,7 @@ curl -sI http://127.0.0.1:8080/ | grep Content-Type
 # Content-Type: text/html; charset=utf-8
 ```
 
-Static routes serve from disk on every request. The OS page cache handles
-hot caching in RAM. To enable bouine's cache layer (for cluster replication
-or TTL-based eviction), set `cache.enabled: true` on the route.
+Les routes statiques servent depuis le disque à chaque requête. Le cache de pages
+de l'OS gère la mise en cache chaude en RAM. Pour activer la couche de cache de
+bouine (pour la réplication en cluster ou l'éviction basée sur le TTL), définissez
+`cache.enabled: true` sur la route.

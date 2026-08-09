@@ -1,14 +1,14 @@
 ---
 title: "Guides"
 weight: 5
-description: "Step-by-step guides for migrating from Varnish or NGINX, integration patterns, and capacity planning."
+description: "Guides pas à pas pour migrer depuis Varnish ou NGINX, modèles d'intégration et planification de capacité."
 ---
 
 
-- [Migration from Varnish](varnish-migration/) — side-by-side VCL vs YAML, purge/ban parity, observability mapping, behavioral differences, and FAQ.
-- [Migration from NGINX](nginx-migration/) — map NGINX `proxy_cache` directives to bouine configuration.
-- [Reverse proxy examples](reverse-proxies/) — deploy bouine in front of Caddy, Traefik, HAProxy, and nginx.
-- [Capacity planning](capacity-planning/) — size hot and warm tiers, choose cluster mode and replicas, validate under load.
-- [Production readiness checklist](production-checklist/) — verify TLS, resources, cluster, caching, observability, and K8s settings before going live.
-- [Service mesh compatibility](service-mesh/) — run bouine alongside Istio, Linkerd, and Cilium.
-- [Benchmarks](benchmarks/) — methodology and results comparing bouine vs Varnish, NGINX, and Envoy across cache hit, miss, and mixed workloads.
+- [Migration depuis Varnish](varnish-migration/) — comparaison côte à côte VCL vs YAML, parité purge/ban, correspondance d'observabilité, différences de comportement et FAQ.
+- [Migration depuis NGINX](nginx-migration/) — mappez les directives `proxy_cache` NGINX vers la configuration bouine.
+- [Exemples de proxy inverse](reverse-proxies/) — déployez bouine devant Caddy, Traefik, HAProxy et nginx.
+- [Planification de capacité](capacity-planning/) — dimensionnez les niveaux hot et warm, choisissez le mode de cluster et les réplicas, validez sous charge.
+- [Checklist de mise en production](production-checklist/) — vérifiez TLS, ressources, cluster, cache, observabilité et paramètres K8s avant la mise en service.
+- [Compatibilité avec les service mesh](service-mesh/) — exécutez bouine aux côtés d'Istio, Linkerd et Cilium.
+- [Benchmarks](benchmarks/) — méthodologie et résultats comparant bouine à Varnish, NGINX et Envoy sur des charges cache hit, miss et mixtes.
