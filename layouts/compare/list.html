@@ -188,17 +188,17 @@
 <div class="compare-page">
 
   <nav class="compare-breadcrumb" aria-label="Breadcrumb">
-    <a href="{{ relLangURL "" }}">Home</a> / <span>Compare</span>
+    <a href="{{ relLangURL "" }}">{{ i18n "home" }}</a> / <span>Compare</span>
   </nav>
 
   <div class="compare-header">
     <h1>bouine <span class="vs">vs</span> <span class="alt-name" id="altName">Envoy</span></h1>
     <div class="alt-type" id="altType">Service Mesh Proxy · C++</div>
-    <p>Criterion-by-criterion comparison across DevOps, SRE, and engineering expectations.</p>
+    <p>{{ i18n "compareSubheading" }}</p>
   </div>
 
   <div class="selector-bar">
-    <span class="selector-label">Switch opponent</span>
+    <span class="selector-label">{{ i18n "switchOpponent" }}</span>
     <div class="selector-group">
       <button class="selector-btn active" data-alt="envoy" type="button">Envoy</button>
       <button class="selector-btn" data-alt="nginx" type="button">NGINX</button>
@@ -209,7 +209,7 @@
   </div>
 
   <div class="col-headers">
-    <div class="col-header">Criterion</div>
+    <div class="col-header">{{ i18n "criterion" }}</div>
     <div class="col-header bouine-col">bouine</div>
     <div class="col-header other-col" id="colHeaderOther">Envoy</div>
   </div>
@@ -229,33 +229,33 @@
   function isLang(v) { return langValues.indexOf(v) !== -1; }
 
   var criterionHelp = {
-    'Kubernetes-native deploy': 'First-class StatefulSet support with headless Service DNS bootstrapping, pod discovery, and Helm-managed rolling updates.',
-    'Helm chart': 'Official, maintained Helm chart with a full values.yaml reference and production defaults.',
-    'YAML config': 'Declarative YAML configuration instead of a custom DSL (nginx.conf, HAProxy cfg, VCL, Caddyfile).',
-    'Hot config reload': 'Reload configuration without dropping active connections or restarting the process.',
-    'Single static binary': 'No dynamic modules, no shared library dependencies — one binary deploys everywhere.',
-    'Prometheus metrics': 'Native /metrics endpoint exposing cache hit/miss ratios, latency histograms, and cluster health without external exporters.',
-    'OpenTelemetry tracing': 'Native OTel spans for the full cache hit/miss/peer-fetch lifecycle, traceable through any OTel-compatible backend.',
-    'Distributed clustering': 'Built-in gossip-based clustering with multiple consistency modes (strong, eventual, full) — no external control plane required.',
-    'Sub-second invalidation': 'Purge and ban operations reach all cluster peers in under one second via HTTP fan-out, not just gossip convergence.',
-    'Stale-if-error': 'Serve cached stale content when the origin returns 5xx errors or times out, preventing user-facing failures.',
-    'Stayin-Alive': 'Serve stale content indefinitely when the upstream is completely down — the cache becomes the origin during outages.',
-    'Built-in dashboard': 'Live operator dashboard showing metrics, route performance, cluster health, and one-click invalidation — no external tooling needed.',
-    'mTLS for peers': 'Mutual TLS encryption between cluster nodes for secure gossip and peer-fetch traffic.',
-    'RFC 9111 conformance': 'Implements the HTTP caching specification (RFC 9111) directly. bouine scores 94% on the cache-tests.fyi conformance suite.',
-    'Vary header support': 'Respects the Vary response header for cache key derivation, serving the correct variant per request headers.',
-    'Surrogate keys': 'Origin can tag responses with Surrogate-Key / Cache-Tag headers for grouped invalidation across multiple URLs at once.',
-    'Request coalescing': 'Deduplicates concurrent requests for the same cache key — only one request reaches the origin, the rest wait for the cached response.',
-    'Negative caching': 'Caches error responses (404, 405, 410, 501) with a configurable TTL per route to protect the origin from repeated error traffic.',
-    'Programmable logic': 'Ability to inject custom request/response processing logic via a scripting language (Lua, WASM, VCL, njs) or plugins.',
-    'Implementation language': 'The primary language the proxy/cache is written in. Affects contribution ease, build speed, and runtime memory model.',
-    'No external KV store': 'Embedded hot tier in RAM with optional warm tier on disk. No Redis, no Memcached, no external control plane process to operate.',
-    'SIEVE eviction (O(1))': 'SIEVE eviction algorithm: simple, near-LRU-K hit ratio, O(1) per operation. Alternatives typically use standard LRU.',
-    'Consistent-hash + peer-fetch': '256 virtual nodes per real node for consistent hashing. On a cache miss, the requesting node checks the owner node before going to origin. ~0.3ms added latency.',
-    'Jittered TTLs': 'Random ±N% applied to every TTL to prevent synchronized expiry stampedes across cached entries.',
-    'Background SWR': 'Serves stale content immediately while a background goroutine revalidates with the origin. Concurrency bounded to 256 goroutines.',
-    'Hedged fetch': 'Fires a duplicate request after a configurable timeout; the first response wins, reducing tail latency on slow origins.',
-    'Zero-alloc hit path': 'Cache hit path allocates zero bytes on the hot path (40 ns/op, 0 allocs). Benchmark-gated in CI to block performance regressions.'
+    'Kubernetes-native deploy': {{ i18n "criterionK8sDeploy" | jsonify }},
+    'Helm chart': {{ i18n "criterionHelmChart" | jsonify }},
+    'YAML config': {{ i18n "criterionYamlConfig" | jsonify }},
+    'Hot config reload': {{ i18n "criterionHotReload" | jsonify }},
+    'Single static binary': {{ i18n "criterionSingleBinary" | jsonify }},
+    'Prometheus metrics': {{ i18n "criterionPrometheus" | jsonify }},
+    'OpenTelemetry tracing': {{ i18n "criterionOtel" | jsonify }},
+    'Distributed clustering': {{ i18n "criterionDistributedClustering" | jsonify }},
+    'Sub-second invalidation': {{ i18n "criterionSubSecondInvalidation" | jsonify }},
+    'Stale-if-error': {{ i18n "criterionStaleIfError" | jsonify }},
+    'Stayin-Alive': {{ i18n "criterionStayinAlive" | jsonify }},
+    'Built-in dashboard': {{ i18n "criterionDashboard" | jsonify }},
+    'mTLS for peers': {{ i18n "criterionMtls" | jsonify }},
+    'RFC 9111 conformance': {{ i18n "criterionRfc9111" | jsonify }},
+    'Vary header support': {{ i18n "criterionVary" | jsonify }},
+    'Surrogate keys': {{ i18n "criterionSurrogateKeys" | jsonify }},
+    'Request coalescing': {{ i18n "criterionRequestCoalescing" | jsonify }},
+    'Negative caching': {{ i18n "criterionNegativeCaching" | jsonify }},
+    'Programmable logic': {{ i18n "criterionProgrammable" | jsonify }},
+    'Implementation language': {{ i18n "criterionImplLanguage" | jsonify }},
+    'No external KV store': {{ i18n "criterionNoExternalKV" | jsonify }},
+    'SIEVE eviction (O(1))': {{ i18n "criterionSieve" | jsonify }},
+    'Consistent-hash + peer-fetch': {{ i18n "criterionConsistentHash" | jsonify }},
+    'Jittered TTLs': {{ i18n "criterionJitteredTtls" | jsonify }},
+    'Background SWR': {{ i18n "criterionBackgroundSwr" | jsonify }},
+    'Hedged fetch': {{ i18n "criterionHedgedFetch" | jsonify }},
+    'Zero-alloc hit path': {{ i18n "criterionZeroAlloc" | jsonify }}
   };
 
   var tooltipEl = null;
@@ -317,7 +317,7 @@
       html += '</div>';
     });
 
-    html += '<div class="verdict"><h3>When to choose bouine</h3><p>' + alt.verdict + '</p></div>';
+    html += '<div class="verdict"><h3>{{ i18n "whenToChoose" }}</h3><p>' + alt.verdict + '</p></div>';
     var container = document.getElementById('compareContent');
     container.innerHTML = html;
 

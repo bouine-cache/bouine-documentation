@@ -1,0 +1,183 @@
+# Homepage
+[getStarted]
+  other = "Get started"
+
+[cloudNative]
+  other = "Cloud Native"
+
+[cloudNativeDesc]
+  other = "An observable cache in front of APIs, static sites, or SSR — with metrics, logs, and a purge API."
+
+[controlPlane]
+  other = "Control plane"
+
+[controlPlaneDesc]
+  other = "Coordinate your caching layers, Synchronize scaling, safe invalidation propagation, and more."
+
+[batteryIncluded]
+  other = "Battery Included"
+
+[batteryIncludedDesc]
+  other = "Truly standalone, no external K/V store, no external control plane, RFC 9111 conformance tested."
+
+[whyBouine]
+  other = "Why bouine?"
+
+[rfc9111]
+  other = "RFC 9111"
+
+[rfc9111Desc]
+  other = "94% on cache-tests. `stale-while-revalidate`, `stale-if-error`, built in."
+
+[noExternalKV]
+  other = "No external KV"
+
+[noExternalKVDesc]
+  other = "Embedded hot tier in RAM, optional warm tier. No Redis, no Memcached."
+
+[fastReliable]
+  other = "Fast & reliable"
+
+[fastReliableDesc]
+  other = "100 ns/op, 0 allocs on cache hits. Benchmark-gated to block regressions."
+
+[cloudNativeFeature]
+  other = "Cloud Native"
+
+[cloudNativeFeatureDesc]
+  other = "Helm chart, Prometheus metrics, OpenTelemetry traces, structured access logs and pprof."
+
+[preciseInvalidation]
+  other = "Precise invalidation"
+
+[preciseInvalidationDesc]
+  other = "Purge by URL, predicate bans, soft-purge refresh. Broadcast to all cluster peers automatically."
+
+[modern]
+  other = "Modern"
+
+[modernDesc]
+  other = "Auto-serve stale during outage, Request collapsing, Conditional purge without 10k lines of VCL."
+
+[readyToReplace]
+  other = "Ready to replace your cache layer?"
+
+[readyToReplaceDesc]
+  other = "You're running NGINX in front of Varnish in front of Redis and nobody knows which layer is serving what. We've been there. Let's fix it."
+
+[viewInstallOptions]
+  other = "View install options →"
+
+# Header
+[navBarButtonText]
+  other = "Get started"
+
+[searchWebsite]
+  other = "Search website"
+
+[openSectionNav]
+  other = "Open section navigation menu"
+
+[openMainNav]
+  other = "Open main navigation menu"
+
+[close]
+  other = "Close"
+
+# Compare page
+[home]
+  other = "Home"
+
+[compareSubheading]
+  other = "Criterion-by-criterion comparison across DevOps, SRE, and engineering expectations."
+
+[switchOpponent]
+  other = "Switch opponent"
+
+[criterion]
+  other = "Criterion"
+
+[whenToChoose]
+  other = "When to choose bouine"
+
+# Compare criterion help tooltips
+[criterionK8sDeploy]
+  other = "First-class StatefulSet support with headless Service DNS bootstrapping, pod discovery, and Helm-managed rolling updates."
+
+[criterionHelmChart]
+  other = "Official, maintained Helm chart with a full values.yaml reference and production defaults."
+
+[criterionYamlConfig]
+  other = "Declarative YAML configuration instead of a custom DSL (nginx.conf, HAProxy cfg, VCL, Caddyfile)."
+
+[criterionHotReload]
+  other = "Reload configuration without dropping active connections or restarting the process."
+
+[criterionSingleBinary]
+  other = "No dynamic modules, no shared library dependencies — one binary deploys everywhere."
+
+[criterionPrometheus]
+  other = "Native /metrics endpoint exposing cache hit/miss ratios, latency histograms, and cluster health without external exporters."
+
+[criterionOtel]
+  other = "Native OTel spans for the full cache hit/miss/peer-fetch lifecycle, traceable through any OTel-compatible backend."
+
+[criterionDistributedClustering]
+  other = "Built-in gossip-based clustering with multiple consistency modes (strong, eventual, full) — no external control plane required."
+
+[criterionSubSecondInvalidation]
+  other = "Purge and ban operations reach all cluster peers in under one second via HTTP fan-out, not just gossip convergence."
+
+[criterionStaleIfError]
+  other = "Serve cached stale content when the origin returns 5xx errors or times out, preventing user-facing failures."
+
+[criterionStayinAlive]
+  other = "Serve stale content indefinitely when the upstream is completely down — the cache becomes the origin during outages."
+
+[criterionDashboard]
+  other = "Live operator dashboard showing metrics, route performance, cluster health, and one-click invalidation — no external tooling needed."
+
+[criterionMtls]
+  other = "Mutual TLS encryption between cluster nodes for secure gossip and peer-fetch traffic."
+
+[criterionRfc9111]
+  other = "Implements the HTTP caching specification (RFC 9111) directly. bouine scores 94% on the cache-tests.fyi conformance suite."
+
+[criterionVary]
+  other = "Respects the Vary response header for cache key derivation, serving the correct variant per request headers."
+
+[criterionSurrogateKeys]
+  other = "Origin can tag responses with Surrogate-Key / Cache-Tag headers for grouped invalidation across multiple URLs at once."
+
+[criterionRequestCoalescing]
+  other = "Deduplicates concurrent requests for the same cache key — only one request reaches the origin, the rest wait for the cached response."
+
+[criterionNegativeCaching]
+  other = "Caches error responses (404, 405, 410, 501) with a configurable TTL per route to protect the origin from repeated error traffic."
+
+[criterionProgrammable]
+  other = "Ability to inject custom request/response processing logic via a scripting language (Lua, WASM, VCL, njs) or plugins."
+
+[criterionImplLanguage]
+  other = "The primary language the proxy/cache is written in. Affects contribution ease, build speed, and runtime memory model."
+
+[criterionNoExternalKV]
+  other = "Embedded hot tier in RAM with optional warm tier on disk. No Redis, no Memcached, no external control plane process to operate."
+
+[criterionSieve]
+  other = "SIEVE eviction algorithm: simple, near-LRU-K hit ratio, O(1) per operation. Alternatives typically use standard LRU."
+
+[criterionConsistentHash]
+  other = "256 virtual nodes per real node for consistent hashing. On a cache miss, the requesting node checks the owner node before going to origin. ~0.3ms added latency."
+
+[criterionJitteredTtls]
+  other = "Random ±N% applied to every TTL to prevent synchronized expiry stampedes across cached entries."
+
+[criterionBackgroundSwr]
+  other = "Serves stale content immediately while a background goroutine revalidates with the origin. Concurrency bounded to 256 goroutines."
+
+[criterionHedgedFetch]
+  other = "Fires a duplicate request after a configurable timeout; the first response wins, reducing tail latency on slow origins."
+
+[criterionZeroAlloc]
+  other = "Cache hit path allocates zero bytes on the hot path (40 ns/op, 0 allocs). Benchmark-gated in CI to block performance regressions."
