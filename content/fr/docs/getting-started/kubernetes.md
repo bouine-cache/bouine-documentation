@@ -1,7 +1,7 @@
 ---
 title: "Kubernetes"
 weight: 4
-description: "Déployez bouine sur Kubernetes avec Helm, configurez le gossip StatefulSet, vérifiez la découverte des pairs et effectuez des mises à jour progressives."
+description: "Déployez bouine sur Kubernetes avec Helm, configurez le gossip StatefulSet, vérifiez la découverte des pairs et effectuez des rolling updates."
 ---
 
 
@@ -66,4 +66,4 @@ kubectl rollout restart statefulset/bouine -n bouine
 kubectl rollout status statefulset/bouine -n bouine
 ```
 
-bouine se marque comme non prêt pendant l'arrêt et quitte proprement le cluster gossip. Voir [Opérations Kubernetes](/docs/operations/kubernetes/) pour les procédures de mise à jour progressive sans 5xx.
+bouine se marque comme not-ready pendant l'arrêt et quitte proprement le cluster gossip. Voir [Opérations Kubernetes](/docs/operations/kubernetes/) pour les procédures de rolling update sans 5xx.

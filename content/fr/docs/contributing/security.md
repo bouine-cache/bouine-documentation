@@ -19,11 +19,11 @@ publié.
 
 ## Exemples de problèmes à fort impact
 
-- Empoisonnement de cache qui fuit la réponse d'un utilisateur vers un autre
-- HTTP request smuggling à travers le plan de données
+- Cache poisoning qui fuit la réponse d'un utilisateur vers un autre
+- HTTP request smuggling à travers le data plane
 - Contournement de l'authentification de l'API d'administration
-- Usurpation de pair en mode cluster
-- Parcours de répertoire dans le stockage de niveau tiède
+- Peer impersonation en mode cluster
+- Path traversal dans le stockage de warm tier
 
 ## Checklist de durcissement
 
