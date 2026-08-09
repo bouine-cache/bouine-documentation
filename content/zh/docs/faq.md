@@ -26,11 +26,11 @@ NGINX 是通用反向代理，缓存是附加功能。bouine 是以缓存为核�
 
 ### 缓存键由什么组成？
 
-主缓存键由以下构成：scheme、host（小写）、path（百分比解码后规范重编码）、query（按字典序排序的参数）和 method（GET 和 HEAD 共享相同键空间）。次键（Vary）从响应 `Vary` 头中列出的请求头派生。参见[架构参考](../architecture/)了解更多详情。
+主缓存键由以下构成：scheme、host（小写）、path（percent-decode + canonical re-encode）、query（按字典序排序的参数）和 method（GET 和 HEAD 共享相同键空间）。次键（Vary）从响应 `Vary` 头中列出的请求头派生。参见[架构参考](../architecture/)了解更多详情。
 
 ### 如何调试缓存未命中？
 
-检查 `X-Cache` 响应头：`MISS` 表示对象不在缓存中，`BYPASS` 表示缓存被绕过（no-store、no-cache 或路由禁用缓存）。使用 `X-Cache-Source` 查看哪个层提供了响应（`hot`、`warm`、`peer`、`origin`）。
+检查 `X-Cache` 响应头：`MISS` 表示对象不在缓存中，`BYPASS` 表示缓存被绕过（no-store、no-cache 或路由禁用缓存）。使用 `X-Cache-Source` 查看哪个层返回了响应（`hot`、`warm`、`peer`、`origin`）。
 
 ### bouine 支持 WebSocket 吗？
 
@@ -38,11 +38,11 @@ NGINX 是通用反向代理，缓存是附加功能。bouine 是以缓存为核�
 
 ### bouine 支持 ESI 吗？
 
-v1.0 不支持。ESI-lite（`<esi:include>`）计划在 v1.1+ 中实现。大多数现代架构更倾向于客户端组合或 CDN 级 ESI。
+v1.0 不支持。ESI-lite（`<esi:include>`）计划在 v1.1+ 中实现。大多数现代架构更倾向于client-side composition或 CDN 级 ESI。
 
 ### bouine 如何处理 Vary 头？
 
-bouine 规范化 `Vary` 并从列出的请求头构建次缓存键。`Vary: *` 禁用缓存。Vary 变体有上限以防止不受控的头变化导致的缓存投毒。
+bouine 规范化 `Vary` 并从列出的请求头构建次缓存键。`Vary: *` 禁用缓存。Vary 变体有上限以防止不受控的头变化导致的cache poisoning。
 
 ## 集群
 
@@ -55,7 +55,7 @@ bouine 规范化 `Vary` 并从列出的请求头构建次缓存键。`Vary: *` �
 
 ### 节点加入或离开时会发生什么？
 
-加入时：新节点通过 gossip 通告自己，哈希环重新均衡，新请求路由到新拥有者。新节点冷启动（无键迁移）。离开时：节点排空进行中的请求，退出 gossip 成员，peer 停止路由到它。
+加入时：新节点通过 gossip 通告自己，哈希环重新均衡，新请求路由到新拥有者。新节点冷启动（no key migration）。离开时：节点排空进行中的请求，退出 gossip 成员，peer 停止路由到它。
 
 ### 可以跨多个区域运行 bouine 吗？
 
@@ -65,26 +65,26 @@ v1.0 不支持。多区域联邦（跨集群分层、区域缓存级缓存）计
 
 ### 可以不重启重新加载配置吗？
 
-v1.0 不支持。配置变更通过滚动 Pod（标准 Kubernetes 滚动更新）应用。热重载非破坏性变更已在路线图中。
+v1.0 不支持。配置变更通过滚动更新 Pod（标准 Kubernetes 滚动更新）应用。热重载非破坏性变更已在路线图中。
 
-### bouine 支持配置中的环境变量插值吗？
+### bouine 支持配置中的环境变量展开吗？
 
-支持。`${VAR}` 和 `${VAR:-default}` 在 YAML 配置解码前展开。`$$` 转义为字面 `$`。
+支持。`${VAR}` 和 `${VAR:-default}` 在 YAML 配置解码前展开。`$$` 转义为字面量 `$`。
 
 ### 如何使缓存对象失效？
 
 三种机制：
 - **Purge**（`POST /v1/purge`）：精确 URL 删除
 - **Ban**（`POST /v1/ban`）：基于谓词（host regex、path regex）
-- **Refresh**（`POST /v1/refresh`）：软清除，标记为过期并在下次请求时触发重新验证
+- **Refresh**（`POST /v1/refresh`）：soft-purge，标记为过期并在下次请求时触发重新验证
 
 参见[缓存失效指南](../operations/cache-invalidation/)。
 
 ## 性能
 
-### 命中路径的预算是多少？
+### hit path budget是多少？
 
-p50 每请求低于 5 µs CPU，预热后零分配。命中路径在 CI 中通过基准测试门控：`allocs/op == 0`。
+p50 每请求低于 5 µs CPU，预热后zero-allocation。命中路径在 CI 中通过benchmark gating：`allocs/op == 0`。
 
 ### bouine 和 Varnish 在吞吐量上相比如何？
 

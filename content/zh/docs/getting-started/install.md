@@ -36,7 +36,7 @@ docker run --rm -p 8080:80 -p 9000:9000 bouinecache/bouine:latest
 
 > **验证下载**
 >
-> 每个 release 附带 `SHA256SUMS`（含 cosign 签名 `SHA256SUMS.sig` 和证书 `SHA256SUMS.pem`）。如果您需要供应链保证，请在下载后校验校验和。
+> 每个 release 附带 `SHA256SUMS`（含 cosign 签名 `SHA256SUMS.sig` 和证书 `SHA256SUMS.pem`）。如果您需要供应链保证，请在下载后验证 checksum。
 
 ## 从源码
 

@@ -1,7 +1,7 @@
 ---
 title: "架构"
 weight: 4
-description: "bouine 内部结构：监听器、管道、存储、缓存引擎、上游池、集群和可观测性。"
+description: "bouine 内部结构：监听器、pipeline、存储、缓存引擎、upstream pool、集群和可观测性。"
 ---
 
 
@@ -42,9 +42,9 @@ Cache-Control: no-store
 CDN-Cache-Control: max-age=3600
 ```
 
-### 替代键
+### surrogate key
 
-源站可以用替代键标记响应以进行分组失效：
+源站可以用surrogate key标记响应以进行分组失效：
 
 ```http
 Surrogate-Key: product-456 category-shoes
@@ -87,7 +87,7 @@ Peer hit 增加延迟：~0.3ms（集群内单跳 HTTP/2）。
 
 当对象进入 `stale-while-revalidate` 窗口时，bouine：
 
-1. 立即提供过期对象（客户端无等待）。
+1. 立即返回过期对象（客户端无等待）。
 2. 触发后台 goroutine（`bgRevalSem` 限制并发为 256）与源站进行条件重新验证。
 3. 源站响应（200 或 304）更新 hot store；下次请求获得新鲜 `HIT`。
 
