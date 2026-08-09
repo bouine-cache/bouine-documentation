@@ -1,134 +1,124 @@
 ---
 title: "架构"
 weight: 4
-description: "How bouine is structured internally: listeners, pipeline, storage, cache engine, origin pools, clustering, and observability."
+description: "bouine 内部结构：监听器、管道、存储、缓存引擎、上游池、集群和可观测性。"
 ---
 
 
-## Layered design
+## 分层设计
 
-bouine is structured in 8 layers, each testable in isolation.
+bouine 由 8 层组成，每层可独立测试。
 
 {{< arch-diagram >}}
 
-## HTTP stacks
+## HTTP 协议栈
 
-One HTTP implementation only:
+单一 HTTP 实现：
 
-- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin)
+- **`net/http`** — HTTP/1.1 + HTTP/2（数据面 + 管理面）
 
-The admin API uses `net/http.ServeMux`.
+管理 API 使用 `net/http.ServeMux`。
 
-## Cache engine
+## 缓存引擎
 
-The RFC 9111 state machine is deterministic: inputs are `*http.Request`, stored `*Object`, and `now`. Outputs are `HIT`, `MISS`, `REVALIDATE`, `STALE_HIT`, or `BYPASS`.
+RFC 9111 状态机是确定性的：输入为 `*http.Request`、存储的 `*Object` 和 `now`。输出为 `HIT`、`MISS`、`REVALIDATE`、`STALE_HIT` 或 `BYPASS`。
 
-### Cache key
+### 缓存键
 
-Primary key: `xxhash64(scheme | host | path | sorted_query | method)`
+主键：`xxhash64(scheme | host | path | sorted_query | method)`
 
-Secondary key (Vary): derived from the request headers listed in the response's `Vary` header, or from `cache.key.include_headers`.
+次键（Vary）：从响应 `Vary` 头中列出的请求头派生，或从 `cache.key.include_headers` 派生。
 
-### Eviction
+### 淘汰
 
-
-- **SIEVE** — simple, near-LRU-K performance, O(1) per operation
-
+- **SIEVE** — 简单，命中率接近 LRU-K，每次操作 O(1)
 
 ### CDN-Cache-Control (RFC 9211)
 
-When the origin sends a `CDN-Cache-Control` header, it takes precedence over `Cache-Control` for all shared-cache decisions. This allows origins to set different TTLs for CDN caches vs browser caches:
+当源站发送 `CDN-Cache-Control` 时，它覆盖 `Cache-Control` 用于所有共享缓存决策：
 
 ```http
-Cache-Control: no-store              # browsers don't cache
-CDN-Cache-Control: max-age=3600      # bouine caches for 1h
+Cache-Control: no-store
+CDN-Cache-Control: max-age=3600
 ```
 
-### Surrogate keys
+### 替代键
 
-Origins can tag responses with opaque surrogate keys for grouped invalidation:
+源站可以用替代键标记响应以进行分组失效：
 
 ```http
 Surrogate-Key: product-456 category-shoes
 Cache-Tag: product-456, category-shoes
 ```
 
-bouine reads `Surrogate-Key`, `Cache-Tag`, and `X-Cache-Tags` at store time and makes them available for `POST /v1/ban{surrogate_key:"..."}` invalidation.
+bouine 在存储时读取 `Surrogate-Key`、`Cache-Tag` 和 `X-Cache-Tags`，并可通过 `POST /v1/ban{surrogate_key:"..."}` 进行失效。
 
-### Negative caching
+### 负缓存
 
-404, 405, 410, 501 responses can be cached for a configurable duration (`negative_ttl`).
+404、405、410、501 响应可以以可配置的持续时间缓存（`negative_ttl`）。
 
-### Jittered TTLs
+### TTL 抖动
 
-Random ±N% applied to every TTL to prevent synchronized expiry stampedes across cached entries.
+每个 TTL 应用 ±N% 随机抖动，防止缓存条目之间同步过期导致的请求洪峰。
 
-## Clustering
+## 集群
 
-bouine supports two consistency modes (see [Clustering](/docs/configuration/cluster-modes/)):
+bouine 支持两种一致性模式（参见[集群](/docs/configuration/cluster-modes/)）：
 
-### Strong mode (default)
+### Strong 模式（默认）
 
-**Sharding**: Consistent hash with 256 virtual nodes per real node. On a miss, the requesting node checks the owner node before going to origin.
+**分片**：一致性哈希，每个真实节点 256 个虚拟节点。未命中时，请求节点在访问源站前先检查拥有者节点。
 
-### Eventual mode
+### Eventual 模式
 
-Every node is independent — no sharding, no peer-fetch. Invalidations propagate via gossip only. Each node caches whatever it receives from origin.
+每个节点独立 — 无分片，无 peer fetch。失效仅通过 gossip 传播。
 
+### 成员管理（所有模式）
 
-### Membership (all modes)
+使用 `hashicorp/memberlist` 进行 gossip。节点通过 StatefulSet DNS 引导。
 
-`hashicorp/memberlist` for gossip. Nodes bootstrap via StatefulSet DNS.
-
-### Peer fetch flow (strong mode only)
+### Peer-fetch 流程（仅 Strong 模式）
 
 {{< peer-fetch-diagram >}}
 
-Added latency for a peer hit: ~0.3ms (one in-cluster HTTP/2 hop).
+Peer hit 增加延迟：~0.3ms（集群内单跳 HTTP/2）。
 
 ### Stale-while-revalidate (SWR)
 
-When an object enters its `stale-while-revalidate` window, bouine:
+当对象进入 `stale-while-revalidate` 窗口时，bouine：
 
-1. Serves the stale object immediately (no client wait).
-2. Fires a background goroutine (`bgRevalSem` bounds concurrency to 256) that conditionally revalidates with the origin.
-3. The origin reply (200 or 304) updates the hot store; the next request gets a fresh `HIT`.
+1. 立即提供过期对象（客户端无等待）。
+2. 触发后台 goroutine（`bgRevalSem` 限制并发为 256）与源站进行条件重新验证。
+3. 源站响应（200 或 304）更新 hot store；下次请求获得新鲜 `HIT`。
 
-This is what eliminates the 93% effective hit rate gap vs Varnish in mixed workloads — both caches serve stale immediately and refresh asynchronously.
+### 失效传播
 
-### Invalidation propagation
-
-| Operation | `strong` | `eventual` | `full` |
+| 操作 | `strong` | `eventual` | `full` |
 |---|---|---|---|
-| **Purge** | HTTP fan-out to all peers + gossip | Gossip only (1–5 s convergence) | HTTP fan-out to all peers + gossip |
-| **Ban** | HTTP fan-out to all peers + gossip | Gossip only | HTTP fan-out to all peers + gossip |
-| **Refresh** | Forwarded to key's owner node | Gossip only | HTTP fan-out to all peers |
+| **Purge** | HTTP 扇出到所有 peer + gossip | 仅 gossip（1–5s 收敛） | HTTP 扇出到所有 peer + gossip |
+| **Ban** | HTTP 扇出到所有 peer + gossip | 仅 gossip | HTTP 扇出到所有 peer + gossip |
+| **Refresh** | 转发给键拥有者节点 | 仅 gossip | HTTP 扇出到所有 peer |
 
-In `strong` and `full` modes, the HTTP fan-out ensures sub-second invalidation propagation. The gossip broadcast queue provides a redundant delivery path.
+### 加入协议
 
+Pod 每 2 秒重试加入，持续最多 60 秒。成功需要 `Members() > 1`。headless Service **必须**设置 `publishNotReadyAddresses: true`。
 
-### Join protocol
+## 性能
 
-Pods retry joining every 2 seconds for up to 60 seconds. Success requires `Members() > 1` (at least one real peer, not self-join). The headless Service **must** have `publishNotReadyAddresses: true`.
-
-## Performance
-
-| Benchmark | Result |
+| Benchmark | 结果 |
 |---|---|
-| `Evaluate_Hit` | 40 ns/op, 0 allocs |
-| `HotStore_Get_Hit` | 5.4 ns/op, 0 allocs |
+| `Evaluate_Hit` | 40 ns/op, 0 alloc |
+| `HotStore_Get_Hit` | 5.4 ns/op, 0 alloc |
 | `Handler_CacheHit` | 537 ns/op, 8 allocs |
-| `BuildKey` (query params) | 46 ns/op, 0 allocs |
-| `SIEVE_Access` | 5.4 ns/op, 0 allocs |
+| `BuildKey` (query params) | 46 ns/op, 0 alloc |
+| `SIEVE_Access` | 5.4 ns/op, 0 alloc |
 
-Load-test results (Docker, 3k RPS, single node vs Varnish + nginx):
+负载测试结果（Docker，3k RPS，单节点 vs Varnish + nginx）：
 
-| Scenario | bouine | nginx | varnish |
+| 场景 | bouine | nginx | varnish |
 |---|---|---|---|
-| Hit-only (warm cache) | 166 µs avg | 166 µs avg | 177 µs avg |
-| Miss storm (no-store) | 157 µs avg | degraded | 166 µs avg |
-| Mixed 60/15/10/5/5 | 230 µs avg | 22 ms avg† | 199 µs avg |
+| 纯命中（热缓存） | 166 µs 平均 | 166 µs 平均 | 177 µs 平均 |
+| 未命中风暴（no-store） | 157 µs 平均 | 降级 | 166 µs 平均 |
+| 混合 60/15/10/5/5 | 230 µs 平均 | 22 ms 平均† | 199 µs 平均 |
 
-†nginx's high mixed average is due to blocking revalidation; bouine and Varnish both use background SWR refresh.
-
-All gates enforced in CI — regressions block merge.
+†nginx 混合平均值高是由于阻塞式重新验证；bouine 和 Varnish 都使用后台 SWR 刷新。
