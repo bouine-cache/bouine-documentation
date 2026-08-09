@@ -27,6 +27,14 @@ summarylength = 30
       languageISO = "FR"
       languageTag = "fr-FR"
 
+  [languages.zh]
+    languageName = "中文"
+    contentDir = "content/zh"
+    weight = 30
+    [languages.zh.params]
+      languageISO = "ZH"
+      languageTag = "zh-CN"
+
 [build.buildStats]
   enable = true
 
