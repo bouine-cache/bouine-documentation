@@ -10,4 +10,5 @@ description: "Step-by-step guides for migrating from Varnish or NGINX, integrati
 - [Reverse proxy examples](reverse-proxies/) — deploy bouine in front of Caddy, Traefik, HAProxy, and nginx.
 - [Capacity planning](capacity-planning/) — size hot and warm tiers, choose cluster mode and replicas, validate under load.
 - [Production readiness checklist](production-checklist/) — verify TLS, resources, cluster, caching, observability, and K8s settings before going live.
+- [Service mesh compatibility](service-mesh/) — run bouine alongside Istio, Linkerd, and Cilium.
 - [Benchmarks](benchmarks/) — methodology and results comparing bouine vs Varnish, NGINX, and Envoy across cache hit, miss, and mixed workloads.
