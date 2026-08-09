@@ -1,5 +1,5 @@
 ---
-title: "Exemples de proxy inverse"
+title: "Exemples de reverse proxy"
 weight: 2
 description: "Deploy bouine in front of Caddy, Traefik, HAProxy, and nginx with ready-to-adapt configuration examples."
 ---

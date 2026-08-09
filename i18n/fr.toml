@@ -18,7 +18,7 @@
   other = "Tout inclus"
 
 [batteryIncludedDesc]
-  other = "Vraiment autonome, aucun K/V store externe, aucun plan de contrôle externe, conformité RFC 9111 testée."
+  other = "Vraiment autonome, aucun K/V store externe, aucun control plane externe, conformité RFC 9111 testée."
 
 [whyBouine]
   other = "Pourquoi bouine ?"
@@ -33,7 +33,7 @@
   other = "Aucun K/V externe"
 
 [noExternalKVDesc]
-  other = "Tier chaud embarqué en RAM, tier tiède optionnel sur disque. Pas de Redis, pas de Memcached."
+  other = "Tier chaud embarqué en RAM, warm tier optionnel sur disque. Pas de Redis, pas de Memcached."
 
 [fastReliable]
   other = "Rapide et fiable"
@@ -123,13 +123,13 @@
   other = "Spans OTel natifs pour tout le cycle cache hit/miss/peer-fetch, traçables dans n'importe quel backend compatible OTel."
 
 [criterionDistributedClustering]
-  other = "Clustering gossip embarqué avec plusieurs modes de cohérence (fort, eventual, full) — aucun plan de contrôle externe requis."
+  other = "Clustering gossip embarqué avec plusieurs modes de cohérence (strong, eventual, full) — aucun control plane externe requis."
 
 [criterionSubSecondInvalidation]
   other = "Les opérations de purge et de ban atteignent tous les peers du cluster en moins d'une seconde via HTTP fan-out, pas seulement par convergence gossip."
 
 [criterionStaleIfError]
-  other = "Servir le contenu stale mis en cache quand l'origine renvoie des erreurs 5xx ou timeout, évitant les dégradations côté utilisateur."
+  other = "Servir le contenu contenu stale en cache quand l'origine renvoie des erreurs 5xx ou timeout, évitant les dégradations côté utilisateur."
 
 [criterionStayinAlive]
   other = "Servir le stale indéfiniment quand l'upstream est complètement en panne — le cache devient l'origine pendant les outages."
@@ -162,7 +162,7 @@
   other = "Le langage principal dans lequel le proxy/cache est écrit. Affecte la facilité de contribution, la vitesse de build et le modèle mémoire runtime."
 
 [criterionNoExternalKV]
-  other = "Tier chaud embarqué en RAM avec tier tiède optionnel sur disque. Pas de Redis, pas de Memcached, aucun processus de plan de contrôle externe à opérer."
+  other = "Tier chaud embarqué en RAM avec warm tier optionnel sur disque. Pas de Redis, pas de Memcached, aucun processus de control plane externe à opérer."
 
 [criterionSieve]
   other = "Algorithme d'éviction SIEVE : simple, ratio de hit proche du LRU-K, O(1) par opération. Les alternatives utilisent généralement le LRU standard."
@@ -171,13 +171,13 @@
   other = "256 nœuds virtuels par nœud réel pour le consistent hashing. Sur un cache miss, le nœud demandeur vérifie le nœud propriétaire avant d'aller à l'origine. ~0.3ms de latence ajoutée."
 
 [criterionJitteredTtls]
-  other = "Application d'un aléa ±N% sur chaque TTL pour éviter les stampedes d'expiration synchronisée entre les entrées en cache."
+  other = "Application d'un facteur aléatoire ±N% sur chaque TTL pour éviter les stampedes d'expiration synchronisée entre les entrées en cache."
 
 [criterionBackgroundSwr]
   other = "Sert le stale immédiatement pendant qu'une goroutine de fond se revalide auprès de l'origine. Concurrence bornée à 256 goroutines."
 
 [criterionHedgedFetch]
-  other = "Émet une requête dupliquée après un timeout configurable ; la première réponse gagne, réduisant la latence de queue sur les origines lentes."
+  other = "Émet une hedged request après un timeout configurable ; la première réponse gagne, réduisant la tail latency sur les origines lentes."
 
 [criterionZeroAlloc]
   other = "Le chemin de cache hit alloue zéro octet sur le hot path (40 ns/op, 0 alloc). Protégé par benchmarks en CI pour bloquer les régressions de performance."

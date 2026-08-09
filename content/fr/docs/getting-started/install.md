@@ -36,7 +36,7 @@ La commande en une ligne résout automatiquement la dernière version, elle ne d
 
 > **Vérifier le téléchargement**
 >
-> Chaque release est livrée avec `SHA256SUMS` (avec une signature cosign `SHA256SUMS.sig` et un certificat `SHA256SUMS.pem`). Vérifiez la somme de contrôle après le téléchargement si vous avez besoin d'une garantie sur la chaîne d'approvisionnement.
+> Chaque release est livrée avec `SHA256SUMS` (avec une signature cosign `SHA256SUMS.sig` et un certificat `SHA256SUMS.pem`). Vérifiez la somme de contrôle après le téléchargement si vous avez besoin d'une garantie sur la supply chain.
 
 ## Depuis les sources
 
@@ -51,4 +51,4 @@ Prérequis :
 
 - Go 1.26+
 - `golangci-lint` si vous souhaitez exécuter `make lint`
-- Docker si vous souhaitez construire des images ou exécuter des tests d'intégration
+- Docker si vous souhaitez builder des images ou exécuter des tests d'intégration

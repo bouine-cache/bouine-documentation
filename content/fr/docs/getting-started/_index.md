@@ -16,6 +16,6 @@ Cette section vous fait passer de zéro à un cache fonctionnel. Vous allez :
 
 - [Installation](install/) — Docker, binaires et compilation depuis les sources.
 - [Démarrage rapide](first-cache/) — démarrer une origine, configurer bouine et vérifier les cache hits.
-- [Docker](docker/) — exécuter et construire des images.
+- [Docker](docker/) — exécuter et builder des images.
 - [Kubernetes](kubernetes/) — déployer avec Helm et le gossip StatefulSet.
 - [Exemples de configuration](examples/) — site statique, passerelle API et exemples e-commerce.

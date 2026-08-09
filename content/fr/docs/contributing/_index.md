@@ -51,5 +51,5 @@ Préfixes autorisés : `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf
 - [ ] `make all` passe
 - [ ] Tests ajoutés ou mis à jour
 - [ ] Pas de régression des cache-tests pour les changements de cache
-- [ ] Pas de régression des benchmarks pour les changements du chemin chaud
+- [ ] Pas de régression des benchmarks pour les changements du hot path
 - [ ] Pas de secrets, jetons ou noms d'hôtes de production

@@ -1,7 +1,7 @@
 ---
 title: "Architecture"
 weight: 4
-description: "Comment bouine est structuré en interne : listeners, pipeline, stockage, moteur de cache, pools d'origines, clustering et observabilité."
+description: "Comment bouine est structuré en interne : listeners, pipeline, stockage, moteur de cache, origin pools, clustering et observabilité."
 ---
 
 
@@ -11,11 +11,11 @@ bouine est structuré en 8 couches, chacune testable isolément.
 
 {{< arch-diagram >}}
 
-## Piles HTTP
+## Stacks HTTP
 
 Une seule implémentation HTTP :
 
-- **`net/http`** — HTTP/1.1 + HTTP/2 (plan de données + administration)
+- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + administration)
 
 L'API d'administration utilise `net/http.ServeMux`.
 
@@ -44,7 +44,7 @@ CDN-Cache-Control: max-age=3600
 
 ### Clés de substitution
 
-Les origines peuvent étiqueter les réponses avec des clés de substitution pour une invalidation groupée :
+Les origines peuvent taguer les réponses avec des surrogate keys pour une invalidation groupée :
 
 ```http
 Surrogate-Key: product-456 category-shoes
@@ -53,13 +53,13 @@ Cache-Tag: product-456, category-shoes
 
 bouine lit `Surrogate-Key`, `Cache-Tag` et `X-Cache-Tags` au moment du stockage et les rend disponibles pour l'invalidation via `POST /v1/ban{surrogate_key:"..."}`.
 
-### Mise en cache négative
+### Cache négatif
 
 Les réponses 404, 405, 410, 501 peuvent être mises en cache pendant une durée configurable (`negative_ttl`).
 
-### TTL avec gigue
+### TTL avec jitter
 
-Un aléa de ±N % est appliqué à chaque TTL pour empêcher les ruées d'expiration synchronisées.
+Un facteur aléatoire de ±N % est appliqué à chaque TTL pour empêcher les stampedes d'expiration synchronisées.
 
 ## Clustering
 
@@ -67,27 +67,27 @@ bouine prend en charge deux modes de cohérence (voir [Clustering](/docs/configu
 
 ### Mode Strong (par défaut)
 
-**Sharding** : hachage cohérent avec 256 nœuds virtuels par nœud réel. En cas de miss, le nœud demandeur vérifie le nœud propriétaire avant d'aller à l'origine.
+**Sharding** : consistent hashing avec 256 nœuds virtuels par nœud réel. En cas de miss, le nœud demandeur vérifie le nœud propriétaire avant d'aller à l'origine.
 
 ### Mode Eventual
 
-Chaque nœud est indépendant — pas de sharding, pas de récupération par pair. Les invalidations se propagent par gossip uniquement.
+Chaque nœud est indépendant — pas de sharding, pas de peer fetch. Les invalidations se propagent par gossip uniquement.
 
-### Appartenance (tous modes)
+### Membership (tous modes)
 
-`hashicorp/memberlist` pour le gossip. Les nœuds s'amorcent via le DNS du StatefulSet.
+`hashicorp/memberlist` pour le gossip. Les nœuds bootstrap via le DNS du StatefulSet.
 
-### Flux de récupération par pair (mode Strong uniquement)
+### Flux de peer fetch (mode Strong uniquement)
 
 {{< peer-fetch-diagram >}}
 
-Latence ajoutée pour un hit par pair : ~0,3 ms (un saut HTTP/2 intra-cluster).
+Latence ajoutée pour un hit par pair : ~0,3 ms (un hop HTTP/2 intra-cluster).
 
 ### Stale-while-revalidate (SWR)
 
 Lorsqu'un objet entre dans sa fenêtre `stale-while-revalidate`, bouine :
 
-1. Sert immédiatement l'objet périmé (pas d'attente côté client).
+1. Sert immédiatement l'objet stale (pas d'attente côté client).
 2. Déclenche une goroutine en arrière-plan (`bgRevalSem` limite la concurrence à 256) qui revalide conditionnellement avec l'origine.
 3. La réponse de l'origine (200 ou 304) met à jour le hot store ; la prochaine requête obtient un `HIT` frais.
 
@@ -99,7 +99,7 @@ Lorsqu'un objet entre dans sa fenêtre `stale-while-revalidate`, bouine :
 | **Ban** | Fan-out HTTP vers tous les pairs + gossip | Gossip uniquement | Fan-out HTTP vers tous les pairs + gossip |
 | **Refresh** | Transmis au nœud propriétaire de la clé | Gossip uniquement | Fan-out HTTP vers tous les pairs |
 
-### Protocole d'arrivée
+### Protocole de join
 
 Les pods réessayent l'arrivée toutes les 2 secondes pendant jusqu'à 60 secondes. Le succès nécessite `Members() > 1`. Le Service headless **doit** avoir `publishNotReadyAddresses: true`.
 
