@@ -5,7 +5,7 @@ description: "从 Varnish 或 NGINX 迁移、集成模式和容量规划的分�
 ---
 
 
-- [从 Varnish 迁移](varnish-migration/) — VCL vs YAML 并排比较、purge/ban 对等、可观测性对应、行为差异和 FAQ。
+- [从 Varnish 迁移](varnish-migration/) — VCL vs YAML 逐项对比、purge/ban 对应关系、可观测性映射、行为差异和 FAQ。
 - [从 NGINX 迁移](nginx-migration/) — 将 NGINX `proxy_cache` 指令映射到 bouine 配置。
 - [反向代理示例](reverse-proxies/) — 在 Caddy、Traefik、HAProxy 和 nginx 前面部署 bouine。
 - [容量规划](capacity-planning/) — 规划 hot 和 warm 层大小，选择集群模式和副本，在负载下验证。

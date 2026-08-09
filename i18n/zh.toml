@@ -6,19 +6,19 @@
   other = "云原生"
 
 [cloudNativeDesc]
-  other = "可观测的缓存，位于 API、静态站点或 SSR 前面 — 提供指标、日志和清除 API。"
+  other = "可观测的缓存，位于 API、静态站点或 SSR 前面 — 提供指标、日志和purge API。"
 
 [controlPlane]
   other = "控制平面"
 
 [controlPlaneDesc]
-  other = "协调您的缓存层，同步扩缩容、安全失效传播等。"
+  other = "编排您的缓存层，同步扩缩容、secure invalidation propagation等。"
 
 [batteryIncluded]
   other = "开箱即用"
 
 [batteryIncludedDesc]
-  other = "真正的独立运行，无需外部 K/V 存储，无需外部控制平面，RFC 9111 一致性测试通过。"
+  other = "真正的独立运行，无需外部 KV 存储，无需外部控制平面，RFC 9111 一致性测试通过。"
 
 [whyBouine]
   other = "为什么选择 bouine？"
@@ -39,7 +39,7 @@
   other = "快速可靠"
 
 [fastReliableDesc]
-  other = "100 ns/op，缓存命中时零分配。通过基准测试门控阻止性能回归。"
+  other = "100 ns/op，缓存命中时zero-allocation。通过benchmark gating阻止性能回归。"
 
 [cloudNativeFeature]
   other = "云原生"
@@ -51,13 +51,13 @@
   other = "精准失效"
 
 [preciseInvalidationDesc]
-  other = "按 URL 清除、谓词 ban、软清除刷新。自动广播到所有集群节点。"
+  other = "按 URL 清除、谓词 ban、soft-purge刷新。自动广播到所有集群节点。"
 
 [modern]
   other = "现代化"
 
 [modernDesc]
-  other = "故障时自动服务过期内容、请求合并、条件清除 — 无需万行 VCL。"
+  other = "故障时自动服务过期内容、request coalescing、conditional purge — 无需万行 VCL。"
 
 [readyToReplace]
   other = "准备好替换您的缓存层了吗？"
@@ -102,7 +102,7 @@
 
 # Compare criterion help tooltips
 [criterionK8sDeploy]
-  other = "一流的 StatefulSet 支持，通过 headless Service DNS 引导、Pod 发现和 Helm 管理的滚动更新。"
+  other = "原生的 StatefulSet 支持，通过 headless Service DNS 引导、Pod 发现和 Helm 管理的滚动更新。"
 
 [criterionHelmChart]
   other = "官方维护的 Helm chart，提供完整的 values.yaml 参考和生产默认值。"
@@ -123,16 +123,16 @@
   other = "原生 OTel span 覆盖完整的缓存命中/未命中/peer-fetch 生命周期，可通过任何 OTel 兼容后端追踪。"
 
 [criterionDistributedClustering]
-  other = "内置基于 gossip 的集群，支持多种一致性模式（强一致、最终一致、全量）— 无需外部控制平面。"
+  other = "内置基于 gossip 的集群，支持多种一致性模式（strong、eventual、full）— 无需外部控制平面。"
 
 [criterionSubSecondInvalidation]
   other = "清除和 ban 操作通过 HTTP 扇出在一秒内到达所有集群节点，而非仅依赖 gossip 收敛。"
 
 [criterionStaleIfError]
-  other = "当源站返回 5xx 错误或超时时，提供缓存的过期内容，防止用户面故障。"
+  other = "当源站返回 5xx 错误或超时时，返回缓存的过期内容，防止面向用户的故障。"
 
 [criterionStayinAlive]
-  other = "当上游完全宕机时无限期提供过期内容 — 缓存在中断期间成为源站。"
+  other = "当上游完全宕机时无限期返回过期内容 — 缓存在中断期间成为源站。"
 
 [criterionDashboard]
   other = "实时运维仪表板，显示指标、路由性能、集群健康状况和一键清除 — 无需外部工具。"
@@ -144,7 +144,7 @@
   other = "直接实现 HTTP 缓存规范（RFC 9111）。bouine 在 cache-tests.fyi 一致性套件上得分 94%。"
 
 [criterionVary]
-  other = "尊重 Vary 响应头用于缓存键推导，按请求头提供正确的变体。"
+  other = "尊重 Vary 响应头用于缓存键推导，按请求头返回正确的变体。"
 
 [criterionSurrogateKeys]
   other = "源站可以通过 Surrogate-Key / Cache-Tag 头标记响应，用于跨多个 URL 的分组失效。"
@@ -174,10 +174,10 @@
   other = "对每个 TTL 应用随机 ±N%，防止缓存条目之间同步过期导致的请求洪峰。"
 
 [criterionBackgroundSwr]
-  other = "立即提供过期内容，同时后台 goroutine 向源站重新验证。并发限制为 256 个 goroutine。"
+  other = "立即返回过期内容，同时后台 goroutine 向源站重新验证。并发限制为 256 个 goroutine。"
 
 [criterionHedgedFetch]
   other = "在可配置超时后发送重复请求；先到的响应胜出，降低慢源站的尾延迟。"
 
 [criterionZeroAlloc]
-  other = "缓存命中路径在热路径上零字节分配（40 ns/op，0 allocs）。CI 中通过基准测试门控阻止性能回归。"
+  other = "缓存命中路径在热路径上zero-allocation（40 ns/op，0 allocs）。CI 中通过benchmark gating阻止性能回归。"

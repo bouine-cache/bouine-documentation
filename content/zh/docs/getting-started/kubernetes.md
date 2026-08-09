@@ -47,7 +47,7 @@ helm install bouine deploy/helm/bouine --namespace bouine --create-namespace ...
 
 多 Pod 集群需要使用 StatefulSet 和带 `publishNotReadyAddresses: true` 的 headless Service。参见 [集群 → Headless Service](/docs/configuration/cluster-modes/#headless-service-kubernetes) 获取完整清单。
 
-## 管理 Token（多 Pod 要求）
+## admin token（多 Pod 要求）
 
 所有 Pod **必须共享相同的 `admin.token`**。参见 [认证](/docs/operations/authentication/) 了解配置说明。
 
@@ -65,4 +65,4 @@ kubectl rollout restart statefulset/bouine -n bouine
 kubectl rollout status statefulset/bouine -n bouine
 ```
 
-bouine 在关闭时标记自身为未就绪并优雅离开 gossip 集群。参见 [Kubernetes 运维](/docs/operations/kubernetes/) 了解零 5xx 滚动更新流程。
+bouine 在关闭时标记自身为未就绪并优雅退出 gossip 集群。参见 [Kubernetes 运维](/docs/operations/kubernetes/) 了解零 5xx 滚动更新流程。

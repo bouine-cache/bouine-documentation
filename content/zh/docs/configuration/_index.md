@@ -1,7 +1,7 @@
 ---
 title: "配置"
 weight: 2
-description: "bouine YAML 配置参考：监听器、存储、上游池、路由、缓存、集群、TLS 和可观测性。"
+description: "bouine YAML 配置参考：监听器、存储、upstream pool、路由、缓存、集群、TLS 和可观测性。"
 ---
 
 bouine 通过 `--config` 传递的 YAML 文件配置。环境变量在解码前展开（`${VAR}`、`${VAR:-default}`）。
