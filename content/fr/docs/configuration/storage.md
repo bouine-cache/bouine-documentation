@@ -28,11 +28,10 @@ SIEVE maintains a FIFO queue with a single "visited" bit per entry. On eviction,
 | Metric | Description |
 |--------|-------------|
 | `bouine_hot_store_bytes` | Current bytes used |
-| `bouine_hot_store_max_bytes` | Configured maximum |
-| `bouine_hot_store_objects` | Object count |
-| `bouine_sieve_evictions_total` | Eviction counter |
+| `bouine_hot_store_entries` | Object count |
+| `bouine_hot_store_evictions_total` | Eviction counter |
 
-When `bouine_hot_store_bytes / bouine_hot_store_max_bytes > 0.9` for an extended period, consider increasing `hot_max_bytes` or reviewing whether low-value objects are consuming cache space.
+When `bouine_hot_store_bytes / hot_max_bytes > 0.9` for an extended period, consider increasing `hot_max_bytes` or reviewing whether low-value objects are consuming cache space.
 
 ## Warm tier (disk)
 
