@@ -53,7 +53,7 @@ runs registered steps in order, each with a time budget:
 4. **Flush storage** — WAL sync, warm-tier segment close.
 5. **Close admin** — final metrics scrape window, then shutdown.
 
-The total budget is `terminationGracePeriodSeconds` (Helm default: 30s).
+The total budget is `terminationGracePeriodSeconds` (Helm default: 40s).
 
 ### Manual stop
 

@@ -1,124 +1,136 @@
 ---
 title: "Architecture"
 weight: 4
-description: "Comment bouine est structuré en interne : listeners, pipeline, stockage, moteur de cache, origin pools, clustering et observabilité."
+description: "How bouine is structured internally: listeners, pipeline, storage, cache engine, origin pools, clustering, and observability."
 ---
 
 
-## Conception en couches
+## Layered design
 
-bouine est structuré en 8 couches, chacune testable isolément.
+bouine is structured in 8 layers, each testable in isolation.
 
 {{< arch-diagram >}}
 
-## Stacks HTTP
+## HTTP stacks
 
-Une seule implémentation HTTP :
+HTTP handling:
 
-- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + administration)
+- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin), the standard path
+- **H1 fast path** (experimental) — custom zero-alloc HTTP/1.1 parser for cache hits, bypasses `net/http` on the hot path. See [Experimental features](/docs/configuration/experimental/).
 
-L'API d'administration utilise `net/http.ServeMux`.
+The admin API uses `net/http.ServeMux`.
 
-## Moteur de cache
+## Cache engine
 
-La machine à états RFC 9111 est déterministe : les entrées sont `*http.Request`, l'`*Object` stocké et `now`. Les sorties sont `HIT`, `MISS`, `REVALIDATE`, `STALE_HIT` ou `BYPASS`.
+The RFC 9111 state machine is deterministic: inputs are `*http.Request`, stored `*Object`, and `now`. Outputs are `HIT`, `MISS`, `REVALIDATE`, `STALE_HIT`, or `BYPASS`.
 
-### Clé de cache
+### Cache key
 
-Clé primaire : `xxhash64(scheme | host | path | sorted_query | method)`
+Primary key: `xxhash64(scheme | host | path | sorted_query | method)`
 
-Clé secondaire (Vary) : dérivée des en-têtes listés dans l'en-tête `Vary` de la réponse, ou de `cache.key.include_headers`.
+Secondary key (Vary): derived from the request headers listed in the response's `Vary` header, or from `cache.key.include_headers`.
 
-### Éviction
+### Eviction
 
-- **SIEVE** — simple, performance proche de LRU-K, O(1) par opération
+
+- **SIEVE** — simple, near-LRU-K performance, O(1) per operation
+- **mmap slab** (optional, Linux) — hot body bytes are allocated via mmap to avoid Go heap GC pressure (`storage.hot_mmap_slab: true`)
+
 
 ### CDN-Cache-Control (RFC 9211)
 
-Lorsque l'origine envoie `CDN-Cache-Control`, il prend précédence sur `Cache-Control` pour toutes les décisions de cache partagé. Cela permet aux origines de définir des TTL différents pour les caches CDN vs navigateurs :
+When the origin sends a `CDN-Cache-Control` header, it takes precedence over `Cache-Control` for all shared-cache decisions. This allows origins to set different TTLs for CDN caches vs browser caches:
 
 ```http
-Cache-Control: no-store
-CDN-Cache-Control: max-age=3600
+Cache-Control: no-store              # browsers don't cache
+CDN-Cache-Control: max-age=3600      # bouine caches for 1h
 ```
 
-### Clés de substitution
+### Surrogate keys
 
-Les origines peuvent taguer les réponses avec des surrogate keys pour une invalidation groupée :
+Origins can tag responses with opaque surrogate keys for grouped invalidation:
 
 ```http
 Surrogate-Key: product-456 category-shoes
 Cache-Tag: product-456, category-shoes
 ```
 
-bouine lit `Surrogate-Key`, `Cache-Tag` et `X-Cache-Tags` au moment du stockage et les rend disponibles pour l'invalidation via `POST /v1/ban{surrogate_key:"..."}`.
+bouine reads `Surrogate-Key`, `Cache-Tag`, and `X-Cache-Tags` at store time and makes them available for `POST /v1/ban{surrogate_key:"..."}` invalidation.
 
-### Cache négatif
+### Negative caching
 
-Les réponses 404, 405, 410, 501 peuvent être mises en cache pendant une durée configurable (`negative_ttl`).
+404, 405, 410, 501 responses can be cached for a configurable duration (`negative_ttl`).
 
-### TTL avec jitter
+### Jittered TTLs
 
-Un facteur aléatoire de ±N % est appliqué à chaque TTL pour empêcher les stampedes d'expiration synchronisées.
+Random ±N% applied to every TTL to prevent synchronized expiry stampedes across cached entries.
 
 ## Clustering
 
-bouine prend en charge deux modes de cohérence (voir [Clustering](/docs/configuration/cluster-modes/)) :
+bouine supports two consistency modes (see [Clustering](/docs/configuration/cluster-modes/)):
 
-### Mode Strong (par défaut)
+### Strong mode (default)
 
-**Sharding** : consistent hashing avec 256 nœuds virtuels par nœud réel. En cas de miss, le nœud demandeur vérifie le nœud propriétaire avant d'aller à l'origine.
+**Sharding**: Consistent hash with 256 virtual nodes per real node. On a miss, the requesting node checks the owner node before going to origin.
 
-### Mode Eventual
+### Eventual mode
 
-Chaque nœud est indépendant — pas de sharding, pas de peer fetch. Les invalidations se propagent par gossip uniquement.
+Every node is independent — no sharding, no peer-fetch. Invalidations propagate via gossip only. Each node caches whatever it receives from origin.
 
-### Membership (tous modes)
 
-`hashicorp/memberlist` pour le gossip. Les nœuds bootstrap via le DNS du StatefulSet.
+### Membership (all modes)
 
-### Flux de peer fetch (mode Strong uniquement)
+`hashicorp/memberlist` for gossip. Nodes bootstrap via StatefulSet DNS.
+
+### Peer fetch flow (strong mode only)
 
 {{< peer-fetch-diagram >}}
 
-Latence ajoutée pour un hit par pair : ~0,3 ms (un hop HTTP/2 intra-cluster).
+Added latency for a peer hit: ~0.3ms (one in-cluster HTTP/2 hop).
 
 ### Stale-while-revalidate (SWR)
 
-Lorsqu'un objet entre dans sa fenêtre `stale-while-revalidate`, bouine :
+When an object enters its `stale-while-revalidate` window, bouine:
 
-1. Sert immédiatement l'objet stale (pas d'attente côté client).
-2. Déclenche une goroutine en arrière-plan (`bgRevalSem` limite la concurrence à 256) qui revalide conditionnellement avec l'origine.
-3. La réponse de l'origine (200 ou 304) met à jour le hot store ; la prochaine requête obtient un `HIT` frais.
+1. Serves the stale object immediately (no client wait).
+2. Fires a background goroutine (`bgRevalSem` bounds concurrency to 256) that conditionally revalidates with the origin.
+3. The origin reply (200 or 304) updates the hot store; the next request gets a fresh `HIT`.
 
-### Propagation de l'invalidation
+This is what eliminates the 93% effective hit rate gap vs Varnish in mixed workloads — both caches serve stale immediately and refresh asynchronously.
 
-| Opération | `strong` | `eventual` |
+### Invalidation propagation
+
+| Operation | `strong` | `eventual` |
 |---|---|---|
-| **Purge** | Fan-out HTTP vers tous les pairs + gossip | Gossip uniquement (convergence 1–5 s) |
-| **Ban** | Fan-out HTTP vers tous les pairs + gossip | Gossip uniquement |
-| **Refresh** | Transmis au nœud propriétaire de la clé | Gossip uniquement |
+| **Purge** | HTTP fan-out to all peers + gossip | Gossip only (1–5 s convergence) |
+| **Ban** | HTTP fan-out to all peers + gossip | Gossip only |
+| **Refresh** | Forwarded to key's owner node | Gossip only |
 
-### Protocole de join
+In `strong` mode, the HTTP fan-out ensures sub-second invalidation propagation. The gossip broadcast queue provides a redundant delivery path.
 
-Les pods réessayent l'arrivée toutes les 2 secondes pendant jusqu'à 60 secondes. Le succès nécessite `Members() > 1`. Le Service headless **doit** avoir `publishNotReadyAddresses: true`.
+
+### Join protocol
+
+Pods retry joining every 2 seconds for up to 60 seconds. Success requires `Members() > 1` (at least one real peer, not self-join). The headless Service **must** have `publishNotReadyAddresses: true`.
 
 ## Performance
 
-| Benchmark | Résultat |
+| Benchmark | Result |
 |---|---|
-| `Evaluate_Hit` | 40 ns/op, 0 alloc |
-| `HotStore_Get_Hit` | 5,4 ns/op, 0 alloc |
+| `Evaluate_Hit` | 40 ns/op, 0 allocs |
+| `HotStore_Get_Hit` | 5.4 ns/op, 0 allocs |
 | `Handler_CacheHit` | 537 ns/op, 8 allocs |
-| `BuildKey` (paramètres de requête) | 46 ns/op, 0 alloc |
-| `SIEVE_Access` | 5,4 ns/op, 0 alloc |
+| `BuildKey` (query params) | 46 ns/op, 0 allocs |
+| `SIEVE_Access` | 5.4 ns/op, 0 allocs |
 
-Résultats des tests de charge (Docker, 3k RPS, nœud unique vs Varnish + nginx) :
+Load-test results (Docker, 3k RPS, single node vs Varnish + nginx):
 
-| Scénario | bouine | nginx | varnish |
+| Scenario | bouine | nginx | varnish |
 |---|---|---|---|
-| Hit uniquement (cache chaud) | 166 µs moy | 166 µs moy | 177 µs moy |
-| Tempête de miss (no-store) | 157 µs moy | dégradé | 166 µs moy |
-| Mixte 60/15/10/5/5 | 230 µs moy | 22 ms moy† | 199 µs moy |
+| Hit-only (warm cache) | 166 µs avg | 166 µs avg | 177 µs avg |
+| Miss storm (no-store) | 157 µs avg | degraded | 166 µs avg |
+| Mixed 60/15/10/5/5 | 230 µs avg | 22 ms avg† | 199 µs avg |
 
-†La moyenne mixte élevée de nginx est due à la revalidation bloquante ; bouine et Varnish utilisent tous deux le rafraîchissement SWR en arrière-plan.
+†nginx's high mixed average is due to blocking revalidation; bouine and Varnish both use background SWR refresh.
+
+All gates enforced in CI — regressions block merge.

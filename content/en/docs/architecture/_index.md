@@ -13,10 +13,10 @@ bouine is structured in 8 layers, each testable in isolation.
 
 ## HTTP stacks
 
-One HTTP implementation only:
+HTTP handling:
 
-- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin)
-- **H1 fast path** (experimental) — custom zero-alloc HTTP/1.1 parser for cache hits, bypasses `net/http` entirely. See [Experimental features](/docs/configuration/experimental/).
+- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin), the standard path
+- **H1 fast path** (experimental) — custom zero-alloc HTTP/1.1 parser for cache hits, bypasses `net/http` on the hot path. See [Experimental features](/docs/configuration/experimental/).
 
 The admin API uses `net/http.ServeMux`.
 

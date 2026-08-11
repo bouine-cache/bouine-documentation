@@ -12,8 +12,8 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 
 | Metric | Labels | Description |
 |---|---|---|
-| `bouine_requests_total` | `method`, `status`, `cache_result`, `route` | Total requests processed. **This is the primary RED counter.** |
-| `bouine_request_duration_seconds` | `method`, `status`, `cache_result`, `route` | Request latency histogram. Includes native histogram buckets for higher-resolution percentiles. Carries Prometheus **exemplars** linking high-latency observations to a trace ID when tracing is enabled. |
+| `bouine_requests_total` | `method`, `status`, `cache_result`, `source`, `route` | Total requests processed. **This is the primary RED counter.** |
+| `bouine_request_duration_seconds` | `method`, `status`, `cache_result`, `source`, `route` | Request latency histogram. Includes native histogram buckets for higher-resolution percentiles. Carries Prometheus **exemplars** linking high-latency observations to a trace ID when tracing is enabled. |
 | `bouine_response_bytes_total` | `method`, `cache_result`, `source`, `route` | Total bytes written in responses. |
 
 **`cache_result`** values: `HIT`, `MISS`, `STALE`, `REVALIDATED`, `BYPASS`.

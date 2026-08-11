@@ -93,23 +93,23 @@ Rendered into a ConfigMap and mounted at `/etc/bouine/config.yaml`.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `resources.requests.cpu` | `500m` | CPU request |
-| `resources.requests.memory` | `512Mi` | Memory request |
-| `resources.limits.cpu` | `2` | CPU limit |
-| `resources.limits.memory` | `4Gi` | Memory limit |
+| `resources.requests.cpu` | `1000m` | CPU request |
+| `resources.requests.memory` | `2Gi` | Memory request |
+| `resources.limits.cpu` | `4` | CPU limit |
+| `resources.limits.memory` | `8Gi` | Memory limit |
 
 ### Go runtime tuning
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `goMemLimit` | `3GiB` | `GOMEMLIMIT` — set to ~75% of `resources.limits.memory` |
+| `goMemLimit` | `""` (auto) | `GOMEMLIMIT` — auto-computed as 75% of `resources.limits.memory` |
 | `goGC` | `100` | `GOGC` — Go GC target percentage |
 
 ### Pod configuration
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `terminationGracePeriodSeconds` | `30` | Grace period for shutdown sequencer |
+| `terminationGracePeriodSeconds` | `40` | Grace period for shutdown sequencer |
 | `podDisruptionBudget.enabled` | `true` | Enable PDB |
 | `podDisruptionBudget.minAvailable` | `2` | Minimum available pods during disruption |
 | `topologySpreadConstraints` | Zone anti-affinity | Spreads pods across availability zones |
