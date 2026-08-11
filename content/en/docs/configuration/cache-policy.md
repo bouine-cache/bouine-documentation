@@ -203,6 +203,20 @@ cache:
 
 `0` (default) means no limit.
 
+## Write-method invalidation (POST/PUT/DELETE)
+
+Per RFC 9111 section 4.4, bouine invalidates the cache entry for the
+request URI when a non-safe method (POST, PUT, DELETE, PATCH) receives a
+2xx or 3xx response from the origin. The invalidation targets the
+GET-equivalent key, evicts all Vary variants, and removes the object from
+the refresh registry. If the response carries a `Content-Location` or
+`Location` header, those URLs are also invalidated (section 4.4).
+
+Additionally, successful POST responses with explicit freshness
+(`Cache-Control: max-age` or `s-maxage`) and a matching `Content-Location`
+are stored under the GET key per RFC 9111 section 4.3.1. This is the only
+case where a non-GET response is cached.
+
 ## Refresh before expiry
 
 Refresh-before-expiry fires a **background conditional revalidation**

@@ -4,7 +4,7 @@ weight: 3
 description: "Runbook for operating bouine: lifecycle, authentication, cache invalidation, monitoring, dashboard, Kubernetes ops, and troubleshooting."
 ---
 
-- [Lifecycle](lifecycle/) — start, stop, config reload, and drain.
+- [Lifecycle](lifecycle/) — start, stop, config updates, and drain.
 - [Authentication](authentication/) — configure and retrieve the admin token.
 - [Cache invalidation](cache-invalidation/) — purge, ban, and refresh.
 - [Monitoring & alerting](monitoring/) — metrics, access logs, tracing, alert rules.

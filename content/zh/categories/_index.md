@@ -1,4 +1,4 @@
 ---
-title: "Example Guide"
+title: "分类"
 sitemap_exclude: true
 ---

@@ -49,6 +49,10 @@ These are always accessible without authentication — required for K8s probes a
 | `/v1/refresh` | POST | ✓ | `{"url":"https://example.com/a"}` | `{"status":"refreshed"}` |
 | `/v1/auth/check` | GET | ✓ | — | `{"status":"ok"}` _(only mounted when admin token is configured)_ |
 | `/v1/cloudflare/status` | GET | ✓ | — | Cloudflare status JSON _(only mounted when Cloudflare is configured)_ |
+| `/v1/stats` | GET | ✓ | — | Runtime stats JSON (store entries, ring info, URL ring) |
+| `/v1/config` | GET | ✓ | — | Read-only JSON view of the running configuration |
+| `/v1/debug/cachecheck?url=...` | GET | ✓ | — | Cache debug info for a URL (key, hit/miss, source) |
+| `/debug/pprof/*` | GET | ✓ | — | Go pprof profiling endpoints _(only when `admin.pprof_enabled: true`)_ |
 
 ## OpenAPI spec
 

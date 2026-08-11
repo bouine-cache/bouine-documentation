@@ -167,7 +167,7 @@ kubectl logs statefulset/bouine -n bouine | grep cache_status
 
 ## Purge does not propagate across cluster
 
-### In `strong` or `full` mode
+### In `strong` mode
 
 - Check `bouine_cluster_invalidations_http_total{type="purge"}`. If zero, the admin port may be unreachable. Verify `cluster.tls` config and network policies.
 - The gossip broadcast queue provides a secondary delivery path (check `bouine_cluster_invalidations_gossip_total`).
@@ -183,23 +183,6 @@ kubectl logs statefulset/bouine -n bouine | grep cache_status
 ## Stale reads
 
 - **In `eventual` mode**: expected during gossip convergence (1–5 s). If persistent, check `bouine_cluster_invalidations_gossip_total` — if flat, the gossip link is broken. Restart the node.
-
----
-
-## Memory pressure in `full` mode
-
-`full` mode stores the entire working set on every node.
-
-**Symptoms:**
-
-- Hit rate drops on nodes that recently received replications.
-- SIEVE eviction spikes visible via the dashboard.
-- `bouine_hot_store_bytes / bouine_hot_store_max_bytes > 0.9`.
-
-**Fixes:**
-
-- Increase `hot_max_bytes` to at least the total working set size.
-- Switch to `strong` or `eventual` mode.
 
 ---
 

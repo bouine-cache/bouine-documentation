@@ -93,11 +93,11 @@ Lorsqu'un objet entre dans sa fenêtre `stale-while-revalidate`, bouine :
 
 ### Propagation de l'invalidation
 
-| Opération | `strong` | `eventual` | `full` |
-|---|---|---|---|
-| **Purge** | Fan-out HTTP vers tous les pairs + gossip | Gossip uniquement (convergence 1–5 s) | Fan-out HTTP vers tous les pairs + gossip |
-| **Ban** | Fan-out HTTP vers tous les pairs + gossip | Gossip uniquement | Fan-out HTTP vers tous les pairs + gossip |
-| **Refresh** | Transmis au nœud propriétaire de la clé | Gossip uniquement | Fan-out HTTP vers tous les pairs |
+| Opération | `strong` | `eventual` |
+|---|---|---|
+| **Purge** | Fan-out HTTP vers tous les pairs + gossip | Gossip uniquement (convergence 1–5 s) |
+| **Ban** | Fan-out HTTP vers tous les pairs + gossip | Gossip uniquement |
+| **Refresh** | Transmis au nœud propriétaire de la clé | Gossip uniquement |
 
 ### Protocole de join
 

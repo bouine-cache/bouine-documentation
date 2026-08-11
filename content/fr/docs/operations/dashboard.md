@@ -61,6 +61,14 @@ Live cluster-wide metrics polled every 5 seconds:
 - **Consistent hash ring** — proportional key-space ownership per pod
 - **Quick Purge** — purge a URL directly from the overview
 
+### Performance
+
+Latency distribution and throughput analysis:
+
+- **p50 / p90 / p99 latency** — per route and cluster-wide, updated every 5 s
+- **Stale-serving panel** — STALE and REVALIDATED counts over time
+- **Throughput time series** — requests/s with cache result breakdown
+
 ### Routes
 
 Full route performance table with all cache policy columns (Pool, TTL, SWR, SIE, stayin\_alive, jitter) plus:
@@ -91,8 +99,20 @@ The **Recent invalidations** list updates immediately after each successful oper
 ### Config
 
 - **Running config viewer** — structured read-only view of the live configuration (listen, storage, cluster, routes) with type-coloured values and inline hints
-- **Reload config** — validate → confirm → apply flow; the running config is never touched by parse errors
-- Shows config file path, last reload timestamp, and process uptime
+- Shows config file path and process uptime
+
+### Insights
+
+Rule-based operational insights that flag suboptimal configurations and anomalies across six categories:
+
+- **Cache** — low hit rate, disabled caching on high-traffic routes, no TTL, no SWR, high eviction rate, warm tier near full
+- **Anomaly** — bypass floods, p99 latency spikes, revalidation storms, vary explosion
+- **Upstream** — unhealthy targets, high 5xx rate, no health checks, no hedge, missing ETag or surrogate keys
+- **CDN** — Cloudflare not configured, async latency, purge errors or skips
+- **Cluster** — stale peers, hop limit ineffective, broadcast failures, degraded peer health
+- **Config** — query params not stripped, allow-set-cookie enabled, zero jitter, TLS below 1.2, tracing sampling at zero
+
+Each insight shows a severity badge, the affected route or component, and a recommended action. The page refreshes automatically every 30 seconds.
 
 ---
 

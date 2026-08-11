@@ -14,7 +14,7 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 |---|---|---|
 | `bouine_requests_total` | `method`, `status`, `cache_result`, `route` | Total requests processed. **This is the primary RED counter.** |
 | `bouine_request_duration_seconds` | `method`, `status`, `cache_result`, `route` | Request latency histogram. Includes native histogram buckets for higher-resolution percentiles. Carries Prometheus **exemplars** linking high-latency observations to a trace ID when tracing is enabled. |
-| `bouine_response_bytes_total` | `method`, `route` | Total bytes written in responses. |
+| `bouine_response_bytes_total` | `method`, `cache_result`, `source`, `route` | Total bytes written in responses. |
 
 **`cache_result`** values: `HIT`, `MISS`, `STALE`, `REVALIDATED`, `BYPASS`.
 
@@ -49,6 +49,22 @@ bouine_hot_store_bytes / <hot_max_bytes_from_config>
 ```
 
 > **Note.** There is no `bouine_hot_store_max_bytes` metric — the configured maximum is a static config value, not a gauge. Use `bouine_hot_store_bytes` against the known `hot_max_bytes` config value for utilisation calculations.
+
+### Warm-tier storage
+
+| Metric | Type | Description |
+|---|---|---|
+| `bouine_warm_store_bytes` | gauge | Current bytes used by the warm disk-backed tier. |
+| `bouine_warm_store_entries` | gauge | Number of objects currently stored in the warm tier. |
+| `bouine_warm_store_self_heals_total` | counter | Warm-tier self-heal events (segment recovery). |
+| `bouine_wal_dropped_entries_total` | counter | WAL entries dropped due to pressure (async fsync batching). |
+| `bouine_wal_last_sync_timestamp_seconds` | gauge | Timestamp of the last WAL fsync. |
+
+### Security
+
+| Metric | Type | Description |
+|---|---|---|
+| `bouine_http_smuggling_rejected_total` | counter | HTTP/1.1 requests rejected by the fast-path parser's smuggling detection. |
 
 ### Cluster
 
@@ -204,7 +220,10 @@ When tracing is active, `bouine_request_duration_seconds` observations carry a P
 | `/v1/purge` | POST | ✓ | Exact URL purge |
 | `/v1/ban` | POST | ✓ | Predicate ban |
 | `/v1/refresh` | POST | ✓ | Soft-purge (mark stale) |
-| `/v1/config/reload` | POST | ✓ | Hot config reload |
+| `/v1/stats` | GET | ✓ | Runtime stats (store entries, ring info) |
+| `/v1/config` | GET | ✓ | Read-only view of running configuration |
+| `/v1/debug/cachecheck?url=...` | GET | ✓ | Cache debug info for a URL |
+| `/debug/pprof/*` | GET | ✓ | Go pprof profiling endpoints (when `admin.pprof_enabled`) |
 | `/dashboard/` | GET | session | Operator web dashboard |
 
 ---
@@ -279,12 +298,4 @@ groups:
       annotations:
         summary: "Pods running different cluster modes — configuration drift"
 
-    - alert: BouineFullReplicationStalled
-      expr: |
-        rate(bouine_cluster_replications_sent_total[5m]) > 0
-        and rate(bouine_cluster_replications_received_total[5m]) == 0
-      for: 5m
-      labels: { severity: warning }
-      annotations:
-        summary: "Full-mode replication sending but not receiving"
 ```

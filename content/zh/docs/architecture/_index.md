@@ -93,11 +93,11 @@ Peer hit 增加延迟：~0.3ms（集群内单跳 HTTP/2）。
 
 ### 失效传播
 
-| 操作 | `strong` | `eventual` | `full` |
-|---|---|---|---|
-| **Purge** | HTTP 扇出到所有 peer + gossip | 仅 gossip（1–5s 收敛） | HTTP 扇出到所有 peer + gossip |
-| **Ban** | HTTP 扇出到所有 peer + gossip | 仅 gossip | HTTP 扇出到所有 peer + gossip |
-| **Refresh** | 转发给键拥有者节点 | 仅 gossip | HTTP 扇出到所有 peer |
+| 操作 | `strong` | `eventual` |
+|---|---|---|
+| **Purge** | HTTP 扇出到所有 peer + gossip | 仅 gossip（1–5s 收敛） |
+| **Ban** | HTTP 扇出到所有 peer + gossip | 仅 gossip |
+| **Refresh** | 转发给键拥有者节点 | 仅 gossip |
 
 ### 加入协议
 

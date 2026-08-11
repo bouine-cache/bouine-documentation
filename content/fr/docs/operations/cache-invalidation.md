@@ -17,7 +17,7 @@ curl -X POST http://127.0.0.1:9000/v1/purge \
   -d '{"url":"https://example.com/products/123"}'
 ```
 
-In a cluster, the purge is forwarded to all live peers via HTTP fan-out (in `strong` and `full` modes) or gossiped via the memberlist broadcast queue (in `eventual` mode).
+In a cluster, the purge is forwarded to all live peers via HTTP fan-out (in `strong` mode) or gossiped via the memberlist broadcast queue (in `eventual` mode).
 
 ## Cluster propagation
 
@@ -27,7 +27,6 @@ The delivery mechanism depends on `cluster.mode`:
 |---|---|---|---|
 | `strong` | HTTP fan-out + gossip dual path | HTTP fan-out + gossip dual path | HTTP POST to owner node |
 | `eventual` | Gossip only (1–5 s convergence) | Gossip only (1–5 s convergence) | Gossip only |
-| `full` | HTTP fan-out + gossip dual path | HTTP fan-out + gossip dual path | HTTP fan-out to all peers |
 
 See [Clustering](/docs/configuration/cluster-modes/) for details on choosing a mode.
 

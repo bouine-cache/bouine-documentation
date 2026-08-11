@@ -5,7 +5,7 @@ description: "Reference for bouine YAML configuration: listeners, storage, route
 ---
 
 
-bouine is configured via a YAML file passed with `--config`. Environment variable interpolation is not supported — use Kubernetes ConfigMaps or Helm values for templating.
+bouine is configured via a YAML file passed with `--config`. Environment variable interpolation is supported: `${VAR}` is replaced with the value of `VAR`, and `${VAR:-default}` provides a fallback. `$$` escapes to a literal `$`.
 
 ## Pages in this section
 
@@ -120,14 +120,34 @@ routes:
 | `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
+| `max_connections` | `0` | Max concurrent data-plane connections (0 = unlimited). Protects against FD exhaustion. |
+| `tcp_fast_open` | `false` | Enable TCP_FASTOPEN on listeners (Linux only) |
+| `tcp_defer_accept` | `false` | Enable TCP_DEFER_ACCEPT on listeners (Linux only) |
+| `reuse_port` | `false` | Enable SO_REUSEPORT on listeners |
 
 ### `storage`
 
 | Field | Default | Description |
 |---|---|---|
 | `hot_max_bytes` | — | RAM cache size. See [size units](#size-units). Example: `2GiB`. |
+| `hot_mmap_slab` | `false` | Use mmap slab allocator for hot body bytes (reduces GC pressure, Linux only) |
 | `warm_dir` | `""` | Path for mmap warm-tier segments. Empty disables. See [Storage tiers](storage/). |
 | `warm_max_bytes` | `""` | Max warm-tier disk usage |
+| `warm_max_entries` | — (auto) | Max warm-tier entry count. Auto-derived from GOMEMLIMIT when unset. |
+| `warm_max_disk_bytes` | `""` | Max total warm-tier disk usage (all segments) |
+| `min_free_disk` | `""` | Minimum free disk space before warm writes are paused |
+| `warm_preallocate` | `false` | Preallocate warm-tier segment files |
+| `compact_interval` | `5m` | Interval between warm-tier compaction sweeps |
+| `body_threshold` | `1MiB` | Body size threshold for warm-tier admission |
+| `warm_sync_interval` | `60s` | Interval between hot-to-warm sync batches |
+| `warm_sync_batch_size` | `1000` | Max objects per warm sync batch |
+| `wal_sync_interval` | `100ms` | WAL fsync interval (async batching) |
+| `compact_startup_delay` | `30s` | Delay before first compaction on startup |
+| `checkpoint_interval` | `5m` | Warm-tier checkpoint interval |
+| `checkpoint_wal_threshold` | `1GiB` | WAL size that triggers a checkpoint |
+| `segment_cache_size` | `64` | Number of warm-tier segment files to keep mmap-ed |
+| `tombstone_queue_size` | `4096` | Tombstone queue depth for warm-tier deletions |
+| `tombstone_drain_interval` | `10s` | Interval between tombstone drain sweeps |
 
 ### `cluster`
 
@@ -203,6 +223,8 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 |---|---|---|
 | `timeout` | `10s` | TCP dial timeout |
 | `keep_alive` | `15s` | TCP keep-alive interval |
+| `max_connections` | `0` | Max concurrent connections per pool (0 = unlimited) |
+| `response_header_timeout` | `0` | Max time to wait for response headers from upstream (0 = no limit) |
 | `hedge_timeout` | `""` | Fire a duplicate request after this duration; first response wins ([hedged fetch](#hedged-fetch)). Empty disables. |
 
 ### Health checks
@@ -229,6 +251,10 @@ health:
 | Field | Default | Description |
 |---|---|---|
 | `token` | `""` (auto-generated) | Admin bearer token. See [Authentication](/docs/operations/authentication/). |
+| `max_batch_size` | `1000` | Max URLs per `/v1/purge/batch` request |
+| `rate_limit_per_second` | `0` | Rate limit on admin write endpoints (0 = no limit) |
+| `pprof_enabled` | `false` | Enable `/debug/pprof/*` profiling endpoints |
+| `drain_duration` | `15s` | Duration the `/drain` endpoint blocks during shutdown |
 
 ### `tracing`
 
@@ -261,6 +287,13 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 | Field | Default | Description |
 |---|---|---|
 | `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to `net/http`. |
+
+### Top-level fields
+
+| Field | Default | Description |
+|---|---|---|
+| `gogc` | `100` | Go GC percentage. Set to `-1` to disable percentage-based GC, relying solely on `GOMEMLIMIT`. |
+| `url_ring_sample_rate` | `1.0` | Fraction of non-HIT requests sampled into the URL ring buffer for the dashboard (0.0–1.0). |
 
 ---
 
@@ -304,16 +337,14 @@ All byte-size fields (`hot_max_bytes`, `warm_max_bytes`) accept any of these suf
 
 ---
 
-## Config reload
+## Config updates
 
-Reloadable without restart: routes, upstream pools, cache TTLs.
-
-**Not** reloadable: listen addresses, storage settings, cluster settings, TLS certificates.
-
-Trigger reload via the admin API or the dashboard:
+bouine does not support live config reload. All config changes require a
+process restart. On Kubernetes, use a rolling restart:
 
 ```bash
-curl -X POST http://localhost:9000/v1/config/reload -H "Authorization: Bearer <token>"
+kubectl rollout restart statefulset/bouine
 ```
 
-For TLS certificate rotation, restart the process or use Kubernetes rolling restarts with cert-manager.
+For TLS certificate rotation, restart the process or use Kubernetes rolling
+restarts with cert-manager.

@@ -49,6 +49,8 @@ The following request types always go through `net/http` regardless of the fast 
 
 When the fast path cannot serve a request (cache miss, non-cacheable method, etc.), it constructs an `*http.Request` from the parsed data and delegates to the standard `net/http` handler chain. The connection is closed after the response (`Connection: close`) — keep-alive is not maintained on fall-through.
 
+The H1 parser includes HTTP request smuggling detection. Ambiguous or malformed requests that could bypass upstream proxies are rejected and counted in the `bouine_http_smuggling_rejected_total` Prometheus metric. Rejected requests receive a `400 Bad Request` response.
+
 ### Performance impact
 
 | Metric | Standard path | Fast path |

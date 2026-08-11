@@ -1,7 +1,7 @@
 ---
 title: "生命周期"
 weight: 1
-description: "Start, stop, config reload, and drain bouine in production and Kubernetes."
+description: "Start, stop, and drain bouine in production and Kubernetes."
 ---
 
 ## Starting bouine
@@ -66,43 +66,21 @@ kubectl delete pod bouine-0
 SIGTERM triggers the sequencer. SIGKILL (after grace period) is a hard
 kill — avoid if possible.
 
-## Config reload
+## Config updates
 
-bouine supports config reload via the admin API or the operator dashboard.
+bouine does not support live config reload. Config changes require a
+rolling pod restart. This is intentional: storage, cluster, and TLS
+settings cannot be safely reconfigured at runtime, and keeping reload
+out of the critical path removes a class of race conditions.
 
-### Via admin API
+On Kubernetes, update the ConfigMap and rolling-restart:
 
 ```bash
-curl -X POST http://127.0.0.1:9000/v1/config/reload \
-  -H "Authorization: Bearer ${BOUINE_ADMIN_TOKEN}"
+kubectl rollout restart statefulset/bouine
 ```
 
-### Via dashboard
-
-The Config page has a "Reload config" button that validates the file before applying.
-
-### What is reloaded
-
-| Component | Reloadable | Notes |
-|---|---|---|
-| Routes | Yes | New routes take effect immediately. |
-| Upstream pools | Yes | Targets, health check config. |
-| Cache TTLs | Yes | Per-route cache settings. |
-| TLS certificates | **No** | Requires restart (use K8s rolling restart with cert-manager). |
-| Listen addresses | **No** | Requires restart. |
-| Storage settings | **No** | Requires restart. |
-| Cluster settings | **No** | Requires restart. |
-
-### Reload failure
-
-If the new config file is invalid YAML or fails validation, the old
-config stays in effect. The error is logged at `error` level:
-
-```json
-{"level":"ERROR","msg":"config reload failed","error":"..."}
-```
-
-Monitor `bouine_config_reload_total{result="error"}` in Prometheus.
+The graceful shutdown sequence (below) ensures zero-5xx rolling updates
+when combined with a PodDisruptionBudget and readiness probes.
 
 ## Drain (Kubernetes rolling update)
 

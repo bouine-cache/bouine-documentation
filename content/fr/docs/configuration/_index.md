@@ -35,23 +35,12 @@ routes:
 ## Pages dans cette section
 
 - [Politique de cache](cache-policy/) — sélection TTL, override, stale-while-revalidate, mise en cache négative, jitter, clés de cache.
-- [Modes de cluster](cluster-modes/) — strong, eventual, full ; Service headless ; gossip.
+- [Modes de cluster](cluster-modes/) — strong, eventual ; Service headless ; gossip.
 - [Chart Helm](helm/) — valeurs configurables du chart Helm.
 - [Servir des fichiers statiques](static-files/) — servir des fichiers depuis le disque sans serveur d'origine.
 - [Stockage](storage/) — niveaux hot (RAM) et warm (mmap), éviction SIEVE.
 - [TLS](tls/) — terminaison TLS, mTLS entre pairs, certificats.
 - [Fonctionnalités expérimentales](experimental/) — fonctionnalités opt-in susceptibles de changer.
-
-## Rechargement de configuration
-
-bouine prend en charge le rechargement de configuration à chaud via l'API d'administration :
-
-```bash
-curl -X POST http://127.0.0.1:9000/v1/config/reload \
-  -H "Authorization: Bearer ${BOUINE_ADMIN_TOKEN}"
-```
-
-Si le nouveau fichier de configuration est invalide, l'ancienne configuration reste en vigueur.
 
 ## Référence des champs
 
@@ -101,7 +90,7 @@ Si le nouveau fichier de configuration est invalide, l'ancienne configuration re
 | Champ | Description |
 |------|-------------|
 | `enabled` | Active le clustering |
-| `mode` | `strong`, `eventual`, ou `full` |
+| `mode` | `strong` ou `eventual` |
 | `join[]` | Liste des adresses seed pour le gossip |
 | `tls` | Configuration mTLS pour la communication entre peers |
 
