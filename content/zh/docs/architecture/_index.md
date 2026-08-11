@@ -26,7 +26,7 @@ The RFC 9111 state machine is deterministic: inputs are `*http.Request`, stored 
 
 ### Cache key
 
-Primary key: `xxhash64(scheme | host | path | sorted_query | method)`
+Primary key: 128-bit `XXH128(scheme | host | path | sorted_query | method)`. The full 16-byte hash is used as a map key, providing 128-bit collision resistance without a separate lookup step. Zero allocations via one-shot `Sum128`.
 
 Secondary key (Vary): derived from the request headers listed in the response's `Vary` header, or from `cache.key.include_headers`.
 

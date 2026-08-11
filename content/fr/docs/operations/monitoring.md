@@ -18,6 +18,8 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 
 **`cache_result`** values: `HIT`, `MISS`, `STALE`, `REVALIDATED`, `BYPASS`.
 
+**`source`** values: `hot` (hot in-memory tier), `warm` (warm disk-backed tier), `peer` (cluster peer via peer-fetch), `origin` (fetched from upstream, including errors and write-through proxy).
+
 **`route`** label: the `name` field of the matched route config entry. Falls back to `host:path_prefix` when name is empty, or `_default` for unmatched requests.
 
 **Hit ratio** (PromQL):
@@ -78,6 +80,15 @@ bouine_hot_store_bytes / <hot_max_bytes_from_config>
 | `bouine_cluster_invalidations_http_total` | `type` | `strong` |
 | `bouine_cluster_invalidations_gossip_total` | `type` | all |
 | `bouine_cluster_broadcast_failures_total` | `type`, `reason` | `strong` |
+| `bouine_cluster_gossip_drops_total` | — | all |
+
+### Startup
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `bouine_startup_phase` | gauge | `phase` | Current startup phase (WAL replay, ring build, etc.). 1 = active, 0 = complete. |
+| `bouine_startup_condition_ready` | gauge | `condition` | Readiness condition status during startup. |
+| `bouine_startup_duration_seconds` | histogram | — | Total startup duration. |
 
 ### Cloudflare propagation
 
@@ -169,19 +180,18 @@ Slow request debugging:   ✅ (dur_ms present on sampled 200s)
 
 When `tracing.endpoint` is set, bouine exports OTLP/HTTP spans to any OpenTelemetry-compatible backend (Grafana Tempo, Jaeger, Honeycomb, etc.).
 
-### ⚠️ Endpoint format: `host:port`, not a URL
+### Endpoint format
 
-`tracing.endpoint` takes a bare `host:port` string — **not** a full URL. The `http://` scheme is added automatically via `WithInsecure()`.
+`tracing.endpoint` accepts either a bare `host:port` string or a full URL with `http://` / `https://` scheme. The scheme prefix is stripped automatically; `WithInsecure()` is used for plain HTTP.
 
 ```yaml
-# ✅ correct
+# canonical form (host:port)
 tracing:
   endpoint: "otel-collector.monitoring.svc.cluster.local:4318"
   service_name: "bouine"
   sampling_rate: 0.1
 
-# ❌ wrong — the http:// prefix will be treated as part of the hostname
-#    and the tracer will silently produce no spans
+# also accepted (scheme is stripped)
 tracing:
   endpoint: "http://otel-collector.monitoring.svc.cluster.local:4318"
 ```

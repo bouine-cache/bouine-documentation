@@ -51,6 +51,7 @@ helm install bouine bouine/bouine \
 | `image.repository` | `bouinecache/bouine` | Container image repository (Docker Hub) |
 | `image.tag` | `""` (appVersion) | Image tag; defaults to chart's `appVersion` |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy |
+| `image.pullSecrets` | `[]` | List of Kubernetes Secret names for pulling from private registries |
 | `nameOverride` | `""` | Override chart name |
 | `fullnameOverride` | `""` | Override fully qualified name |
 
@@ -190,4 +191,33 @@ extraEnv:
       secretKeyRef:
         name: bouine-admin-token
         key: token
+```
+
+### Service account
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `serviceAccount.create` | `true` | Create a dedicated service account for the bouine pods |
+| `serviceAccount.automount` | `false` | Auto-mount the service account token. Enable for IRSA / workload identity (AWS EKS, GCP workload identity). |
+| `serviceAccount.annotations` | `{}` | Annotations to add to the service account (e.g. `eks.amazonaws.com/role-arn`) |
+| `serviceAccount.name` | `""` | Name of an existing service account to use when `create` is false |
+
+### Extra volumes
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `extraVolumes` | `[]` | Additional volumes for the bouine pod (e.g. TLS secrets, custom CA bundles, static files) |
+| `extraVolumeMounts` | `[]` | Additional volume mounts for the bouine container |
+
+Example — mount TLS certs from a Secret:
+
+```yaml
+extraVolumes:
+  - name: tls-certs
+    secret:
+      secretName: bouine-tls
+extraVolumeMounts:
+  - name: tls-certs
+    mountPath: /etc/bouine/tls
+    readOnly: true
 ```
