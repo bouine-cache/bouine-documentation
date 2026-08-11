@@ -13,9 +13,10 @@ bouine is structured in 8 layers, each testable in isolation.
 
 ## HTTP stacks
 
-One HTTP implementation only:
+HTTP handling:
 
-- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin)
+- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin), the standard path
+- **H1 fast path** (experimental) — custom zero-alloc HTTP/1.1 parser for cache hits, bypasses `net/http` on the hot path. See [Experimental features](/docs/configuration/experimental/).
 
 The admin API uses `net/http.ServeMux`.
 
@@ -25,7 +26,7 @@ The RFC 9111 state machine is deterministic: inputs are `*http.Request`, stored 
 
 ### Cache key
 
-Primary key: `xxhash64(scheme | host | path | sorted_query | method)`
+Primary key: 128-bit `XXH128(scheme | host | path | sorted_query | method)`. The full 16-byte hash is used as a map key, providing 128-bit collision resistance without a separate lookup step. Zero allocations via one-shot `Sum128`.
 
 Secondary key (Vary): derived from the request headers listed in the response's `Vary` header, or from `cache.key.include_headers`.
 
@@ -33,6 +34,7 @@ Secondary key (Vary): derived from the request headers listed in the response's 
 
 
 - **SIEVE** — simple, near-LRU-K performance, O(1) per operation
+- **mmap slab** (optional, Linux) — hot body bytes are allocated via mmap to avoid Go heap GC pressure (`storage.hot_mmap_slab: true`)
 
 
 ### CDN-Cache-Control (RFC 9211)
@@ -98,13 +100,13 @@ This is what eliminates the 93% effective hit rate gap vs Varnish in mixed workl
 
 ### Invalidation propagation
 
-| Operation | `strong` | `eventual` | `full` |
-|---|---|---|---|
-| **Purge** | HTTP fan-out to all peers + gossip | Gossip only (1–5 s convergence) | HTTP fan-out to all peers + gossip |
-| **Ban** | HTTP fan-out to all peers + gossip | Gossip only | HTTP fan-out to all peers + gossip |
-| **Refresh** | Forwarded to key's owner node | Gossip only | HTTP fan-out to all peers |
+| Operation | `strong` | `eventual` |
+|---|---|---|
+| **Purge** | HTTP fan-out to all peers + gossip | Gossip only (1–5 s convergence) |
+| **Ban** | HTTP fan-out to all peers + gossip | Gossip only |
+| **Refresh** | Forwarded to key's owner node | Gossip only |
 
-In `strong` and `full` modes, the HTTP fan-out ensures sub-second invalidation propagation. The gossip broadcast queue provides a redundant delivery path.
+In `strong` mode, the HTTP fan-out ensures sub-second invalidation propagation. The gossip broadcast queue provides a redundant delivery path.
 
 
 ### Join protocol

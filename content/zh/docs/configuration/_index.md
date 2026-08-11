@@ -35,20 +35,9 @@ routes:
 ## 本节页面
 
 - [缓存策略](cache-policy/) — TTL 选择、覆盖、stale-while-revalidate、负缓存、抖动、缓存键。
-- [集群模式](cluster-modes/) — strong、eventual、full；headless Service；gossip。
+- [集群模式](cluster-modes/) — strong、eventual；headless Service；gossip。
 - [Helm Chart](helm/) — Helm chart 可配置值。
 - [静态文件服务](static-files/) — 无需源站从磁盘服务文件。
 - [存储](storage/) — hot（RAM）和 warm（mmap）层、SIEVE 淘汰。
 - [TLS](tls/) — TLS 终止、peer 间 mTLS、证书。
 - [实验性功能](experimental/) — 可能变更的 opt-in 功能。
-
-## 配置重载
-
-bouine 支持通过管理 API 热重载配置：
-
-```bash
-curl -X POST http://127.0.0.1:9000/v1/config/reload \
-  -H "Authorization: Bearer ${BOUINE_ADMIN_TOKEN}"
-```
-
-如果新配置文件无效，旧配置继续生效。

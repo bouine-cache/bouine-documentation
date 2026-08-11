@@ -12,11 +12,13 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 
 | Metric | Labels | Description |
 |---|---|---|
-| `bouine_requests_total` | `method`, `status`, `cache_result`, `route` | Total requests processed. **This is the primary RED counter.** |
-| `bouine_request_duration_seconds` | `method`, `status`, `cache_result`, `route` | Request latency histogram. Includes native histogram buckets for higher-resolution percentiles. Carries Prometheus **exemplars** linking high-latency observations to a trace ID when tracing is enabled. |
-| `bouine_response_bytes_total` | `method`, `route` | Total bytes written in responses. |
+| `bouine_requests_total` | `method`, `status`, `cache_result`, `source`, `route` | Total requests processed. **This is the primary RED counter.** |
+| `bouine_request_duration_seconds` | `method`, `status`, `cache_result`, `source`, `route` | Request latency histogram. Includes native histogram buckets for higher-resolution percentiles. Carries Prometheus **exemplars** linking high-latency observations to a trace ID when tracing is enabled. |
+| `bouine_response_bytes_total` | `method`, `cache_result`, `source`, `route` | Total bytes written in responses. |
 
 **`cache_result`** values: `HIT`, `MISS`, `STALE`, `REVALIDATED`, `BYPASS`.
+
+**`source`** values: `hot` (hot in-memory tier), `warm` (warm disk-backed tier), `peer` (cluster peer via peer-fetch), `origin` (fetched from upstream, including errors and write-through proxy).
 
 **`route`** label: the `name` field of the matched route config entry. Falls back to `host:path_prefix` when name is empty, or `_default` for unmatched requests.
 
@@ -50,6 +52,22 @@ bouine_hot_store_bytes / <hot_max_bytes_from_config>
 
 > **Note.** There is no `bouine_hot_store_max_bytes` metric — the configured maximum is a static config value, not a gauge. Use `bouine_hot_store_bytes` against the known `hot_max_bytes` config value for utilisation calculations.
 
+### Warm-tier storage
+
+| Metric | Type | Description |
+|---|---|---|
+| `bouine_warm_store_bytes` | gauge | Current bytes used by the warm disk-backed tier. |
+| `bouine_warm_store_entries` | gauge | Number of objects currently stored in the warm tier. |
+| `bouine_warm_store_self_heals_total` | counter | Warm-tier self-heal events (segment recovery). |
+| `bouine_wal_dropped_entries_total` | counter | WAL entries dropped due to pressure (async fsync batching). |
+| `bouine_wal_last_sync_timestamp_seconds` | gauge | Timestamp of the last WAL fsync. |
+
+### Security
+
+| Metric | Type | Description |
+|---|---|---|
+| `bouine_http_smuggling_rejected_total` | counter | HTTP/1.1 requests rejected by the fast-path parser's smuggling detection. |
+
 ### Cluster
 
 | Metric | Labels | Available in |
@@ -62,6 +80,15 @@ bouine_hot_store_bytes / <hot_max_bytes_from_config>
 | `bouine_cluster_invalidations_http_total` | `type` | `strong` |
 | `bouine_cluster_invalidations_gossip_total` | `type` | all |
 | `bouine_cluster_broadcast_failures_total` | `type`, `reason` | `strong` |
+| `bouine_cluster_gossip_drops_total` | — | all |
+
+### Startup
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `bouine_startup_phase` | gauge | `phase` | Current startup phase (WAL replay, ring build, etc.). 1 = active, 0 = complete. |
+| `bouine_startup_condition_ready` | gauge | `condition` | Readiness condition status during startup. |
+| `bouine_startup_duration_seconds` | histogram | — | Total startup duration. |
 
 ### Cloudflare propagation
 
@@ -153,19 +180,18 @@ Slow request debugging:   ✅ (dur_ms present on sampled 200s)
 
 When `tracing.endpoint` is set, bouine exports OTLP/HTTP spans to any OpenTelemetry-compatible backend (Grafana Tempo, Jaeger, Honeycomb, etc.).
 
-### ⚠️ Endpoint format: `host:port`, not a URL
+### Endpoint format
 
-`tracing.endpoint` takes a bare `host:port` string — **not** a full URL. The `http://` scheme is added automatically via `WithInsecure()`.
+`tracing.endpoint` accepts either a bare `host:port` string or a full URL with `http://` / `https://` scheme. The scheme prefix is stripped automatically; `WithInsecure()` is used for plain HTTP.
 
 ```yaml
-# ✅ correct
+# canonical form (host:port)
 tracing:
   endpoint: "otel-collector.monitoring.svc.cluster.local:4318"
   service_name: "bouine"
   sampling_rate: 0.1
 
-# ❌ wrong — the http:// prefix will be treated as part of the hostname
-#    and the tracer will silently produce no spans
+# also accepted (scheme is stripped)
 tracing:
   endpoint: "http://otel-collector.monitoring.svc.cluster.local:4318"
 ```
@@ -204,7 +230,10 @@ When tracing is active, `bouine_request_duration_seconds` observations carry a P
 | `/v1/purge` | POST | ✓ | Exact URL purge |
 | `/v1/ban` | POST | ✓ | Predicate ban |
 | `/v1/refresh` | POST | ✓ | Soft-purge (mark stale) |
-| `/v1/config/reload` | POST | ✓ | Hot config reload |
+| `/v1/stats` | GET | ✓ | Runtime stats (store entries, ring info) |
+| `/v1/config` | GET | ✓ | Read-only view of running configuration |
+| `/v1/debug/cachecheck?url=...` | GET | ✓ | Cache debug info for a URL |
+| `/debug/pprof/*` | GET | ✓ | Go pprof profiling endpoints (when `admin.pprof_enabled`) |
 | `/dashboard/` | GET | session | Operator web dashboard |
 
 ---
@@ -279,12 +308,4 @@ groups:
       annotations:
         summary: "Pods running different cluster modes — configuration drift"
 
-    - alert: BouineFullReplicationStalled
-      expr: |
-        rate(bouine_cluster_replications_sent_total[5m]) > 0
-        and rate(bouine_cluster_replications_received_total[5m]) == 0
-      for: 5m
-      labels: { severity: warning }
-      annotations:
-        summary: "Full-mode replication sending but not receiving"
 ```

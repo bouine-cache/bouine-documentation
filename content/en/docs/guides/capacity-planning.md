@@ -27,7 +27,6 @@ If you cannot estimate, start with 2 GiB and monitor `bouine_hot_store_bytes / b
 |------|----------------|-------------|
 | `strong` (default) | working_set ÷ N | Most deployments — memory efficient, one copy per key |
 | `eventual` | ~working_set (each node independent) | Geo-distributed, CDN edge |
-| `full` | working_set × 1 (every node has all keys) | Small clusters (2–5), maximum hit rate |
 
 **Replica count guidelines:**
 

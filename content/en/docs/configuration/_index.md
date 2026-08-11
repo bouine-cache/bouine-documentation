@@ -5,7 +5,7 @@ description: "Reference for bouine YAML configuration: listeners, storage, route
 ---
 
 
-bouine is configured via a YAML file passed with `--config`. Environment variable interpolation is not supported — use Kubernetes ConfigMaps or Helm values for templating.
+bouine is configured via a YAML file passed with `--config`. Environment variable interpolation is supported: `${VAR}` is replaced with the value of `VAR`, and `${VAR:-default}` provides a fallback. `$$` escapes to a literal `$`.
 
 ## Pages in this section
 
@@ -120,14 +120,34 @@ routes:
 | `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
+| `max_connections` | `0` | Max concurrent data-plane connections (0 = unlimited). Protects against FD exhaustion. |
+| `tcp_fast_open` | `true` (Linux) | Enable TCP_FASTOPEN on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
+| `tcp_defer_accept` | `true` (Linux) | Enable TCP_DEFER_ACCEPT on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
+| `reuse_port` | `true` (Linux) | Enable SO_REUSEPORT on data-plane listeners (N parallel accept loops). Defaults to true on Linux, false on other platforms. |
 
 ### `storage`
 
 | Field | Default | Description |
 |---|---|---|
 | `hot_max_bytes` | — | RAM cache size. See [size units](#size-units). Example: `2GiB`. |
+| `hot_mmap_slab` | `false` | Use mmap slab allocator for hot body bytes (reduces GC pressure, Linux only) |
 | `warm_dir` | `""` | Path for mmap warm-tier segments. Empty disables. See [Storage tiers](storage/). |
 | `warm_max_bytes` | `""` | Max warm-tier disk usage |
+| `warm_max_entries` | — (auto) | Max warm-tier entry count. Auto-derived from GOMEMLIMIT when unset. |
+| `warm_max_disk_bytes` | `""` | Max total warm-tier disk usage (all segments) |
+| `min_free_disk` | `""` | Minimum free disk space before warm writes are paused |
+| `warm_preallocate` | `0` | Preallocate warm-tier segment files totaling this size at startup. Eliminates disk amplification from append-only segments. Zero = create on demand. |
+| `compact_interval` | `30m` | Interval between warm-tier compaction sweeps. Set to `-1` to disable periodic compaction (not recommended). |
+| `body_threshold` | `64KiB` | Body size threshold for warm-tier admission. Objects larger than this are written to warm on every Put; smaller objects only by the background sync loop. |
+| `warm_sync_interval` | `60s` | Interval between hot-to-warm sync batches |
+| `warm_sync_batch_size` | `5000` | Max objects per warm sync batch |
+| `wal_sync_interval` | `100ms` | WAL fsync interval (async batching) |
+| `compact_startup_delay` | `5m` | Delay before first compaction on startup. Prevents I/O contention with WAL replay and cluster join. Set to `-1` to start immediately. |
+| `checkpoint_interval` | `5m` | Warm-tier checkpoint interval |
+| `checkpoint_wal_threshold` | `100000` | WAL entry count that triggers a checkpoint, regardless of interval. Bounds WAL replay time on unclean restart. |
+| `segment_cache_size` | `0` (auto) | Number of warm-tier segment files to keep mmap-ed. 0 = auto (min(segCount, 256)). `-1` = unlimited (no eviction). |
+| `tombstone_queue_size` | `65536` | Tombstone queue depth for warm-tier deletions. Increasing this reduces drops under bursty eviction pressure. |
+| `tombstone_drain_interval` | `1s` | Interval between tombstone drain sweeps. Set to `-1` to disable the dedicated drain goroutine. |
 
 ### `cluster`
 
@@ -136,6 +156,8 @@ routes:
 | `mode` | `strong` | Consistency mode: `strong` or `eventual`. The cluster is enabled when `listen.cluster` is set. See [Clustering](cluster-modes/). |
 | `join` | `[]` | Seed addresses (StatefulSet pod DNS) |
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback (strong mode only) |
+| `join_timeout` | `120s` | Max time to wait for cluster join. In strong mode, the pod stays not-ready if join fails. In eventual mode, the pod becomes ready and retries in the background. |
+| `handoff_queue_depth` | `4096` | Memberlist per-peer message buffer. Absorbs bursts of cache invalidations. Negative values are rejected. |
 | `tls.ca_bundle` | `""` | CA certificate path for peer-to-peer mTLS. Empty = plain HTTP. |
 | `tls.cert_file` | `""` | Client certificate for mTLS |
 | `tls.key_file` | `""` | Client private key for mTLS |
@@ -179,6 +201,9 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `stayin_alive` | `false` | Serve stale indefinitely when upstream is down (see [Stayin Alive](/docs/configuration/cache-policy/#stayin-alive)) |
 | `allow_set_cookie` | `false` | Allow caching responses that carry `Set-Cookie`. Default blocks caching such responses (nginx-style). When `true`, the response is cached but `Set-Cookie` is stripped from the stored copy. See [Set-Cookie caching](/docs/configuration/cache-policy/#set-cookie-caching). |
 | `max_object_size` | `0` | Skip caching responses whose body exceeds this size (e.g. `1MiB`). The response is still proxied. `0` = no limit. |
+| `max_response_bytes` | `64MiB` | Hard cap on origin response body size. Aborts the fetch if exceeded. Different from `max_object_size` which controls caching eligibility. |
+| `max_fetch_concurrency` | `64` | Max concurrent origin fetches per route (collapsed via singleflight). |
+| `fetch_timeout` | `60s` | Max duration for a single origin fetch. |
 | `refresh_before_expiry` | `false` | Enable proactive background conditional revalidation before TTL expiry. See [Refresh before expiry](/docs/configuration/cache-policy/#refresh-before-expiry). |
 | `refresh_margin_percent` | `10` | Percentage of TTL before expiry at which the background refresh fires (1–50). E.g. `20` fires at 80% of TTL. |
 | `refresh_timeout` | `10s` | Maximum duration for a single background refresh fetch (5s–120s) |
@@ -196,6 +221,11 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `include_headers` | `[]` | Headers to include in cache key (replaces Vary) |
 | `exclude_headers` | `[]` | Request header names to strip from the Vary-based variant key, preventing cache fragmentation from per-request headers like `X-Request-Id`. Matched case-insensitively. See [Excluding headers](/docs/configuration/cache-policy/#excluding-headers-from-the-cache-key). |
 | `strip_query_params` | `[]` | Query parameter names to exclude from the cache key, e.g. `[utm_source, fbclid]`. The params are still forwarded to the upstream. See [Stripping query parameters](/docs/configuration/cache-policy/#stripping-query-parameters-from-the-key). |
+| `keep_query_params` | `[]` | When non-empty, restricts the cache key to only these query parameters; all others are excluded. Mutually exclusive with `strip_query_params` and `strip_query_prefix`. Equivalent to Varnish `qs.keep()`. |
+| `strip_query_prefix` | `[]` | Strip query params whose names start with any of these prefixes (e.g. `[utm_, fb_, _ga]`). Covers wildcard stripping without enumerating every variant. Capped at 16 entries. |
+| `strip_empty_params` | `false` | Remove query params with empty values (`?foo=&bar=1` → `?bar=1`). Does not apply to params in `keep_query_params`. |
+| `dedup_query_params` | `false` | Keep only the first value for duplicate query params (`?a=2&a=1` → `?a=2`). Values are not sorted. |
+| `canonicalize_path` | `false` | Normalize the path component: percent-decode unreserved chars, uppercase remaining hex, resolve dot-segments. Applies at the listener level if any route on that listener enables it. |
 
 ### `upstream_pools[].connect`
 
@@ -203,6 +233,8 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 |---|---|---|
 | `timeout` | `10s` | TCP dial timeout |
 | `keep_alive` | `15s` | TCP keep-alive interval |
+| `max_connections` | `0` | Max concurrent connections per pool (0 = unlimited) |
+| `response_header_timeout` | `30s` | Max time to wait for response headers from upstream. Zero applies a 30s built-in default. Primary defence against slow-origin resource exhaustion. |
 | `hedge_timeout` | `""` | Fire a duplicate request after this duration; first response wins ([hedged fetch](#hedged-fetch)). Empty disables. |
 
 ### Health checks
@@ -229,6 +261,10 @@ health:
 | Field | Default | Description |
 |---|---|---|
 | `token` | `""` (auto-generated) | Admin bearer token. See [Authentication](/docs/operations/authentication/). |
+| `max_batch_size` | `1000` | Max URLs per `/v1/purge/batch` request |
+| `rate_limit_per_second` | `0` | Rate limit on admin write endpoints (0 = no limit) |
+| `pprof_enabled` | `false` | Enable `/debug/pprof/*` profiling endpoints |
+| `drain_duration` | `10s` | Duration the `/drain` endpoint blocks during shutdown (K8s preStop hook) |
 
 ### `tracing`
 
@@ -261,6 +297,13 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 | Field | Default | Description |
 |---|---|---|
 | `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to `net/http`. |
+
+### Top-level fields
+
+| Field | Default | Description |
+|---|---|---|
+| `gogc` | `100` | Go GC percentage. Set to `-1` to disable percentage-based GC, relying solely on `GOMEMLIMIT`. |
+| `url_ring_sample_rate` | `0` | 1-in-N sampling for the dashboard URL ring buffer. `0` = record every non-HIT request. `100` = 1 in 100 (reduces sync.Map overhead under high miss rates). `1` = record every call (debug mode). |
 
 ---
 
@@ -304,16 +347,14 @@ All byte-size fields (`hot_max_bytes`, `warm_max_bytes`) accept any of these suf
 
 ---
 
-## Config reload
+## Config updates
 
-Reloadable without restart: routes, upstream pools, cache TTLs.
-
-**Not** reloadable: listen addresses, storage settings, cluster settings, TLS certificates.
-
-Trigger reload via the admin API or the dashboard:
+bouine does not support live config reload. All config changes require a
+process restart. On Kubernetes, use a rolling restart:
 
 ```bash
-curl -X POST http://localhost:9000/v1/config/reload -H "Authorization: Bearer <token>"
+kubectl rollout restart statefulset/bouine
 ```
 
-For TLS certificate rotation, restart the process or use Kubernetes rolling restarts with cert-manager.
+For TLS certificate rotation, restart the process or use Kubernetes rolling
+restarts with cert-manager.

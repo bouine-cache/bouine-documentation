@@ -12,7 +12,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
         ["Kubernetes-native deploy","yes","yes",""],
         ["Helm chart","yes","yes",""],
         ["YAML config","yes","yes",""],
-        ["Hot config reload","yes","yes",""],
+        ["Hot config reload","no","yes",""],
         ["Single static binary","yes","yes",""]
       ]},
       { "name": "SRE", "rows": [
@@ -51,7 +51,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
         ["Kubernetes-native deploy","yes","partial",""],
         ["Helm chart","yes","partial",""],
         ["YAML config","yes","no","Custom DSL"],
-        ["Hot config reload","yes","yes",""],
+        ["Hot config reload","no","yes",""],
         ["Single static binary","yes","no","Dynamic modules"]
       ]},
       { "name": "SRE", "rows": [
@@ -90,7 +90,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
         ["Kubernetes-native deploy","yes","partial",""],
         ["Helm chart","yes","partial",""],
         ["YAML config","yes","no","Custom DSL"],
-        ["Hot config reload","yes","yes",""],
+        ["Hot config reload","no","yes",""],
         ["Single static binary","yes","yes",""]
       ]},
       { "name": "SRE", "rows": [
@@ -129,7 +129,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
         ["Kubernetes-native deploy","yes","no",""],
         ["Helm chart","yes","no",""],
         ["YAML config","yes","no","VCL"],
-        ["Hot config reload","yes","yes",""],
+        ["Hot config reload","no","yes",""],
         ["Single static binary","yes","yes",""]
       ]},
       { "name": "SRE", "rows": [
@@ -168,7 +168,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
         ["Kubernetes-native deploy","yes","partial",""],
         ["Helm chart","yes","partial",""],
         ["YAML config","yes","yes","Caddyfile or JSON"],
-        ["Hot config reload","yes","yes",""],
+        ["Hot config reload","no","yes",""],
         ["Single static binary","yes","yes",""]
       ]},
       { "name": "SRE", "rows": [
@@ -215,7 +215,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
 | Kubernetes-native deploy | ✓ | ✓ |
 | Helm chart | ✓ | ✓ |
 | YAML config | ✓ | ✓ |
-| Hot config reload | ✓ | ✓ |
+| Hot config reload | ✗ | ✓ |
 | Single static binary | ✓ | ✓ |
 | **SRE** | | |
 | Prometheus metrics | ✓ | ✓ |
@@ -253,7 +253,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
 | Kubernetes-native deploy | ✓ | ◐ |
 | Helm chart | ✓ | ◐ |
 | YAML config | ✓ | ✕ (custom DSL) |
-| Hot config reload | ✓ | ✓ |
+| Hot config reload | ✗ | ✓ |
 | Single static binary | ✓ | ✕ (dynamic modules) |
 | **SRE** | | |
 | Prometheus metrics | ✓ | ◐ (via module) |
@@ -291,7 +291,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
 | Kubernetes-native deploy | ✓ | ◐ |
 | Helm chart | ✓ | ◐ |
 | YAML config | ✓ | ✕ (custom DSL) |
-| Hot config reload | ✓ | ✓ |
+| Hot config reload | ✗ | ✓ |
 | Single static binary | ✓ | ✓ |
 | **SRE** | | |
 | Prometheus metrics | ✓ | ◐ (via exporter) |
@@ -329,7 +329,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
 | Kubernetes-native deploy | ✓ | ✕ |
 | Helm chart | ✓ | ✕ |
 | YAML config | ✓ | ✕ (VCL) |
-| Hot config reload | ✓ | ✓ |
+| Hot config reload | ✗ | ✓ |
 | Single static binary | ✓ | ✓ |
 | **SRE** | | |
 | Prometheus metrics | ✓ | ◐ (via exporter) |
@@ -367,7 +367,7 @@ description: "Side-by-side comparison of bouine against Envoy, NGINX, HAProxy, V
 | Kubernetes-native deploy | ✓ | ◐ |
 | Helm chart | ✓ | ◐ |
 | YAML config | ✓ | ✓ (Caddyfile or JSON) |
-| Hot config reload | ✓ | ✓ |
+| Hot config reload | ✗ | ✓ |
 | Single static binary | ✓ | ✓ |
 | **SRE** | | |
 | Prometheus metrics | ✓ | ✕ |

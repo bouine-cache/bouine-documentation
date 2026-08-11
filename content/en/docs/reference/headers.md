@@ -43,3 +43,16 @@ Indicates which storage tier served the response.
 | `peer` | Served from a cluster peer via peer fetch |
 | `origin` | Fetched from the upstream origin |
 | _(empty)_ | Not served from any storage tier (BYPASS or only-if-cached 504) |
+
+## X-Bouine-Route
+
+The route label that matched the request. Set by the router on every
+data-plane request. Used by Prometheus metrics (`route` label) and the
+dashboard for per-route attribution. The header is stripped before
+proxying to the upstream to prevent origin-side cardinality bombs.
+
+## Warning: 110
+
+Set to `110 - "Response is stale"` on stale responses served within the
+`stale-while-revalidate` or `stale-if-error` window, per RFC 9111
+section 5.5.

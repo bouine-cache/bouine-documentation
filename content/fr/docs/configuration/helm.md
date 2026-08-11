@@ -22,6 +22,26 @@ helm install bouine bouine/bouine \
 To install from a local checkout, replace `bouine/bouine` with the chart
 directory `deploy/helm/bouine`.
 
+### Preconfigured value files
+
+The chart ships with several value profiles for common deployment patterns:
+
+| File | Profile | Use case |
+|------|---------|----------|
+| `values-dev.yaml` | Development | Minimal resources, single replica, no warm tier |
+| `values-ha.yaml` | High availability | 5 replicas, PDB, topology spread, larger resources |
+| `values-production.yaml` | Production | Hardened security, autoscaling, service monitors, SLO alerts |
+
+Use them with `-f`:
+
+```bash
+helm install bouine bouine/bouine \
+  -n bouine --create-namespace \
+  -f values-production.yaml \
+  --set "config.upstream_pools[0].name=app" \
+  --set "config.upstream_pools[0].targets[0]=app.default.svc:8080"
+```
+
 ## All values
 
 ### Image
@@ -31,6 +51,7 @@ directory `deploy/helm/bouine`.
 | `image.repository` | `bouinecache/bouine` | Container image repository (Docker Hub) |
 | `image.tag` | `""` (appVersion) | Image tag; defaults to chart's `appVersion` |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy |
+| `image.pullSecrets` | `[]` | List of Kubernetes Secret names for pulling from private registries |
 | `nameOverride` | `""` | Override chart name |
 | `fullnameOverride` | `""` | Override fully qualified name |
 
@@ -73,23 +94,23 @@ Rendered into a ConfigMap and mounted at `/etc/bouine/config.yaml`.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `resources.requests.cpu` | `500m` | CPU request |
-| `resources.requests.memory` | `512Mi` | Memory request |
-| `resources.limits.cpu` | `2` | CPU limit |
-| `resources.limits.memory` | `4Gi` | Memory limit |
+| `resources.requests.cpu` | `1000m` | CPU request |
+| `resources.requests.memory` | `2Gi` | Memory request |
+| `resources.limits.cpu` | `4` | CPU limit |
+| `resources.limits.memory` | `8Gi` | Memory limit |
 
 ### Go runtime tuning
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `goMemLimit` | `3GiB` | `GOMEMLIMIT` — set to ~75% of `resources.limits.memory` |
+| `goMemLimit` | `""` (auto) | `GOMEMLIMIT` — auto-computed as 75% of `resources.limits.memory` |
 | `goGC` | `100` | `GOGC` — Go GC target percentage |
 
 ### Pod configuration
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `terminationGracePeriodSeconds` | `30` | Grace period for shutdown sequencer |
+| `terminationGracePeriodSeconds` | `40` | Grace period for shutdown sequencer |
 | `podDisruptionBudget.enabled` | `true` | Enable PDB |
 | `podDisruptionBudget.minAvailable` | `2` | Minimum available pods during disruption |
 | `topologySpreadConstraints` | Zone anti-affinity | Spreads pods across availability zones |
@@ -107,10 +128,22 @@ Rendered into a ConfigMap and mounted at `/etc/bouine/config.yaml`.
 
 | Key | Default | Description |
 |-----|---------|-------------|
+| `startupProbe.httpGet.path` | `/readyz` | Startup probe endpoint |
+| `startupProbe.periodSeconds` | `10` | Startup check interval |
+| `startupProbe.failureThreshold` | `180` | Max failures (30 min timeout) |
 | `readinessProbe.httpGet.path` | `/readyz` | Readiness endpoint |
 | `readinessProbe.periodSeconds` | `5` | Readiness check interval |
 | `livenessProbe.httpGet.path` | `/healthz` | Liveness endpoint |
 | `livenessProbe.periodSeconds` | `10` | Liveness check interval |
+
+### Autoscaling
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `autoscaling.enabled` | `false` | Enable HorizontalPodAutoscaler |
+| `autoscaling.minReplicas` | `3` | Minimum pod count |
+| `autoscaling.maxReplicas` | `6` | Maximum pod count |
+| `autoscaling.targetCPUUtilizationPercentage` | `70` | CPU target for scale-up |
 
 ### Warm volume
 
@@ -127,7 +160,12 @@ Rendered into a ConfigMap and mounted at `/etc/bouine/config.yaml`.
 | `serviceMonitor.enabled` | `false` | Create a Prometheus ServiceMonitor |
 | `serviceMonitor.interval` | `15s` | Scrape interval |
 | `serviceMonitor.labels` | `{}` | Extra labels for ServiceMonitor |
-| `networkPolicy.enabled` | `false` | Create NetworkPolicy |
+| `networkPolicy.enabled` | `false` | Create NetworkPolicy to isolate admin port |
+| `podMonitor.enabled` | `false` | Create a Prometheus PodMonitor |
+| `prometheusRule.enabled` | `false` | Create PrometheusRule with SLO alert thresholds |
+| `ingress.enabled` | `false` | Create an Ingress resource |
+| `updateStrategy.maxUnavailable` | `1` | Max unavailable pods during rolling update |
+| `minReadySeconds` | `30` | Minimum time a pod must be ready before next update |
 
 ### Cloudflare CDN propagation
 
@@ -153,4 +191,33 @@ extraEnv:
       secretKeyRef:
         name: bouine-admin-token
         key: token
+```
+
+### Service account
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `serviceAccount.create` | `true` | Create a dedicated service account for the bouine pods |
+| `serviceAccount.automount` | `false` | Auto-mount the service account token. Enable for IRSA / workload identity (AWS EKS, GCP workload identity). |
+| `serviceAccount.annotations` | `{}` | Annotations to add to the service account (e.g. `eks.amazonaws.com/role-arn`) |
+| `serviceAccount.name` | `""` | Name of an existing service account to use when `create` is false |
+
+### Extra volumes
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `extraVolumes` | `[]` | Additional volumes for the bouine pod (e.g. TLS secrets, custom CA bundles, static files) |
+| `extraVolumeMounts` | `[]` | Additional volume mounts for the bouine container |
+
+Example — mount TLS certs from a Secret:
+
+```yaml
+extraVolumes:
+  - name: tls-certs
+    secret:
+      secretName: bouine-tls
+extraVolumeMounts:
+  - name: tls-certs
+    mountPath: /etc/bouine/tls
+    readOnly: true
 ```

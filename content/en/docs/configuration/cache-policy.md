@@ -203,6 +203,20 @@ cache:
 
 `0` (default) means no limit.
 
+## Write-method invalidation (POST/PUT/DELETE)
+
+Per RFC 9111 section 4.4, bouine invalidates the cache entry for the
+request URI when a non-safe method (POST, PUT, DELETE, PATCH) receives a
+2xx or 3xx response from the origin. The invalidation targets the
+GET-equivalent key, evicts all Vary variants, and removes the object from
+the refresh registry. If the response carries a `Content-Location` or
+`Location` header, those URLs are also invalidated (section 4.4).
+
+Additionally, successful POST responses with explicit freshness
+(`Cache-Control: max-age` or `s-maxage`) and a matching `Content-Location`
+are stored under the GET key per RFC 9111 section 4.3.1. This is the only
+case where a non-GET response is cached.
+
 ## Refresh before expiry
 
 Refresh-before-expiry fires a **background conditional revalidation**
@@ -479,3 +493,80 @@ Do not exclude headers that genuinely affect the response body — such as
 content-negotiation header causes bouine to serve the wrong variant to
 clients (cache poisoning). Only exclude headers you are certain do not
 change the response content.
+
+## Advanced URL normalization
+
+Beyond `strip_query_params`, bouine supports several additional cache key
+normalisation features to maximise hit ratio when origins or clients
+produce URL variants that should resolve to the same cached object.
+
+### Keep only specific query parameters
+
+`keep_query_params` is the inverse of `strip_query_params` — only the
+listed parameter names are included in the cache key; all others are
+excluded. This is useful when the origin has a small set of meaningful
+parameters and everything else is noise:
+
+```yaml
+cache:
+  key:
+    keep_query_params: [id, page, sort]
+```
+
+Mutually exclusive with `strip_query_params` and `strip_query_prefix`.
+Equivalent to Varnish `qs.keep()`.
+
+### Strip by prefix
+
+`strip_query_prefix` removes all query parameters whose names start with
+any of the listed prefixes. This covers wildcard stripping without
+enumerating every variant:
+
+```yaml
+cache:
+  key:
+    strip_query_prefix: [utm_, fb_, _ga]
+```
+
+Capped at 16 entries in validation.
+
+### Remove empty-value parameters
+
+`strip_empty_params` removes query parameters with empty values
+(`?foo=&bar=1` → `?bar=1`). Does not apply to params in `keep_query_params`
+— allowlisted params are always kept, even with empty values.
+
+```yaml
+cache:
+  key:
+    strip_empty_params: true
+```
+
+### Deduplicate repeated parameters
+
+`dedup_query_params` keeps only the first value for duplicate query
+parameters (`?a=2&a=1` → `?a=2`). "First" is first in request order,
+matching Varnish `qs.unique()`. Values are not sorted when dedup is
+enabled.
+
+```yaml
+cache:
+  key:
+    dedup_query_params: true
+```
+
+### Canonicalise path
+
+`canonicalize_path` normalises the path component at parse time:
+percent-decodes unreserved characters, uppercases remaining percent-encoded
+hex, and resolves dot-segments (`/a/../b` → `/b`). This prevents
+path-variant cache fragmentation from encoding inconsistencies.
+
+```yaml
+cache:
+  key:
+    canonicalize_path: true
+```
+
+> Applies at the listener level: if any route on a listener enables this,
+> all requests on that listener get canonical paths.

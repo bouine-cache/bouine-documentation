@@ -45,11 +45,11 @@ This means:
 | Aspect | Varnish | bouine |
 |---|---|---|
 | Language | VCL (domain-specific, C-like) | YAML |
-| Reload | `varnishadm vcl.load` + `vcl.use` (compile and link) | Reload via admin API `/v1/config/reload` or dashboard |
+| Reload | `varnishadm vcl.load` + `vcl.use` (compile and link) | Rolling pod restart (no live reload) |
 | Backend definition | `backend` block in VCL | `upstream_pools[]` in YAML |
 | Routing | `vcl_recv` with `if/return(pass)` | `routes[].match` declarative table |
 | Cache policy | Explicit TTL, grace, keep assignments | RFC 9111 + `routes[].cache` overrides |
-| Cluster | Via `varnish-plus` or external HA | Built-in gossip (strong, eventual, full) |
+| Cluster | Via `varnish-plus` or external HA | Built-in gossip (strong, eventual) |
 | TLS termination | `varnish-plus` or separate proxy | Built-in (H1+H2) |
 
 > **Route matching**: bouine routes match on `host` and `path_prefix` only — regex-based path matching is not supported in routes. Use path prefixes for routing, and `path_regex` in ban predicates for cache invalidation.

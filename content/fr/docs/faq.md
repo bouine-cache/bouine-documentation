@@ -52,8 +52,8 @@ cache, `BYPASS` means the cache was bypassed (no-store, no-cache, or cache
 disabled for the route). Use the `X-Cache-Source` header to see which tier
 served the response (`hot`, `warm`, `peer`, `origin`).
 
-A future `GET /v1/debug/cachecheck?url=...` endpoint will show the full
-decision tree for a given request.
+The `GET /v1/debug/cachecheck?url=...` admin endpoint shows the full
+decision tree for a given request (key, hit/miss, source).
 
 ### Does bouine support WebSocket?
 
@@ -100,9 +100,9 @@ cache-of-caches) is a v1.2+ roadmap item.
 
 ### Can I reload config without restarting?
 
-Not in v1.0. Config changes are applied by rolling the pod (standard
-Kubernetes rolling update). Live config reload for non-breaking changes
-is on the roadmap.
+No. bouine does not support live config reload. Config changes are
+applied by rolling the pod (standard Kubernetes rolling update). This
+avoids race conditions between reloadable and non-reloadable components.
 
 ### Does bouine support environment variable interpolation in config?
 
