@@ -121,6 +121,9 @@ summarylength = 30
     docsRepoBranch = 'main'
     docsRepoSubPath = ''
 
+  [params.googleAnalytics]
+    id = 'G-1T6QRCCPMQ'
+
   [params.seo]
     [params.seo.title]
       separator = '|'
