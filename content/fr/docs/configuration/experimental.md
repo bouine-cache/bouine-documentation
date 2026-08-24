@@ -31,13 +31,13 @@ When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`i
 
 1. **Parses HTTP/1.1 requests** from the raw `net.Conn` into a stack-allocated `RawRequest` struct using zero-copy `unsafe.String` conversion (113 ns/op, 0 allocations).
 2. **Serves cache hits directly** by looking up the key in the hot tier, computing freshness, and writing the response via `net.Buffers.WriteTo` (single `writev` syscall) — no `*http.Request` or `http.ResponseWriter` constructed.
-3. **Falls through to `net/http`** for misses, non-GET/HEAD methods, conditional requests, HTTP/1.0, and HTTP/2.
+3. **Falls through to `fasthttp`** for misses, non-GET/HEAD methods, conditional requests, and HTTP/1.0.
 
 ### What stays on the standard path
 
-The following request types always go through `net/http` regardless of the fast path setting:
+The following request types always go through `fasthttp` regardless of the fast path setting:
 
-- **HTTP/2** (h2 over TLS via ALPN, or h2c upgrade preface)
+- ~~**HTTP/2** (h2 over TLS via ALPN, or h2c upgrade preface)~~ — HTTP/2 is not currently supported. Reintroduction is in progress.
 - **HTTP/1.0** requests (different keep-alive semantics)
 - **Non-GET/HEAD methods** (POST, PUT, DELETE, etc.)
 - **Conditional requests** (`If-None-Match`, `If-Modified-Since`, `If-Match`, `If-Unmodified-Since`, `If-Range`, `Range`)

@@ -22,7 +22,7 @@ bouine version
 
 ## serve
 
-Starts the bouine daemon. Boots every configured listener (HTTP/1.1, HTTP/2, admin), wires the pipeline router to the upstream pools, and blocks until SIGINT/SIGTERM.
+Starts the bouine daemon. Boots every configured listener (HTTP/1.1, admin), wires the pipeline router to the upstream pools, and blocks until SIGINT/SIGTERM.
 
 | Flag | Default | Description |
 |------|---------|-------------|

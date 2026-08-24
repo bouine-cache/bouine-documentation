@@ -116,7 +116,7 @@ routes:
 
 | Field | Default | Description |
 |---|---|---|
-| `http` | `":80"` | HTTP/1.1 + h2c plaintext listener |
+| `http` | `":80"` | HTTP/1.1 plaintext listener |
 | `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
