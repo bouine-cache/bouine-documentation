@@ -49,7 +49,7 @@ routes:
 | Champ | Par défaut | Description |
 |------|---------|-------------|
 | `http` | `":8080"` | Adresse du listener HTTP/1.1 |
-| `https` | — | Adresse du listener HTTPS (H1 + H2) |
+| `https` | — | Adresse du listener HTTPS (H1) |
 | `admin` | `":9000"` | Adresse du serveur d'administration |
 
 ### `storage`
