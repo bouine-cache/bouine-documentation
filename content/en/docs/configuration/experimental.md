@@ -25,29 +25,29 @@ experimental:
 
 ## H1 fast path
 
-When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`internal/server/h1parser`) that bypasses `net/http` on cache hits. This eliminates `*http.Request` allocation, `http.ResponseWriter` wrapping, header-map operations, and tracing/metrics middleware for cacheable GET/HEAD requests.
+When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`internal/server/h1parser`) that bypasses `fasthttp` on cache hits. This eliminates `*http.Request` allocation, `http.ResponseWriter` wrapping, header-map operations, and tracing/metrics middleware for cacheable GET/HEAD requests.
 
 ### What it does
 
 1. **Parses HTTP/1.1 requests** from the raw `net.Conn` into a stack-allocated `RawRequest` struct using zero-copy `unsafe.String` conversion (113 ns/op, 0 allocations).
 2. **Serves cache hits directly** by looking up the key in the hot tier, computing freshness, and writing the response via `net.Buffers.WriteTo` (single `writev` syscall) — no `*http.Request` or `http.ResponseWriter` constructed.
-3. **Falls through to `net/http`** for misses, non-GET/HEAD methods, conditional requests, HTTP/1.0, and HTTP/2.
+3. **Falls through to `fasthttp`** for misses, non-GET/HEAD methods, conditional requests, and HTTP/1.0.
 
 ### What stays on the standard path
 
-The following request types always go through `net/http` regardless of the fast path setting:
+The following request types always go through `fasthttp` regardless of the fast path setting:
 
-- **HTTP/2** (h2 over TLS via ALPN, or h2c upgrade preface)
+- ~~**HTTP/2** (h2 over TLS via ALPN, or h2c upgrade preface)~~ — HTTP/2 is not currently supported. Reintroduction is in progress.
 - **HTTP/1.0** requests (different keep-alive semantics)
 - **Non-GET/HEAD methods** (POST, PUT, DELETE, etc.)
 - **Conditional requests** (`If-None-Match`, `If-Modified-Since`, `If-Match`, `If-Unmodified-Since`, `If-Range`, `Range`)
 - **Requests with `Cache-Control: no-cache` or `no-store`**
 - **Requests with `Pragma: no-cache`**
-- **Headers exceeding 16 KiB** (fall through to `net/http`)
+- **Headers exceeding 16 KiB** (fall through to `fasthttp`)
 
 ### Fall-through behavior
 
-When the fast path cannot serve a request (cache miss, non-cacheable method, etc.), it constructs an `*http.Request` from the parsed data and delegates to the standard `net/http` handler chain. The connection is closed after the response (`Connection: close`) — keep-alive is not maintained on fall-through.
+When the fast path cannot serve a request (cache miss, non-cacheable method, etc.), it constructs an `*http.Request` from the parsed data and delegates to the standard `fasthttp` handler chain. The connection is closed after the response (`Connection: close`) — keep-alive is not maintained on fall-through.
 
 The H1 parser includes HTTP request smuggling detection. Ambiguous or malformed requests that could bypass upstream proxies are rejected and counted in the `bouine_http_smuggling_rejected_total` Prometheus metric. Rejected requests receive a `400 Bad Request` response.
 
@@ -57,7 +57,7 @@ The H1 parser includes HTTP request smuggling detection. Ambiguous or malformed 
 |---|---|---|
 | Allocations per hit | 8 (2032 B) | 0 (0 B) |
 | CPU per hit | ~780 ns | ~475 ns |
-| H1 parsing | ~200 ns (net/http) | ~113 ns (h1parser) |
+| H1 parsing | ~200 ns (fasthttp) | ~113 ns (h1parser) |
 
 ### Enabling in production
 

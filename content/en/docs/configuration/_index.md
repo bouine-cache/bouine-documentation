@@ -116,7 +116,7 @@ routes:
 
 | Field | Default | Description |
 |---|---|---|
-| `http` | `":80"` | HTTP/1.1 + h2c plaintext listener |
+| `http` | `":80"` | HTTP/1.1 plaintext listener |
 | `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
@@ -296,7 +296,7 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 
 | Field | Default | Description |
 |---|---|---|
-| `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to `net/http`. |
+| `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to `fasthttp`. |
 
 ### Top-level fields
 

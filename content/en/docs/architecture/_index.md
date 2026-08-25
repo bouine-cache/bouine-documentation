@@ -13,12 +13,18 @@ bouine is structured in 8 layers, each testable in isolation.
 
 ## HTTP stacks
 
-HTTP handling:
+One HTTP implementation only:
 
-- **`net/http`** — HTTP/1.1 + HTTP/2 (data plane + admin), the standard path
-- **H1 fast path** (experimental) — custom zero-alloc HTTP/1.1 parser for cache hits, bypasses `net/http` on the hot path. See [Experimental features](/docs/configuration/experimental/).
+- **`fasthttp`** — HTTP/1.1 only (data plane + admin)
 
-The admin API uses `net/http.ServeMux`.
+The admin API uses a manual method+path router on `fasthttp.Server`.
+
+> **HTTP/2 is not currently available.** bouine previously supported HTTP/2
+> (h2 over TLS, h2c over plaintext) via Go's `net/http`. The migration to
+> `fasthttp` as the sole HTTP stack (ADR-0034) dropped HTTP/2 support to
+> achieve a zero-allocation hit path. HTTP/2 reintroduction is in progress,
+> planned as a `fasthttp`-native implementation rather than re-adopting
+> `net/http`.
 
 ## Cache engine
 
@@ -86,7 +92,7 @@ Every node is independent — no sharding, no peer-fetch. Invalidations propagat
 
 {{< peer-fetch-diagram >}}
 
-Added latency for a peer hit: ~0.3ms (one in-cluster HTTP/2 hop).
+Added latency for a peer hit: ~0.3ms (one in-cluster HTTP/1.1 hop).
 
 ### Stale-while-revalidate (SWR)
 

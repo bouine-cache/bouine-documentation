@@ -4,7 +4,7 @@ weight: 4
 description: "Configure TLS termination with certificate management, SNI, and automatic reload."
 ---
 
-bouine terminates TLS natively for HTTP/1.1 and HTTP/2. No external TLS proxy is needed.
+bouine terminates TLS natively for HTTP/1.1. No external TLS proxy is needed.
 
 ## Minimal TLS config
 
