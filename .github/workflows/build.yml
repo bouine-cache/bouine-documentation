@@ -70,5 +70,6 @@ jobs:
 
       - name: Verify version directories
         run: |
+          ls -la public/
           test -f public/index.html
           test -f public/v0.4/index.html
