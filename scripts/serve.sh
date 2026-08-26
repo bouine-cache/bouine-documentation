@@ -68,5 +68,6 @@ fi
 
 # Start Hugo dev server. Archived versions in static/v<ver>/ are served as
 # static files; the latest version gets live reload.
+# baseURL is set in config/development/hugo.toml to http://localhost:1313/
 echo "▶ Starting Hugo dev server on http://localhost:1313/"
-exec hugo server --disableFastRender --noHTTPCache --baseURL http://localhost:1313/
+exec hugo server --disableFastRender --noHTTPCache
