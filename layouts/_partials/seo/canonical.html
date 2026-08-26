@@ -1,0 +1,10 @@
+{{- if and (eq site.Params.doks.docsVersioning true) (ne site.Params.doks.docsVersion site.Params.doks.docsLatestVersion) -}}
+{{- $latestPermalink := .Permalink | replaceRE (printf "^https?://[^/]+/v%s/" site.Params.doks.docsVersion) "https://bouine.org/" -}}
+<link rel="canonical" href="{{ $latestPermalink }}">
+{{- else -}}
+{{- with .Params.seo.canonical }}
+  <link rel="canonical" href="{{ . }}">
+{{- else }}
+  <link rel="canonical" href="{{ .Permalink }}">
+{{- end -}}
+{{- end -}}

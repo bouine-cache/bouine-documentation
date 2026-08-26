@@ -1,0 +1,7 @@
+{{- if and (eq site.Params.doks.docsVersioning true) (ne site.Params.doks.docsVersion site.Params.doks.docsLatestVersion) -}}
+<meta name="robots" content="noindex, follow">
+{{- else -}}
+{{- with .Params.seo.robots }}
+  <meta name="robots" content="{{ . }}">
+{{- end -}}
+{{- end -}}
