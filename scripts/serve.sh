@@ -51,10 +51,12 @@ if [[ -n "$ARCHIVED_VERSIONS" ]]; then
 
     (cd "$worktree" && npm install --silent 2>/dev/null)
 
-    # Build into a temp dir, then copy into static/v<ver>/ so Hugo's dev server
-    # serves it as a static file (no 404, no overwriting).
+    # Build into a temp dir with localhost baseURL so all asset URLs (fonts,
+    # canonical, RSS, etc.) point to localhost instead of bouine.org.
+    # Then copy into static/v<ver>/ so Hugo's dev server serves it as a static
+    # file (no 404, no overwriting).
     tmp_build=$(mktemp -d)
-    (cd "$worktree" && hugo --environment "v${ver}" --minify --gc --destination "$tmp_build" 2>/dev/null)
+    (cd "$worktree" && hugo --environment "v${ver}" --baseURL "http://localhost:1313/v${ver}/" --minify --gc --destination "$tmp_build" 2>/dev/null)
     mkdir -p "static/v${ver}"
     cp -r "$tmp_build/"* "static/v${ver}/"
     rm -rf "$tmp_build"
