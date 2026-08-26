@@ -10,6 +10,8 @@
 <div class="header-bar"></div>
 {{ end -}}
 
+{{ partial "header/version-banner.html" . }}
+
 <header class="navbar navbar-expand-lg">
   {{ with site.Params.doks.containerBreakpoint -}}
     <div class="container-{{ . }}">
@@ -154,10 +156,37 @@
         </button>
         {{ end -}}
 
+        <!-- Versioning dropdown -->
+        {{ if eq site.Params.doks.docsVersioning true -}}
+        <div class="dropdown mt-1 order-lg-2">
+          <button class="btn btn-dropdown dropdown-toggle" id="doks-versions" data-bs-toggle="dropdown" aria-expanded="false" data-bs-display="static" aria-label="Toggle version menu">
+            <span class="d-none">Version:</span> v{{ site.Params.doks.docsVersion }}.x
+            <span class="dropdown-caret">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-chevron-down" width="24" height="24" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                <path d="M6 9l6 6l6 -6"></path>
+              </svg>
+            </span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-lg-end me-lg-2 shadow rounded border-0" aria-labelledby="doks-versions">
+            {{ range site.Data.versions -}}
+              {{ $isCurrent := eq .version site.Params.doks.docsVersion -}}
+              <li>
+                <a class="dropdown-item{{ if $isCurrent }} active{{ end }}" href="{{ if eq .path "" }}{{ relLangURL "" }}{{ else }}{{ .path }}/{{ relLangURL "" }}{{ end }}"{{ if $isCurrent }} aria-current="true"{{ end }}>
+                  {{ .label }}{{ if .latest }} <span class="badge bg-primary ms-1">latest</span>{{ end }}
+                </a>
+              </li>
+            {{ end -}}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="https://github.com/bouine-cache/bouine/releases">All releases</a></li>
+          </ul>
+        </div>
+        {{ end -}}
+
         <!-- Language dropdown -->
         {{ if eq site.Params.doks.multilingualMode true -}}
 
-        <div class="dropdown mt-1 order-lg-2">
+        <div class="dropdown mt-1 order-lg-3">
           <button class="btn btn-dropdown dropdown-toggle" id="doks-languages" data-bs-toggle="dropdown" aria-expanded="false" data-bs-display="static">
             <span class="dropdown-caret">
               <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -201,30 +230,6 @@
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="/docs/contributing/how-to-contribute/">Help Translate</a></li>
               -->
-          </ul>
-        </div>
-        {{ end -}}
-
-        <!-- Versioning dropdown  -->
-        {{ if eq site.Params.doks.docsVersioning true -}}
-
-        <div class="dropdown mt-1 order-lg-3">
-          <button class="btn btn-dropdown dropdown-toggle" id="doks-versions" data-bs-toggle="dropdown" aria-expanded="false" data-bs-display="static" aria-label="Toggle version menu">
-            <span class="d-none">Doks</span> v{{ site.Params.doks.docsVersion }}
-            <span class="dropdown-caret">
-              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-chevron-down" width="24" height="24" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                <path d="M6 9l6 6l6 -6"></path>
-              </svg>
-            </span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-lg-end me-lg-2 shadow rounded border-0" aria-labelledby="doks-versions">
-            <li><a class="dropdown-item current" aria-current="true" href="/docs/{{ site.Params.doks.docsVersion }}/prologue/introduction/">Latest ({{ site.Params.doks.docsVersion }}.x)</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="/docs/0.2/prologue/introduction/">v0.2.x</a></li>
-            <li><a class="dropdown-item" href="/docs/0.1/prologue/introduction/">v0.1.x</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="/docs/versions/">All versions</a></li>
           </ul>
         </div>
         {{ end -}}
