@@ -12,3 +12,4 @@ compare-prototypes/
 .envrc
 kubeconfig.yaml
 kubeconfig.yaml
+.worktrees/

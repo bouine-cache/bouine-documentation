@@ -40,3 +40,37 @@ jobs:
 
       - name: Build (production)
         run: hugo --environment production --minify --gc --baseURL "https://bouine.org/"
+
+  build-versioned:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Doks dependencies
+        run: npm ci || npm install
+
+      - name: Install Hugo (extended)
+        env:
+          HUGO_VERSION: "0.154.5"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o hugo.deb \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
+          sudo dpkg -i hugo.deb
+
+      - name: Build all versions
+        run: ./scripts/build-versioned.sh public
+
+      - name: Verify version directories
+        run: |
+          test -f public/index.html
+          test -f public/v0.3/index.html
+          test -f public/v0.2/index.html
+          test -f public/v0.1/index.html

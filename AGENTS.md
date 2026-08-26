@@ -19,6 +19,10 @@ All commands go through `make` (which delegates to npm/hugo):
 | `make install` | Install Node dependencies (required after clone) |
 | `make serve` | Start dev server on http://localhost:1313/ |
 | `make build` | Production build → `./public/` |
+| `make build-versioned` | Build all doc versions (latest + archived) → `./public/` |
+| `make serve-versioned` | Build all versions and serve on :1313 |
+| `make version V=0.5` | Cut a new docs version after a bouine release (snapshot + content update + commit) |
+| `make deploy` | Build all versions, containerize, and roll k3s deployment |
 | `make clean` | Remove `public/` and `resources/` |
 
 **Important flags on the dev server** (set in package.json):
@@ -257,6 +261,82 @@ Output is `public/`.
 
 ---
 
+## Documentation Versioning
+
+The site supports multiple documentation versions (v0.4.x, v0.3.x, v0.2.x, v0.1.x) via a multi-build approach. Each version is a separate Hugo build outputting to a versioned subdirectory (`/v0.3/`, `/v0.2/`, etc.). The latest version is at the site root.
+
+### How it works
+
+- `main` branch always documents the **latest** released version
+- Archived versions live on snapshot branches (`docs-v0.3`, `docs-v0.2`, `docs-v0.1`)
+- `scripts/build-versioned.sh` checks out each snapshot branch into a git worktree, copies shared infrastructure (hugo.toml, layouts/, config/, data/) from main, runs `npm install`, and builds each version into its subdirectory under `public/`
+- The version dropdown in `header.html` is driven by `data/versions.json`
+- Each version has its own search index and `llms.txt`
+
+### Key files
+
+| File | Purpose |
+|---|---|
+| `data/versions.json` | List of versions shown in the dropdown (latest + archived) |
+| `config/production/hugo.toml` | Environment config for the latest build (baseURL = bouine.org/) |
+| `config/v0.3/hugo.toml` | Environment config for v0.3 build (baseURL = bouine.org/v0.3/) |
+| `scripts/build-versioned.sh` | Builds all versions into a single `public/` directory |
+| `scripts/snapshot-version.sh` | Helper to create a new snapshot branch |
+| `scripts/version.sh` | Full version-cut workflow (snapshot + bump + content update + commit) |
+| `layouts/_partials/header/version-banner.html` | "Not latest" banner shown on archived versions |
+
+### Cutting a new version
+
+When a new bouine minor/major release is published (e.g. `v0.5.0`), run:
+
+```bash
+make version V=0.5
+```
+
+This automates the entire workflow:
+1. Snapshots current `main` as `docs-v0.4` branch
+2. Updates `data/versions.json` (v0.4 → archived, v0.5 → latest)
+3. Bumps `docsVersion` in `hugo.toml` and `config/production/hugo.toml`
+4. Creates `config/v0.4/hugo.toml` for the archived build
+5. Adds `v0.4` to the VERSIONS array in `scripts/build-versioned.sh`
+6. Launches a `crush -s` subagent that reads `../bouine/CHANGELOG.md` and updates documentation content across all three languages (en, fr, zh)
+7. Commits everything
+
+Then deploy with:
+```bash
+make deploy
+```
+
+**Prerequisites for `make version`:**
+- Must be on `main` with a clean working tree
+- The bouine source repo must be at `../bouine` (or set `BOUINE_REPO` env var)
+- `crush` CLI must be installed and in PATH
+- The new version tag should already exist in the bouine repo
+
+### Backporting fixes to archived versions
+
+For critical fixes to old docs (security advisory, broken example):
+
+```bash
+git checkout docs-v0.3
+# make the fix, commit, push
+git push origin docs-v0.3
+git checkout main
+make deploy   # rebuilds v0.3 from the updated branch
+```
+
+### Versioned build commands
+
+| Command | What it does |
+|---|---|
+| `make build` | Build latest version only (for dev/CI) |
+| `make build-versioned` | Build all versions (latest + archived) to `./public/` |
+| `make serve-versioned` | Build all versions and serve locally on :1313 |
+| `make version V=0.5` | Cut a new docs version (snapshot + bump + content update + commit) |
+| `make deploy` | Build all versions, containerize, and roll the k3s deployment |
+
+---
+
 ## Common Gotchas
 
 1. **Git submodule not initialized** → Hugo fails with "theme not found" or build errors. Fix: `git submodule update --init --recursive`.
@@ -273,7 +353,7 @@ Output is `public/`.
 
 7. **No GitHub Actions here** — This is the *documentation* repo, not the bouine source repo. The bouine Go source lives at `github.com/bouine-cache/bouine`.
 
-8. **Language support** — German (`de`) and Dutch (`nl`) are explicitly disabled in `hugo.toml`. Only English is built. Do not add multilingual content without also enabling the language.
+8. **Language support** — English (en, default, no subdir), French (fr, `/fr/`), and Chinese (zh, `/zh/`) are active. German (`de`) and Dutch (`nl`) are disabled. All three active languages must stay in sync — content changes to `content/en/` should be reflected in `content/fr/` and `content/zh/`.
 
 9. **Anime.js CDN dependency** — The animated diagrams shortcodes load anime.js from `cdnjs.cloudflare.com`. Offline builds will not render animations; the static SVG still displays.
 
