@@ -71,6 +71,4 @@ jobs:
       - name: Verify version directories
         run: |
           test -f public/index.html
-          test -f public/v0.3/index.html
-          test -f public/v0.2/index.html
-          test -f public/v0.1/index.html
+          test -f public/v0.4/index.html
