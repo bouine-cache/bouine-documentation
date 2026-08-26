@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 #
 # Two-stage build for the bouine documentation site.
-#  1. Build the Hugo/Doks site (Doks mounts node_modules/@thulite/* as Hugo
-#     modules, so npm install is required before `hugo`).
+#  1. Build the Hugo/Doks site with all documentation versions (latest + archived).
+#     Archived versions are built from snapshot branches via git worktree.
 #  2. Pack the static output into a redbean single-binary web server and ship
 #     it on a scratch image — non-root capable, read-only rootfs, no shell.
 #
@@ -13,25 +13,24 @@ FROM --platform=linux/amd64 hugomods/hugo:exts AS hugo-build
 
 WORKDIR /src
 
+# Install git (needed for worktree-based versioned builds) and bash.
+RUN apk add --no-cache git bash
+
 # Install the Doks npm modules first (better layer caching). The theme's
 # config/_default/module.toml mounts node_modules/@thulite/* into Hugo.
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
-# Bring in the rest of the site (themes/ holds the doks submodule contents).
-COPY hugo.toml ./
-COPY archetypes/ archetypes/
-COPY assets/ assets/
-COPY content/ content/
-COPY data/ data/
-COPY i18n/ i18n/
-COPY layouts/ layouts/
-COPY static/ static/
-COPY themes/ themes/
+# Copy the full repo including .git for worktree-based versioned builds.
+# The .dockerignore must not exclude .git, scripts/, or config/.
+COPY . .
 
-# enableGitInfo is on for local dev (where .git exists) but the build context
-# has no .git, so disable it here to avoid "Failed to read Git log".
-RUN HUGO_ENABLEGITINFO=false hugo --environment production --minify --gc
+# Initialize git submodules (themes/doks).
+RUN git submodule update --init --recursive
+
+# Build all documentation versions (latest + archived) into ./public/.
+# The script uses git worktree to check out snapshot branches.
+RUN HUGO_ENABLEGITINFO=false ./scripts/build-versioned.sh public
 
 FROM --platform=linux/amd64 debian:bookworm-slim AS redbean-pack
 

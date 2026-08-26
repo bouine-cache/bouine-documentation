@@ -34,7 +34,6 @@ clean: ## Remove build artifacts.
 
 docker-build: ## Build the container image with all doc versions (linux/amd64).
 	git submodule update --init
-	./scripts/build-versioned.sh public
 	docker buildx build --platform linux/amd64 -t $(CONTAINER):$(TAG) --load .
 
 auth-registry: ## Authenticate Docker to the Scaleway registry (needs SCW_ACCESS_KEY and SCW_SECRET_KEY).
