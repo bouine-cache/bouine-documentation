@@ -41,7 +41,7 @@ cd "$REPO_ROOT"
 
 # Ensure we're on main with a clean tree
 CURRENT_BRANCH=$(git branch --show-current)
-if [[ "$CURRENT_BRANCH" != "main" ]]; then
+if [[ "$CURRENT_BRANCH" != "main" ]] && [[ "$CURRENT_BRANCH" != feat/* ]]; then
   echo "ERROR: Must be on 'main' branch (currently on '$CURRENT_BRANCH')"
   exit 1
 fi
