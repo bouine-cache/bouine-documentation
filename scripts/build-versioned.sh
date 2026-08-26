@@ -49,7 +49,7 @@ for ver in "${VERSIONS[@]}"; do
   # Install npm dependencies (Doks theme layouts come from node_modules/@thulite/doks-core).
   (cd "$worktree" && npm install --silent)
 
-  (cd "$worktree" && hugo --environment "$ver" --minify --gc --destination "${OUTPUT_DIR}/${ver}")
+  (cd "$worktree" && hugo --environment "$ver" --minify --gc --destination "${REPO_ROOT}/${OUTPUT_DIR}/${ver}")
 
   git worktree remove --force "$worktree"
   rm -rf "$worktree"
