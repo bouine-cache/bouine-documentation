@@ -1,6 +1,6 @@
 {{ if and (eq site.Params.doks.docsVersioning true) (ne site.Params.doks.docsVersion site.Params.doks.docsLatestVersion) -}}
 <div class="alert alert-warning mb-0 rounded-0 text-center py-2">
   You are reading documentation for bouine <strong>v{{ site.Params.doks.docsVersion }}.x</strong> — not the latest version.
-  <a href="{{ relLangURL "" }}" class="alert-link">View latest →</a>
+  <a href="/" class="alert-link">View latest →</a>
 </div>
 {{ end -}}

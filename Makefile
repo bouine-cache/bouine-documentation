@@ -12,8 +12,8 @@ help: ## Show this help.
 install: ## Install Node dependencies required by Doks.
 	npm install
 
-serve: ## Start local dev server with live reload.
-	npm run dev
+serve: ## Start local dev server with all doc versions (archived pre-built, latest live).
+	./scripts/serve.sh
 
 build: ## Build the static site to ./public.
 	npm run build

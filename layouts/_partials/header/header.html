@@ -172,7 +172,7 @@
             {{ range site.Data.versions -}}
               {{ $isCurrent := eq .version site.Params.doks.docsVersion -}}
               <li>
-                <a class="dropdown-item{{ if $isCurrent }} active{{ end }}" href="{{ if eq .path "" }}{{ relLangURL "" }}{{ else }}{{ .path }}/{{ relLangURL "" }}{{ end }}"{{ if $isCurrent }} aria-current="true"{{ end }}>
+                <a class="dropdown-item{{ if $isCurrent }} active{{ end }}" href="{{ if eq .path "" }}/{{ else }}{{ .path }}/{{ end }}"{{ if $isCurrent }} aria-current="true"{{ end }}>
                   {{ .label }}{{ if .latest }} <span class="badge bg-primary ms-1">latest</span>{{ end }}
                 </a>
               </li>
