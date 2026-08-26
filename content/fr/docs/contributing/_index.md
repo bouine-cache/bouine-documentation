@@ -14,7 +14,7 @@ Merci d'améliorer bouine. Ce projet valorise l'exactitude, la performance et la
 
 ## Prérequis
 
-- Go 1.26+
+- Go 1.27+
 - `pre-commit` (`pip install pre-commit` ou `brew install pre-commit`)
 - Docker (pour les tests d'intégration)
 

@@ -17,14 +17,19 @@ All commands go through `make` (which delegates to npm/hugo):
 | Command | What it does |
 |---|---|
 | `make install` | Install Node dependencies (required after clone) |
-| `make serve` | Start dev server on http://localhost:1313/ |
+| `make serve` | Start dev server with all doc versions on http://localhost:1313/ |
 | `make build` | Production build → `./public/` |
+| `make build-versioned` | Build all doc versions (latest + archived) → `./public/` |
+| `make serve-versioned` | Build all versions and serve on :1313 |
+| `make version V=0.5` | Cut a new docs version after a bouine release (snapshot + content update + commit) |
+| `make deploy` | Build all versions, containerize, and roll k3s deployment |
 | `make clean` | Remove `public/` and `resources/` |
+
+**`make serve` internals** — `scripts/serve.sh` pre-builds archived versions into `static/v<ver>/` (so Hugo serves them as static files), then starts `hugo server`. The latest version gets live reload; archived versions are static (no live reload). baseURL is set in `config/development/hugo.toml` to `http://localhost:1313/`.
 
 **Important flags on the dev server** (set in package.json):
 - `--disableFastRender` — disables Hugo's fast render (needed when editing shortcodes or layouts)
 - `--noHTTPCache` — disables browser caching in dev mode
-- `--baseURL http://localhost:1313/` — ensures links resolve correctly
 
 ### Prerequisites
 
@@ -57,8 +62,12 @@ All commands go through `make` (which delegates to npm/hugo):
 │   ├── shortcodes/              # Custom Hugo shortcodes
 │   │   ├── arch-diagram.html    # Animated SVG architecture diagram
 │   │   └── peer-fetch-diagram.html  # Animated SVG peer-fetch diagram
-│   └── _partials/header/
-│       └── header.html          # Custom header with bouine branding
+│   ├── _partials/header/
+│   │   ├── header.html          # Custom header with bouine branding, version + language dropdowns
+│   │   └── version-banner.html  # "Not latest" warning banner for archived versions
+│   └── _partials/seo/
+│       ├── canonical.html       # Override: canonical → latest version URL on archived pages
+│       └── robots.html          # Override: noindex,follow on archived pages
 ├── static/
 │   ├── favicon/                 # Favicon assets
 │   └── bouine_anglerfish_*.png  # Logo variants (light/dark mode)
@@ -245,15 +254,96 @@ The `editPage` feature is enabled — it links each docs page to its source on G
 
 ## CI / Deployment
 
-There is no `.github/workflows/` in this repository. Deployment is likely handled externally (e.g., Cloudflare Pages, Netlify, or another static host). The `baseURL` in `hugo.toml` points to `https://bouine.org/`.
+CI is in `.github/workflows/build.yml` with two jobs:
+- **`build`** — single-version production build (catches broken links, submodule issues, template errors)
+- **`build-versioned`** — full multi-version build via `scripts/build-versioned.sh`, verifies `public/index.html` and `public/v0.4/index.html` exist
 
-If adding CI, the build command should be:
+Deployment is manual via `make deploy` (builds all versions, pushes Docker image to Scaleway registry, rolls k3s deployment). CI does **not** deploy — cluster credentials stay out of CI.
+
+**Note:** Snapshot branches (`docs-v0.4`, `docs-v0.3`, etc.) must be pushed to `origin` before CI can build archived versions. The `build-versioned` job checks out these branches via `git worktree`.
+
+---
+
+## Documentation Versioning
+
+The site supports multiple documentation versions (currently v0.5.x latest, v0.4.x archived) via a multi-build approach. Each version is a separate Hugo build outputting to a versioned subdirectory (`/v0.4/`, etc.). The latest version is at the site root.
+
+### How it works
+
+- `main` branch always documents the **latest** released version
+- Archived versions live on snapshot branches (`docs-v0.4`) that are pushed to `origin`
+- `scripts/build-versioned.sh` checks out each snapshot branch into a git worktree, copies shared infrastructure (hugo.toml, layouts/, config/, data/, assets/) from main, runs `npm install`, and builds each version into its subdirectory under `public/`
+- `scripts/serve.sh` does the same but builds archived versions into `static/v<ver>/` with `--baseURL http://localhost:1313/v<ver>/` so Hugo's dev server serves them as static files
+- The version dropdown in `header.html` is driven by `data/versions.json` — it sits left of the language dropdown
+- Each version has its own search index and `llms.txt`
+- Archived version pages emit `<meta name="robots" content="noindex, follow">` and point canonical to the equivalent latest-version URL to prevent SEO duplicate content issues (see `layouts/_partials/seo/robots.html` and `layouts/_partials/seo/canonical.html`)
+- Per-version Hugo environments: `config/production/` (latest), `config/development/` (local dev with localhost baseURL), `config/v0.4/` (archived)
+
+### Key files
+
+| File | Purpose |
+|---|---|
+| `data/versions.json` | List of versions shown in the dropdown (latest + archived) |
+| `config/production/hugo.toml` | Environment config for the latest build (baseURL = bouine.org/) |
+| `config/development/hugo.toml` | Environment config for local dev (baseURL = http://localhost:1313/) |
+| `config/v0.4/hugo.toml` | Environment config for v0.4 archived build (baseURL = bouine.org/v0.4/) |
+| `scripts/build-versioned.sh` | Builds all versions into a single `public/` directory (for production/CI) |
+| `scripts/serve.sh` | Builds archived versions into `static/v<ver>/` then starts `hugo server` (for local dev) |
+| `scripts/snapshot-version.sh` | Helper to create a new snapshot branch |
+| `scripts/version.sh` | Full version-cut workflow (snapshot + bump + content update + commit) |
+| `layouts/_partials/header/version-banner.html` | "Not latest" banner shown on archived versions |
+| `layouts/_partials/seo/robots.html` | Override: `noindex, follow` on archived version pages |
+| `layouts/_partials/seo/canonical.html` | Override: canonical → latest version URL on archived pages |
+
+### Cutting a new version
+
+When a new bouine minor/major release is published (e.g. `v0.5.0`), run:
+
 ```bash
-npm ci && npm run build
-# or: make install && make build
+make version V=0.5
 ```
 
-Output is `public/`.
+This automates the entire workflow:
+1. Snapshots current `main` as `docs-v0.4` branch
+2. Updates `data/versions.json` (v0.4 → archived, v0.5 → latest)
+3. Bumps `docsVersion` in `hugo.toml` and `config/production/hugo.toml`
+4. Creates `config/v0.4/hugo.toml` for the archived build
+5. Adds `v0.4` to the VERSIONS array in `scripts/build-versioned.sh`
+6. Launches a `crush -s` subagent that reads `../bouine/CHANGELOG.md` and updates documentation content across all three languages (en, fr, zh)
+7. Commits everything
+
+Then deploy with:
+```bash
+make deploy
+```
+
+**Prerequisites for `make version`:**
+- Must be on `main` with a clean working tree
+- The bouine source repo must be at `../bouine` (or set `BOUINE_REPO` env var)
+- `crush` CLI must be installed and in PATH
+- The new version tag should already exist in the bouine repo
+
+### Backporting fixes to archived versions
+
+For critical fixes to old docs (security advisory, broken example):
+
+```bash
+git checkout docs-v0.3
+# make the fix, commit, push
+git push origin docs-v0.3
+git checkout main
+make deploy   # rebuilds v0.3 from the updated branch
+```
+
+### Versioned build commands
+
+| Command | What it does |
+|---|---|
+| `make build` | Build latest version only (for dev/CI) |
+| `make build-versioned` | Build all versions (latest + archived) to `./public/` |
+| `make serve-versioned` | Build all versions and serve locally on :1313 |
+| `make version V=0.5` | Cut a new docs version (snapshot + bump + content update + commit) |
+| `make deploy` | Build all versions, containerize, and roll the k3s deployment |
 
 ---
 
@@ -271,17 +361,24 @@ Output is `public/`.
 
 6. **Node version enforcement** — Use Node >= 24.13.0. Older versions may cause issues with `@thulite/doks-core` or other dependencies.
 
-7. **No GitHub Actions here** — This is the *documentation* repo, not the bouine source repo. The bouine Go source lives at `github.com/bouine-cache/bouine`.
+7. **GitHub Actions** — CI runs `build` (single-version) and `build-versioned` (multi-version) jobs on every PR. Deployment is manual via `make deploy`. Snapshot branches (`docs-v0.4`, etc.) must be pushed to `origin` before CI can build archived versions.
 
-8. **Language support** — German (`de`) and Dutch (`nl`) are explicitly disabled in `hugo.toml`. Only English is built. Do not add multilingual content without also enabling the language.
+8. **Language support** — English (en, default, no subdir), French (fr, `/fr/`), and Chinese (zh, `/zh/`) are active. German (`de`) and Dutch (`nl`) are disabled. All three active languages must stay in sync — content changes to `content/en/` should be reflected in `content/fr/` and `content/zh/`.
 
 9. **Anime.js CDN dependency** — The animated diagrams shortcodes load anime.js from `cdnjs.cloudflare.com`. Offline builds will not render animations; the static SVG still displays.
+
+10. **Stale Hugo processes** — If `make serve` starts on a random port (e.g. 59663) instead of 1313, a stale `hugo server` process is occupying port 1313. Kill it with `pkill -f "hugo server"` before retrying.
+
+11. **`static/v*` is generated by `make serve`** — The `serve.sh` script builds archived versions into `static/v<ver>/`. These are gitignored (`static/v*` in `.gitignore`). Do not commit them.
 
 ---
 
 ## Similar Files & References
 
 - `hugo.toml` — all site configuration, menu, params, outputs, markup.
+- `config/` — per-environment overrides: `production/`, `development/`, `v0.4/` etc.
+- `data/versions.json` — version dropdown data (single source of truth for available versions).
+- `scripts/` — `build-versioned.sh`, `serve.sh`, `version.sh`, `snapshot-version.sh`.
 - `package.json` — npm scripts and Node dependency versions.
 - `themes/doks/config/` — Doks theme defaults (reference only; override via `hugo.toml`).
 - `content/docs/contributing/codebase.md` — bouine Go codebase map (if it exists; this is a docs page, not the actual source).

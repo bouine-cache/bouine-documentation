@@ -51,6 +51,7 @@ routes:
 | `http` | `":8080"` | Adresse du listener HTTP/1.1 |
 | `https` | — | Adresse du listener HTTPS (H1) |
 | `admin` | `":9000"` | Adresse du serveur d'administration |
+| `tcp_quickack` | `true` (Linux) | Active TCP_QUICKACK sur les connexions acceptées pour réduire la latence (no-op sur les autres plateformes) |
 
 ### `storage`
 

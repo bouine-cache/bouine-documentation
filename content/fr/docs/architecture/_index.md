@@ -13,8 +13,6 @@ bouine is structured in 8 layers, each testable in isolation.
 
 ## HTTP stacks
 
-## HTTP stacks
-
 One HTTP implementation only:
 
 - **`fasthttp`** — HTTP/1.1 only (data plane + admin)
@@ -22,11 +20,12 @@ One HTTP implementation only:
 The admin API uses a manual method+path router on `fasthttp.Server`.
 
 > **HTTP/2 is not currently available.** bouine previously supported HTTP/2
-> (h2 over TLS, h2c over plaintext) via Go's `net/http`. The migration to
-> `fasthttp` as the sole HTTP stack (ADR-0034) dropped HTTP/2 support to
-> achieve a zero-allocation hit path. HTTP/2 reintroduction is in progress,
-> planned as a `fasthttp`-native implementation rather than re-adopting
-> `net/http`.
+> (h2 over TLS, h2c over plaintext) via Go's `net/http`. In v0.5.0 the
+> entire data plane was migrated from `net/http` to `fasthttp` (ADR-0034),
+> achieving a zero-allocation hit path and exceeding pre-migration
+> benchmark performance. HTTP/2 was dropped because `fasthttp` is
+> HTTP/1.1 only. HTTP/2 reintroduction is in progress, planned as a
+> `fasthttp`-native implementation rather than re-adopting `net/http`.
 
 ## Cache engine
 
@@ -96,6 +95,19 @@ Every node is independent — no sharding, no peer-fetch. Invalidations propagat
 
 Added latency for a peer hit: ~0.3ms (one in-cluster HTTP/1.1 hop).
 
+As of v0.5.0, origin responses are streamed with pipelined peer fetch:
+when a node forwards a request to the owner node and the owner has a
+cache miss, the owner streams the origin response back to the requesting
+node in a single pipelined pass. This eliminates the store-then-forward
+round trip that existed before the `fasthttp` migration.
+
+### TCP_QUICKACK
+
+bouine enables `TCP_QUICKACK` on accepted data-plane connections (Linux
+only) to reduce latency by acknowledging data immediately rather than
+delaying the ACK. This complements `TCP_FASTOPEN` and `TCP_DEFER_ACCEPT`
+on the listen path.
+
 ### Stale-while-revalidate (SWR)
 
 When an object enters its `stale-while-revalidate` window, bouine:
@@ -130,6 +142,11 @@ Pods retry joining every 2 seconds for up to 60 seconds. Success requires `Membe
 | `Handler_CacheHit` | 537 ns/op, 8 allocs |
 | `BuildKey` (query params) | 46 ns/op, 0 allocs |
 | `SIEVE_Access` | 5.4 ns/op, 0 allocs |
+
+> The v0.5.0 `fasthttp` migration achieved a zero-allocation hit path and
+> exceeds pre-migration benchmark performance. All hot-path code uses
+> pre-computed cache-control flags, status lines, Date formatting, and
+> Vary values to avoid per-request allocations.
 
 Load-test results (Docker, 3k RPS, single node vs Varnish + nginx):
 

@@ -27,6 +27,11 @@ experimental:
 
 When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`internal/server/h1parser`) that bypasses `fasthttp` on cache hits. This eliminates `*http.Request` allocation, `http.ResponseWriter` wrapping, header-map operations, and tracing/metrics middleware for cacheable GET/HEAD requests.
 
+> **v0.5.0 context:** The entire data plane was migrated to `fasthttp` in
+> v0.5.0. The `h1_fast_path` goes one step further by bypassing
+> `fasthttp` entirely on cache hits, using a stack-allocated parser that
+> avoids all allocations on the hot path.
+
 ### What it does
 
 1. **Parses HTTP/1.1 requests** from the raw `net.Conn` into a stack-allocated `RawRequest` struct using zero-copy `unsafe.String` conversion (113 ns/op, 0 allocations).
@@ -37,7 +42,7 @@ When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`i
 
 The following request types always go through `fasthttp` regardless of the fast path setting:
 
-- ~~**HTTP/2** (h2 over TLS via ALPN, or h2c upgrade preface)~~ — HTTP/2 is not currently supported. Reintroduction is in progress.
+- ~~**HTTP/2** (h2 over TLS via ALPN, or h2c upgrade preface)~~ — HTTP/2 was dropped in v0.5.0 when the data plane migrated to `fasthttp` (HTTP/1.1 only). Reintroduction is in progress as a `fasthttp`-native implementation.
 - **HTTP/1.0** requests (different keep-alive semantics)
 - **Non-GET/HEAD methods** (POST, PUT, DELETE, etc.)
 - **Conditional requests** (`If-None-Match`, `If-Modified-Since`, `If-Match`, `If-Unmodified-Since`, `If-Range`, `Range`)

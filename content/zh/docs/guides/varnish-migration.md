@@ -50,7 +50,7 @@ This means:
 | Routing | `vcl_recv` with `if/return(pass)` | `routes[].match` declarative table |
 | Cache policy | Explicit TTL, grace, keep assignments | RFC 9111 + `routes[].cache` overrides |
 | Cluster | Via `varnish-plus` or external HA | Built-in gossip (strong, eventual) |
-| TLS termination | `varnish-plus` or separate proxy | Built-in (H1+H2) |
+| TLS termination | `varnish-plus` or separate proxy | Built-in (HTTP/1.1) |
 
 > **Route matching**: bouine routes match on `host` and `path_prefix` only — regex-based path matching is not supported in routes. Use path prefixes for routing, and `path_regex` in ban predicates for cache invalidation.
 
@@ -320,7 +320,7 @@ RFC 9111. Separation of concerns (cache vs. business logic) is a feature.
 
 **Q: Does bouine support Varnish Plus features (e.g., MSE, TLS, HA)?**
 A: bouine replaces Varnish Plus's clustering with native gossip, TLS is
-built-in (H1+H2), and HA is handled by Kubernetes or a load
+built-in (HTTP/1.1), and HA is handled by Kubernetes or a load
 balancer. No separate Plus license needed.
 
 **Q: How do I warm the cache after startup?**

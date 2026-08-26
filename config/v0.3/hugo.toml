@@ -1,0 +1,6 @@
+baseURL = 'https://bouine.org/v0.3/'
+
+[params.doks]
+  docsVersioning = true
+  docsVersion = "0.3"
+  docsLatestVersion = "0.4"

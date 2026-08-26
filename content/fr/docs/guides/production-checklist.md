@@ -50,6 +50,8 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] Passive health checks enabled (`consecutive_5xx`, `eject_for`)
 - [ ] Upstream connection timeout and response header timeout configured
 - [ ] `max_connections` set per pool to prevent FD exhaustion
+- [ ] `listen.max_connections` set to bound total data-plane connections
+- [ ] `response_header_timeout` configured to prevent slow-origin connection churn
 - [ ] Hedged requests enabled for latency-sensitive routes
 
 ## Observability

@@ -14,7 +14,7 @@ description: "贡献者指南，涵盖本地设置、开发流程、提交格式
 
 ## 前提条件
 
-- Go 1.26+
+- Go 1.27+
 - `pre-commit`（`pip install pre-commit` 或 `brew install pre-commit`）
 - Docker（用于集成测试）
 

@@ -49,6 +49,6 @@ make build
 
 Prérequis :
 
-- Go 1.26+
+- Go 1.27+
 - `golangci-lint` si vous souhaitez exécuter `make lint`
 - Docker si vous souhaitez builder des images ou exécuter des tests d'intégration

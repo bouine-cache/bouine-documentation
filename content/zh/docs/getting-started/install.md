@@ -49,6 +49,6 @@ make build
 
 要求：
 
-- Go 1.26+
+- Go 1.27+
 - `golangci-lint`（如需运行 `make lint`）
 - Docker（如需构建镜像或运行集成测试）
