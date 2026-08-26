@@ -85,7 +85,7 @@ summarylength = 30
 [params]
   title = 'bouine'
   description = 'Bouine is a cloud-native HTTP cache in Go - RFC9111 compliant, zero-alloc hit path, gossip clustering, no external K/V store.'
-  images = ['logo.png']
+  images = ['logo_single.png']
   mainSections = ['docs', 'compare']
 
   [params.doks]
@@ -133,9 +133,9 @@ summarylength = 30
     [params.seo.schemas]
       type = 'Organization'
       name = 'bouine'
-      logo = 'logo.png'
+      logo = 'logo_single.png'
       sameAs = ['https://github.com/bouine-cache/bouine', 'https://hub.docker.com/r/bouinecache/bouine']
-      images = ['logo.png']
+      images = ['logo_single.png']
 
 [markup]
   [markup.highlight]
