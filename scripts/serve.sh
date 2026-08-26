@@ -3,10 +3,9 @@ set -euo pipefail
 
 # Start the local dev server with all documentation versions available.
 #
-# Archived versions are built first into public/v<ver>/, then Hugo runs with
-# --renderToDisk so it serves the latest version (with live reload) from the
-# same public/ directory. Pre-built archived version files are not overwritten
-# by Hugo.
+# Archived versions are built first, then copied into static/v<ver>/ so Hugo's
+# dev server serves them as static files alongside the latest version (which
+# gets live reload). This avoids Hugo overwriting or 404-ing the archived paths.
 #
 # Usage: scripts/serve.sh
 
@@ -24,12 +23,15 @@ for v in versions:
         print(v['version'])
 " 2>/dev/null || echo "")
 
+# Clean up any previous archived version static dirs
+find static -maxdepth 1 -name 'v*' -type d -exec rm -rf {} + 2>/dev/null || true
+
 if [[ -n "$ARCHIVED_VERSIONS" ]]; then
   echo "▶ Building archived versions..."
   while IFS= read -r ver; do
     [[ -z "$ver" ]] && continue
     branch="docs-v${ver}"
-    echo "  Building v${ver} from branch '${branch}' → public/v${ver}/"
+    echo "  Building v${ver} from branch '${branch}'"
 
     worktree="${REPO_ROOT}/.worktrees/v${ver}"
     rm -rf "$worktree"
@@ -49,18 +51,22 @@ if [[ -n "$ARCHIVED_VERSIONS" ]]; then
 
     (cd "$worktree" && npm install --silent 2>/dev/null)
 
-    mkdir -p "public/v${ver}"
-    (cd "$worktree" && hugo --environment "v${ver}" --minify --gc --destination "${REPO_ROOT}/public/v${ver}" 2>/dev/null)
+    # Build into a temp dir, then copy into static/v<ver>/ so Hugo's dev server
+    # serves it as a static file (no 404, no overwriting).
+    tmp_build=$(mktemp -d)
+    (cd "$worktree" && hugo --environment "v${ver}" --minify --gc --destination "$tmp_build" 2>/dev/null)
+    mkdir -p "static/v${ver}"
+    cp -r "$tmp_build/"* "static/v${ver}/"
+    rm -rf "$tmp_build"
 
     git worktree remove --force "$worktree"
     rm -rf "$worktree"
   done <<< "$ARCHIVED_VERSIONS"
   rmdir "${REPO_ROOT}/.worktrees" 2>/dev/null || true
-  echo "✓ Archived versions built"
+  echo "✓ Archived versions built into static/"
 fi
 
-# Start Hugo dev server. Hugo server renders to disk by default, so pre-built
-# archived version files in public/v<ver>/ are served alongside the live
-# latest version (with hot reload).
+# Start Hugo dev server. Archived versions in static/v<ver>/ are served as
+# static files; the latest version gets live reload.
 echo "▶ Starting Hugo dev server on http://localhost:1313/"
 exec hugo server --disableFastRender --noHTTPCache --baseURL http://localhost:1313/

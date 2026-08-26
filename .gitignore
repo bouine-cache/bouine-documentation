@@ -13,3 +13,4 @@ compare-prototypes/
 kubeconfig.yaml
 kubeconfig.yaml
 .worktrees/
+static/v*
