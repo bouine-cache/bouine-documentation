@@ -124,6 +124,7 @@ routes:
 | `tcp_fast_open` | `true` (Linux) | Enable TCP_FASTOPEN on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `tcp_defer_accept` | `true` (Linux) | Enable TCP_DEFER_ACCEPT on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `reuse_port` | `true` (Linux) | Enable SO_REUSEPORT on data-plane listeners (N parallel accept loops). Defaults to true on Linux, false on other platforms. |
+| `tcp_quickack` | `true` (Linux) | Enable TCP_QUICKACK on accepted data-plane connections to reduce latency by avoiding delayed ACKs. Defaults to true on Linux, no-op elsewhere. |
 
 ### `storage`
 
@@ -296,7 +297,7 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 
 | Field | Default | Description |
 |---|---|---|
-| `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to `fasthttp`. |
+| `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to the standard `fasthttp` handler. See [Experimental features](experimental/). |
 
 ### Top-level fields
 

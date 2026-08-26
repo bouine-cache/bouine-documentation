@@ -49,6 +49,6 @@ make build
 
 Requirements:
 
-- Go 1.26+
+- Go 1.27+
 - `golangci-lint` if you want to run `make lint`
 - Docker if you want to build images or run integration tests

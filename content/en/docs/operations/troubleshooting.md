@@ -12,6 +12,7 @@ description: "Troubleshoot common bouine production issues: cache misses, cluste
 | Rolling restart produces 503/502 | **High** | [Rolling restart](#rolling-restart-produces-503502) |
 | Purge doesn't propagate | **High** | [Purge propagation](#purge-does-not-propagate-across-cluster) |
 | HIT p99 spikes to 50–100 ms under load | **High** | [GC stop-the-world pauses](#hit-p99-spikes-to-50100-ms-under-load) |
+| Status 0 responses / FD exhaustion | **High** | [FD exhaustion](#fd-exhaustion-and-status-0-errors) |
 | `X-Cache` always MISS | **Medium** | [Cache misses](#x-cache-is-always-miss) |
 | Stale reads on one node | **Medium** | [Stale reads](#stale-reads) |
 | Low hit rate in eventual mode | **Low** | [Low hit rate](#low-hit-rate-in-eventual-mode) |
@@ -201,6 +202,62 @@ docker buildx build --platform linux/amd64 -t bouinecache/bouine:dev --load .
 ```
 
 bouine's Dockerfile uses `BUILDPLATFORM` and `TARGETARCH` so Go builds natively.
+
+---
+
+## FD exhaustion and status-0 errors
+
+### Symptom
+
+Under high connection load, clients receive responses with HTTP status 0
+(connection closed without a response), and the pod approaches the
+file descriptor limit. In Prometheus:
+
+```promql
+process_max_fds - process_open_fds < 100
+```
+
+### Root cause
+
+The `fasthttp` server's concurrency and per-host connection pool can
+exhaust file descriptors when origin responses are slow and connections
+accumulate. As of v0.5.0, bouine caps `fasthttp.Server.Concurrency` and
+reduces `MaxConnsPerHost` to curb FD exhaustion. If you still see this
+under extreme load:
+
+### Fix
+
+1. **Set `listen.max_connections`** to bound the total concurrent
+   data-plane connections. This directly limits FD usage.
+
+2. **Set `upstream_pools[].connect.max_connections`** per pool to limit
+   upstream connection count.
+
+3. **Set `upstream_pools[].connect.response_header_timeout`** to abort
+   slow-origin fetches that hold connections open.
+
+4. **Raise the pod FD limit** if the working set genuinely requires more
+   connections:
+
+```yaml
+# values.yaml
+extraVolumeMounts:
+  - name: etc-security
+    mountPath: /etc/security
+# Or set in the container security context
+securityContext:
+  runAsNonRoot: true
+```
+
+```bash
+# Verify current FD limits
+kubectl exec bouine-0 -- cat /proc/1/limits | grep 'open files'
+```
+
+5. **Check `GOMEMLIMIT`** — the per-stream tee buffer is capped based on
+   `GOMEMLIMIT` to prevent OOMKill under slow-origin conditions. If
+   `GOMEMLIMIT` is too low, tee buffers are aggressively capped which can
+   cause connection churn. See [GC pauses troubleshooting](#hit-p99-spikes-to-50100-ms-under-load).
 
 ---
 

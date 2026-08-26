@@ -148,11 +148,17 @@ echo "  ✓ Updated config/v${OLD_VER}/hugo.toml"
 # Step 5: Update VERSIONS array in scripts/build-versioned.sh
 echo "▶ Step 5: Updating scripts/build-versioned.sh..."
 BUILD_SCRIPT="scripts/build-versioned.sh"
-if grep -q "v${OLD_VER}" "$BUILD_SCRIPT"; then
+if grep -q "\"v${OLD_VER}\"" "$BUILD_SCRIPT"; then
   echo "  ⚠ v${OLD_VER} already in VERSIONS array — skipping."
 else
-  # Insert the old version at the beginning of the VERSIONS array
-  sed -i.bak "s/VERSIONS=(\"v/VERSIONS=(\"v${OLD_VER}\" \"v/" "$BUILD_SCRIPT"
+  # Insert the old version into the VERSIONS array
+  if grep -q 'VERSIONS=()' "$BUILD_SCRIPT"; then
+    # Empty array — first archived version
+    sed -i.bak "s/VERSIONS=()/VERSIONS=(\"v${OLD_VER}\")/" "$BUILD_SCRIPT"
+  else
+    # Non-empty array — prepend at the beginning
+    sed -i.bak "s/VERSIONS=(\"v/VERSIONS=(\"v${OLD_VER}\" \"v/" "$BUILD_SCRIPT"
+  fi
   rm -f "${BUILD_SCRIPT}.bak"
   echo "  ✓ Added v${OLD_VER} to VERSIONS array"
 fi

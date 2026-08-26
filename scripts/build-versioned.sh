@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Archived versions to build (must match data/versions.json entries without "latest")
-VERSIONS=()
+VERSIONS=("v0.4")
 
 echo "▶ Building latest version → ${OUTPUT_DIR}/"
 rm -rf "$OUTPUT_DIR"

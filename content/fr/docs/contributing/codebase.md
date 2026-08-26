@@ -9,7 +9,7 @@ description: "Carte des packages bouine orientée contributeur, couches, bonnes 
 
 | Package | Couche | Rôle |
 |---|---:|---|
-| `internal/server` | L1 | HTTP/1.1, TLS, correspondance de routes |
+| `internal/server` | L1 | HTTP/1.1 (`fasthttp`), TLS, correspondance de routes |
 | `internal/storage` | L2 | Hot store, niveau tiède, WAL, SIEVE |
 | `internal/cache` | L3 | Machine à états RFC 9111 et handler |
 | `internal/origin` | L4 | Pools amont, health checks, transport avec hedging |
