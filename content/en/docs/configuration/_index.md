@@ -120,7 +120,8 @@ routes:
 | `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
-| `max_connections` | `0` | Max concurrent data-plane connections (0 = unlimited). Protects against FD exhaustion. |
+| `max_connections` | `0` | Max concurrent data-plane connections (0 = unlimited). Protects against FD exhaustion. Idle keep-alive connections hold a slot. |
+| `idle_timeout` | `120s` | Keep-alive idle timeout for data-plane connections: how long a connection with no in-flight request stays open. Also used by the H1 fast-path parser, so the two stay in sync. With an upstream proxy or LB in front, keep its keep-alive idle timeout **below** this value so it closes idle connections first — otherwise bouine can close a connection mid-reuse and the upstream logs `upstream prematurely closed connection`. |
 | `tcp_fast_open` | `true` (Linux) | Enable TCP_FASTOPEN on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `tcp_defer_accept` | `true` (Linux) | Enable TCP_DEFER_ACCEPT on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `reuse_port` | `true` (Linux) | Enable SO_REUSEPORT on data-plane listeners (N parallel accept loops). Defaults to true on Linux, false on other platforms. |
@@ -230,11 +231,14 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 
 ### `upstream_pools[].connect`
 
+All fields are optional; a zero/empty value applies the built-in default, so existing configs keep their current behaviour.
+
 | Field | Default | Description |
 |---|---|---|
 | `timeout` | `10s` | TCP dial timeout |
-| `keep_alive` | `15s` | TCP keep-alive interval |
-| `max_connections` | `0` | Max concurrent connections per pool (0 = unlimited) |
+| `keep_alive` | `30s` | TCP keep-alive probe interval on origin connections |
+| `max_connections` | `64` | Max concurrent connections per origin host (fasthttp `MaxConnsPerHost`). Per host, not per pool: a pool with N targets gets N × `max_connections`. Bounds FD consumption under slow origins. |
+| `max_idle_conn_duration` | `90s` | How long an idle pooled origin connection is kept before closing. Keep this **below** any LB idle timeout between bouine and the origin (e.g. AWS NLB 350s) so bouine closes idle connections first. |
 | `response_header_timeout` | `30s` | Max time to wait for response headers from upstream. Zero applies a 30s built-in default. Primary defence against slow-origin resource exhaustion. |
 | `hedge_timeout` | `""` | Fire a duplicate request after this duration; first response wins ([hedged fetch](#hedged-fetch)). Empty disables. |
 
