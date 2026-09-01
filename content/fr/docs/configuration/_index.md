@@ -51,6 +51,8 @@ routes:
 | `http` | `":8080"` | Adresse du listener HTTP/1.1 |
 | `https` | — | Adresse du listener HTTPS (H1) |
 | `admin` | `":9000"` | Adresse du serveur d'administration |
+| `max_connections` | `0` | Nombre maximal de connexions data-plane simultanées (0 = illimité). Les connexions keep-alive inactives occupent aussi un slot. |
+| `idle_timeout` | `120s` | Timeout keep-alive des connexions data-plane inactives. Avec un front-end nginx, gardez son `keepalive_timeout` **en dessous** de cette valeur pour que nginx ferme les connexions inactives en premier. |
 | `tcp_quickack` | `true` (Linux) | Active TCP_QUICKACK sur les connexions acceptées pour réduire la latence (no-op sur les autres plateformes) |
 
 ### `storage`
