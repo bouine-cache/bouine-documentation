@@ -12,15 +12,18 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 
 | Metric | Labels | Description |
 |---|---|---|
-| `bouine_requests_total` | `method`, `status`, `cache_result`, `source`, `route` | Total requests processed. **This is the primary RED counter.** |
-| `bouine_request_duration_seconds` | `method`, `status`, `cache_result`, `source`, `route` | Request latency histogram. Includes native histogram buckets for higher-resolution percentiles. Carries Prometheus **exemplars** linking high-latency observations to a trace ID when tracing is enabled. |
-| `bouine_response_bytes_total` | `method`, `cache_result`, `source`, `route` | Total bytes written in responses. |
+| `bouine_requests_total` | `status`, `cache_result`, `source`, `upstream_pool` | Total requests processed, carrying the exact status code. **This is the primary RED counter.** |
+| `bouine_request_duration_seconds` | `status` (response class), `cache_result`, `upstream_pool` | Request latency histogram. The status label carries the response class (`1xx`–`5xx`), not the exact code; exact codes stay on `bouine_requests_total`. Also exposed as a **native histogram** for high-resolution percentiles — see [below](#native-histogram-cardinality). |
+| `bouine_response_bytes_total` | `cache_result`, `source`, `upstream_pool` | Total bytes written in responses. |
+| `bouine_fetch_shed_total` | — | Foreground origin fetches shed after waiting `fetch_wait_timeout` for a fetch-semaphore slot. Non-zero rate means miss demand exceeds `max_fetch_concurrency`. See [Streaming and live responses](/docs/configuration/streaming/). |
 
 **`cache_result`** values: `HIT`, `MISS`, `STALE`, `REVALIDATED`, `BYPASS`.
 
 **`source`** values: `hot` (hot in-memory tier), `warm` (warm disk-backed tier), `peer` (cluster peer via peer-fetch), `origin` (fetched from upstream, including errors and write-through proxy).
 
-**`route`** label: the `name` field of the matched route config entry. Falls back to `host:path_prefix` when name is empty, or `_default` for unmatched requests.
+**`upstream_pool`** label: the matched route's upstream pool name (a small config-bounded set — "which upstream is slow or 5xx-ing"). Pool-less routes (static files, catch-all) and unmatched traffic land on `_default`. The dashboard rings keep per-route attribution, so per-route views lose nothing.
+
+> **v0.5.8 changes:** the `method` label was dropped from the data-plane RED metrics (no dashboard or SLO query used it; the access log keeps the method), and the duration histogram dropped its `source` axis and the 2.5/5/10 s tail buckets — a cache's latency mass sits far below 1 s, and hung-fetch tails are already 5xx counts on `bouine_requests_total`. The top bucket is now 1 s. Together these shrink the histogram footprint ~90 %. Update any dashboard queries that filtered on `method` or `source`.
 
 **Hit ratio** (PromQL):
 ```promql
@@ -36,21 +39,66 @@ sum(rate(bouine_requests_total{status=~"5.."}[1m]))
 sum(rate(bouine_requests_total[1m]))
 ```
 
+**Per-pool error rate** (PromQL) — the `upstream_pool` label answers which upstream is failing:
+```promql
+sum by (upstream_pool) (rate(bouine_requests_total{status=~"5.."}[5m]))
+```
+
+### Native histogram cardinality
+
+Since v0.5.8, `bouine_request_duration_seconds` is registered with
+native-histogram support (client_golang dual representation): classic
+`_bucket`/`_sum`/`_count` series stay on the wire for layout-agnostic
+consumers, and the sparse-bucket native form lets Grafana Cloud / Mimir
+`histogram_quantile` work without materializing bucket series
+server-side. Resolution factor 1.1, capped at 80 sparse buckets, 1 h
+minimum reset window.
+
+The native form does not reduce scrape cardinality by itself — the win
+requires dropping the classic `_bucket` series server-side. Add to your
+scrape config for bouine pods:
+
+```yaml
+metric_relabel_configs:
+  - action: drop
+    regex: bouine_request_duration_seconds_bucket
+    source_labels: [__name__]
+```
+
+Keep `_sum`/`_count` (average latency) and the native histogram (all
+quantiles). With the Helm chart, pass the same rule via
+`serviceMonitor.metricRelabelings`. See the
+[`native-histogram` runbook](https://github.com/bouine-cache/bouine/blob/main/docs/runbook/native-histogram.md)
+for cost numbers and rollback.
+
 ### Hot-tier cache storage
 
 | Metric | Type | Description |
 |---|---|---|
 | `bouine_hot_store_bytes` | gauge | Current bytes used by the hot in-memory tier (body + per-entry overhead). |
 | `bouine_hot_store_entries` | gauge | Number of objects currently stored in the hot tier. |
+| `bouine_hot_store_max_bytes` | gauge | Configured hot-tier byte budget, set once at startup. |
 | `bouine_hot_store_evictions_total` | counter | Total objects evicted by SIEVE since boot. Rising rate indicates cache churn. |
 | `bouine_vary_cap_hits_total` | counter | Vary-variant insertions rejected because `MaxVariants` (64) was exceeded. |
 
 **Cache utilisation** (PromQL):
 ```promql
-bouine_hot_store_bytes / <hot_max_bytes_from_config>
+bouine_hot_store_bytes / bouine_hot_store_max_bytes
 ```
 
-> **Note.** There is no `bouine_hot_store_max_bytes` metric — the configured maximum is a static config value, not a gauge. Use `bouine_hot_store_bytes` against the known `hot_max_bytes` config value for utilisation calculations.
+> **Note.** `bouine_hot_store_max_bytes` (and `bouine_warm_store_max_bytes`) are
+> gauges exported since v0.5.1 — compute fill ratios directly. On older
+> versions, use the configured `hot_max_bytes` value instead.
+
+### Streaming and load shedding
+
+| Metric | Type | Description |
+|---|---|---|
+| `bouine_fetch_shed_total` | counter | Foreground fetches shed after `fetch_wait_timeout` waiting for a slot (503 + `Retry-After` served, or stale). |
+| `bouine_streaming_buffer_bytes` | gauge | Total bytes held in live streaming tee buffers across concurrent miss-fetches. |
+| `bouine_streaming_fallback_total` | counter | Cacheable misses that fell back to synchronous buffering because the streaming memory cap was exceeded. |
+| `bouine_request_queue_depth` | gauge | Current in-flight requests being processed. A rising value indicates CPU starvation before timeouts appear. |
+| `bouine_metrics_reset_total` | counter | Metrics re-initialization events. Non-zero explains histogram count discontinuities after restart. |
 
 ### Warm-tier storage
 
@@ -157,7 +205,6 @@ bouine emits a structured JSON access log line to **stdout** for every request.
   "bytes_out":    15234,
   "dur_ms":       1,
   "cache_status": "HIT",
-  "route":        "/",
   "remote":       "10.42.0.1:54321"
 }
 ```
@@ -203,17 +250,20 @@ Leave `endpoint` empty (the default) to disable tracing at zero overhead.
 Each request produces a nested span tree:
 
 ```
-bouine.listener.http   (L1 — network accept + protocol detection)
-  bouine.pipeline      (L2 — route matching, metrics, access log)
-    bouine.cache       (L4 — RFC 9111 state machine)
-      bouine.origin    (L5 — upstream fetch, miss/revalidate path only)
+bouine.pipeline      (L2 — route matching, metrics, access log; one span per request)
+  bouine.origin      (L5 — upstream fetch, miss/revalidate path only)
 ```
 
 The `bouine.origin` span carries **W3C TraceContext headers** (`traceparent`, `tracestate`) injected into the upstream request, so the origin server can continue the trace if it also exports spans.
 
-### Exemplars
+### Correlating traces with slow requests
 
-When tracing is active, `bouine_request_duration_seconds` observations carry a Prometheus **exemplar** with `trace_id`. In Grafana, click any histogram bar and select "Query with exemplar" to jump directly from a high-latency bucket to the matching trace in Tempo.
+The data-plane middleware produces a single `bouine.pipeline` span per
+request, and `bouine.origin` spans (miss/revalidate path only) carry the
+W3C trace context forward to the origin. To jump from a slow access-log
+line to its trace, correlate the request timestamp and URL in your trace
+backend. Prometheus exemplars were removed in the v0.5.0 `fasthttp`
+migration — the histogram no longer carries per-observation trace IDs.
 
 ---
 

@@ -13,7 +13,7 @@ Indicates how the response was served.
 | `HIT` | Served from cache (fresh) |
 | `MISS` | Fetched from origin and cached |
 | `STALE` | Served from cache (stale, within stale-while-revalidate or stale-if-error window) |
-| `BYPASS` | Cache bypassed (no-store, no-cache, or cache disabled for route) |
+| `BYPASS` | Cache bypassed (no-store, no-cache, cache disabled for route, or SSE request) |
 | `REVALIDATED` | Conditional request to origin returned 304, served from cache with updated freshness |
 
 ```bash
@@ -46,10 +46,18 @@ Indicates which storage tier served the response.
 
 ## X-Bouine-Route
 
-The route label that matched the request. Set by the router on every
-data-plane request. Used by Prometheus metrics (`route` label) and the
-dashboard for per-route attribution. The header is stripped before
-proxying to the upstream to prevent origin-side cardinality bombs.
+The route label that matched the request. Used by the dashboard for
+per-route attribution and by the access log. It is **not** a Prometheus
+label anymore: since v0.5.8 the data-plane RED metrics attribute by
+`upstream_pool` (a small config-bounded set) instead of per-route names;
+see [Monitoring](/docs/operations/monitoring/#traffic-red).
+
+## X-Bouine-Pool
+
+The upstream pool of the serving route. Set by the router as a
+process-local value and consumed by the metrics middleware as the
+`upstream_pool` Prometheus label; the inbound header form is forwarded
+verbatim. Pool-less routes (static, catch-all) report `_default`.
 
 ## Warning: 110
 

@@ -12,7 +12,7 @@ description: "Carte des packages bouine orientée contributeur, couches, bonnes 
 | `internal/server` | L1 | HTTP/1.1 (`fasthttp`), TLS, correspondance de routes |
 | `internal/storage` | L2 | Hot store, niveau tiède, WAL, SIEVE |
 | `internal/cache` | L3 | Machine à états RFC 9111 et handler |
-| `internal/origin` | L4 | Pools amont, health checks, transport avec hedging |
+| `internal/origin` | L4 | Pools amont, health checks, clients origin |
 | `internal/cluster` | L5 | gossip memberlist, anneau de hachage, peer fetch |
 | `internal/admin` | L6 | API HTTP d'administration |
 | `internal/observability` | L7 | Métriques, journaux, journal d'accès |

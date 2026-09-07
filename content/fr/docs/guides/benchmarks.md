@@ -27,7 +27,7 @@ targets.
 
 | Proxy | Version | Configuration |
 |-------|---------|---------------|
-| **bouine** | current main | Default config with `stale_while_revalidate: 30s` |
+| **bouine** | v0.5.x (current main) | Default config with `stale_while_revalidate: 30s` |
 | **Varnish** | 7.x | Default VCL with grace period, SWR enabled |
 | **NGINX** | 1.25.x | `proxy_cache` with default settings |
 | **Envoy** | 1.29.x | HTTP cache filter with default settings |
@@ -101,24 +101,26 @@ gap. Envoy's cache filter did not cache any responses in this scenario (0% hit r
 
 ## Go micro-benchmarks
 
-Unit-level benchmarks isolating specific hot-path components.
+Unit-level benchmarks isolating specific hot-path components, from the current `bench/results/current.txt` gates. `Handler_CacheMiss_Cacheable` is held to an allocation budget of 18 in CI (currently at 13 — see the v0.5.2 changelog).
 
 | Benchmark | ns/op | B/op | allocs/op | Description |
 |-----------|-------|------|-----------|-------------|
-| `Evaluate_Hit` | 34 | 0 | 0 | RFC 9111 freshness evaluation |
-| `HotStore_Get_Hit` | 5.2 | 0 | 0 | In-memory cache lookup (SIEVE) |
-| `BuildKey` | 48 | 0 | 0 | Cache key computation (xxhash64) |
-| `Handler_CacheHit` | 785 | 2032 | 8 | Full HTTP handler for a cache hit |
-| `Handler_CacheHit_ReusableWriter` | 346 | 0 | 0 | Hit path with zero-alloc ResponseWriter |
-| `HotStore_Put` | 339 | 1501 | 6 | Store a new object in the hot tier |
-| `SIEVE_Access` | 5.2 | 0 | 0 | SIEVE eviction policy access |
-
-The `Handler_CacheHit_ReusableWriter` benchmark isolates the true hit-path cost by
-replacing `httptest.NewRecorder` with a reusable no-op `ResponseWriter`. The 8 allocs
-in `Handler_CacheHit` are from the `httptest` test harness, not from production code.
+| `Evaluate_Hit` | ~45 | 0 | 0 | RFC 9111 freshness evaluation |
+| `HotStore_Get_Hit` | ~18 | 0 | 0 | In-memory cache lookup (SIEVE) |
+| `BuildKey` | ~48 | 0 | 0 | Cache key computation (xxhash64) |
+| `FastPath_Hit` | ~129 | 0 | 0 | Full H1 fast-path cache hit (parse + lookup + writev) |
+| `H1Parse_Get` | ~192 | 0 | 0 | H1 request parse (h1parser) |
+| `Handler_CacheHit_ReusableWriter` | ~390 | 0 | 0 | Hit path with zero-alloc ResponseWriter |
+| `Handler_CacheMiss_Cacheable` | ~3.9 µs | 2311 | 13 (budget 18) | Cacheable miss (allocation-gated, not time-gated) |
+| `SIEVE_Access` | ~18 | 0 | 0 | SIEVE eviction policy access |
 
 All hit-path benchmarks enforce **0 allocs/op** in CI via benchmark gates. Any
 allocation on the hit path blocks merge.
+
+> **Comparability note.** The nightly load-test configuration enables
+> `experimental.h1_fast_path` (since v0.5.3) and `experimental.h1_reactor`
+> (since v0.5.5). Nightly proxy-comparison numbers from v0.5.2 and earlier
+> were measured without the fast path and are **not comparable**.
 
 ## Benchmark infrastructure
 

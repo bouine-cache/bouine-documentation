@@ -50,23 +50,29 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] Passive health checks enabled (`consecutive_5xx`, `eject_for`)
 - [ ] Upstream connection timeout and response header timeout configured
 - [ ] `max_connections` set per pool to prevent FD exhaustion
-- [ ] `listen.max_connections` set to bound total data-plane connections
+- [ ] `listen.max_connections` set to bound total data-plane connections (default 4096)
+- [ ] `listen.idle_timeout` tuned against front-end/LB idle timeouts (front-end must close idle connections first)
+- [ ] `connect.max_idle_conn_duration` kept below any LB idle timeout between bouine and the origin (AWS NLB: 350s)
 - [ ] `response_header_timeout` configured to prevent slow-origin connection churn
-- [ ] Hedged requests enabled for latency-sensitive routes
+- [ ] `cluster.peer_max_idle_conn_duration` kept below `admin.idle_timeout` (default 300s)
+- [ ] Alerting on `bouine_fetch_shed_total` (slow-origin shedding — see [Streaming](/docs/configuration/streaming/))
 
 ## Observability
 
-- [ ] Prometheus scraping enabled (ServiceMonitor or PodMonitor)
+- [ ] Prometheus scraping enabled (ServiceMonitor scraping the admin Service)
 - [ ] Grafana dashboards imported (RED, storage, cluster, ops)
 - [ ] Alerting rules deployed (hit rate, error rate, peer fetch, warm tier)
 - [ ] OpenTelemetry tracing endpoint configured (or disabled explicitly)
 - [ ] Access log sampling rate appropriate (default 1:100 for 200s)
 - [ ] `pprof_enabled` is off in production (default)
+- [ ] Native-histogram `metric_relabel_configs` considered for `bouine_request_duration_seconds` (see [Monitoring](/docs/operations/monitoring/#native-histogram-cardinality))
 
 ## Kubernetes deployment
 
 - [ ] Helm chart deployed with production values (`values-production.yaml` as base)
 - [ ] `NetworkPolicy.enabled: true` to isolate admin and cluster ports
+- [ ] Data plane exposed via `service.type: LoadBalancer` — the admin plane stays on the separate admin Service
+- [ ] With `autoscaling.enabled`: ArgoCD `ignoreDifferences` for `/spec/replicas` on the StatefulSet
 - [ ] `serviceAccount.automount: false` (bouine doesn't need K8s API access)
 - [ ] Probes configured: startup (30 min budget), readiness (`/readyz`), liveness (`/healthz`)
 - [ ] Rolling update strategy: `maxUnavailable: 1` for sequential pod restarts

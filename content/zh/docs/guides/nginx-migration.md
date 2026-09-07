@@ -26,6 +26,8 @@ description: "Migrate from NGINX proxy_cache to bouine by mapping directives, ca
 | `proxy_cache_min_uses 3` | Not needed | bouine caches on first response (RFC 9111) |
 | `add_header X-Cache-Status $upstream_cache_status` | Built-in | `X-Cache` header (HIT, MISS, STALE, BYPASS, REVALIDATED) |
 | `proxy_next_upstream error timeout` | `upstream_pools[].health.passive` | Passive health checks with outlier ejection |
+| `upstream backend { keepalive 32; }` | `upstream_pools[].connect.max_idle_conn_duration: 60s` | 指向源站的空闲连接池存活时长。将 bouine 的该值保持在 bouine 与源站之间任何 LB 空闲超时（如 AWS NLB 350s）**之下**，让 bouine 先关闭空闲连接。 |
+| `keepalive_timeout 65s` | `listen.idle_timeout: 65s` | 客户端侧连接的 keep-alive 空闲超时。将前端该值保持在 bouine **之下**，让前端先关闭空闲连接；否则 bouine 可能在连接复用时关闭它，上游日志出现 `upstream prematurely closed connection`。 |
 
 ## Key differences
 

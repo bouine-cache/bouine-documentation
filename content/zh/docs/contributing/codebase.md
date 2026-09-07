@@ -12,7 +12,7 @@ description: "Contributor-oriented map of bouine packages, layers, good first ta
 | `internal/server` | L1 | HTTP/1.1 (`fasthttp`), TLS, route matching |
 | `internal/storage` | L2 | Hot store, warm tier, WAL, SIEVE |
 | `internal/cache` | L3 | RFC 9111 state machine and handler |
-| `internal/origin` | L4 | Upstream pools, health checks, hedged transport |
+| `internal/origin` | L4 | Upstream pools, health checks, origin clients |
 | `internal/cluster` | L5 | memberlist gossip, hash ring, peer fetch |
 | `internal/admin` | L6 | Admin HTTP API |
 | `internal/observability` | L7 | Metrics, logs, access log |

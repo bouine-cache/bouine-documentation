@@ -137,16 +137,18 @@ Pods retry joining every 2 seconds for up to 60 seconds. Success requires `Membe
 
 | Benchmark | Result |
 |---|---|
-| `Evaluate_Hit` | 40 ns/op, 0 allocs |
-| `HotStore_Get_Hit` | 5.4 ns/op, 0 allocs |
-| `Handler_CacheHit` | 537 ns/op, 8 allocs |
-| `BuildKey` (query params) | 46 ns/op, 0 allocs |
-| `SIEVE_Access` | 5.4 ns/op, 0 allocs |
+| `Evaluate_Hit` | ~45 ns/op, 0 allocs |
+| `HotStore_Get_Hit` | ~18 ns/op, 0 allocs |
+| `FastPath_Hit` (full hit, H1 fast path) | ~129 ns/op, 0 allocs |
+| `BuildKey` (query params) | ~48 ns/op, 0 allocs |
+| `SIEVE_Access` | ~18 ns/op, 0 allocs |
 
 > The v0.5.0 `fasthttp` migration achieved a zero-allocation hit path and
-> exceeds pre-migration benchmark performance. All hot-path code uses
-> pre-computed cache-control flags, status lines, Date formatting, and
-> Vary values to avoid per-request allocations.
+> exceeds pre-migration benchmark performance. The v0.5.5 H1 reactor
+> (Linux, experimental) serves batches of cache hits from a single
+> `epoll_wait` wakeup per listener. All hot-path code uses pre-computed
+> cache-control flags, status lines, Date formatting, and Vary values to
+> avoid per-request allocations.
 
 Load-test results (Docker, 3k RPS, single node vs Varnish + nginx):
 

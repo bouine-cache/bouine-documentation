@@ -23,6 +23,23 @@ storage:
 
 SIEVE maintains a FIFO queue with a single "visited" bit per entry. On eviction, it scans from the tail, evicts the first unvisited entry, and marks visited entries as unvisited. This gives recently-accessed objects a second chance without the overhead of LRU pointer updates.
 
+### Eviction algorithms: `sieve` and `cachaner`
+
+```yaml
+storage:
+  hot_max_bytes: 2GiB
+  eviction_algorithm: cachaner   # or "sieve" (default)
+```
+
+`cachaner` (v0.4.2+) extends SIEVE's 1-bit visited field with a 3-bit
+saturating frequency counter, giving hot objects up to 7 second chances
+across sweep passes (vs SIEVE's 1) before eviction. The hit path is
+unchanged — the counter is only touched on the slow path and during
+eviction, so the zero-allocation hit path is identical.
+
+Per-tier overrides: `hot_eviction_algorithm` and
+`warm_eviction_algorithm` accept the same values (`sieve`/`cachaner`).
+
 ### Monitoring
 
 | Metric | Description |

@@ -60,6 +60,13 @@ decision tree for a given request (key, hit/miss, source).
 No. bouine passes through WebSocket upgrade requests but never caches them.
 Use a separate reverse proxy for WebSocket traffic.
 
+### Does bouine support Server-Sent Events?
+
+Yes. Requests announcing `Accept: text/event-stream` are streamed live
+to the client event-by-event (never buffered, never cached, never
+collapsed), including POST-based SSE. See
+[Streaming and live responses](../configuration/streaming/).
+
 ### Does bouine support ESI?
 
 Not in v1.0. ESI-lite (`<esi:include>`) is on the roadmap for v1.1+ if
@@ -123,9 +130,10 @@ See the [cache invalidation guide](../operations/cache-invalidation/).
 
 ### What is the hit-path budget?
 
-Less than 5 us CPU per request at p50, with zero allocations after warm-up.
-The hit path is benchmark-gated in CI: `allocs/op == 0` for `Evaluate_Hit`,
-`HotStore_Get_Hit`, and `FastPath_Hit`.
+~129 ns CPU per request on the H1 fast path gate (~0.5 µs on the standard
+path), with zero allocations after warm-up. The hit path is
+benchmark-gated in CI: `allocs/op == 0` for `Evaluate_Hit`,
+`HotStore_Get_Hit`, `FastPath_Hit`, and the reactor gates.
 
 ### How does bouine compare to Varnish on throughput?
 
