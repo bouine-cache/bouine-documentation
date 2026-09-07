@@ -35,6 +35,7 @@ routes:
 ## 本节页面
 
 - [缓存策略](cache-policy/) — TTL 选择、覆盖、stale-while-revalidate、负缓存、抖动、缓存键。
+- [流式与实时响应](streaming/) — SSE、流式 miss、fetch 槽位卸载与内存上限。
 - [集群模式](cluster-modes/) — strong、eventual；headless Service；gossip。
 - [Helm Chart](helm/) — Helm chart 可配置值。
 - [静态文件服务](static-files/) — 无需源站从磁盘服务文件。

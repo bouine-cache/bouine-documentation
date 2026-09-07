@@ -10,6 +10,7 @@ bouine is configured via a YAML file passed with `--config`. Environment variabl
 ## Pages in this section
 
 - [Cache policy](cache-policy/) — TTL selection, stale serving, negative caching, jitter, refresh-before-expiry, and cache keys.
+- [Streaming and live responses](streaming/) — SSE, streaming misses, fetch-slot shedding, and memory caps.
 - [Static file serving](static-files/) — serve files from a local directory instead of an upstream pool.
 - [Storage tiers](storage/) — hot and warm tiers, eviction, sizing guidelines.
 - [TLS](tls/) — certificates, SNI, and automatic reload.
@@ -120,7 +121,7 @@ routes:
 | `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
-| `max_connections` | `0` | Max concurrent data-plane connections (0 = unlimited). Protects against FD exhaustion. Idle keep-alive connections hold a slot. |
+| `max_connections` | `0` | Max concurrent data-plane connections (0 = default 4096; Helm chart sets 4096 default / 8192 production / 16384 HA). Protects against FD exhaustion. Idle keep-alive connections hold a slot. |
 | `idle_timeout` | `120s` | Keep-alive idle timeout for data-plane connections: how long a connection with no in-flight request stays open. Also used by the H1 fast-path parser, so the two stay in sync. With an upstream proxy or LB in front, keep its keep-alive idle timeout **below** this value so it closes idle connections first — otherwise bouine can close a connection mid-reuse and the upstream logs `upstream prematurely closed connection`. |
 | `tcp_fast_open` | `true` (Linux) | Enable TCP_FASTOPEN on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `tcp_defer_accept` | `true` (Linux) | Enable TCP_DEFER_ACCEPT on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
@@ -132,6 +133,7 @@ routes:
 | Field | Default | Description |
 |---|---|---|
 | `hot_max_bytes` | — | RAM cache size. See [size units](#size-units). Example: `2GiB`. |
+| `eviction_algorithm` | `sieve` | Eviction policy for both tiers: `sieve` (visited-bit sweep) or `cachaner` (SIEVE + 3-bit frequency counter — up to 7 second chances for hot objects). Per-tier overrides: `hot_eviction_algorithm`, `warm_eviction_algorithm`. |
 | `hot_mmap_slab` | `false` | Use mmap slab allocator for hot body bytes (reduces GC pressure, Linux only) |
 | `warm_dir` | `""` | Path for mmap warm-tier segments. Empty disables. See [Storage tiers](storage/). |
 | `warm_max_bytes` | `""` | Max warm-tier disk usage |
@@ -158,6 +160,8 @@ routes:
 | `mode` | `strong` | Consistency mode: `strong` or `eventual`. The cluster is enabled when `listen.cluster` is set. See [Clustering](cluster-modes/). |
 | `join` | `[]` | Seed addresses (StatefulSet pod DNS) |
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback (strong mode only) |
+| `peer_max_conns_per_host` | `8` | Pipelined peer connections per peer. Default 8, with 16 pending requests each, gives 128 concurrent peer fetches per peer. Set to 1 to disable pipelining. |
+| `peer_max_idle_conn_duration` | `120s` | How long idle peer RPC connections are kept before closing. Must stay **below** `admin.idle_timeout` (default 300s) — config validation rejects any explicit value that violates the ordering, because a peer request sent on a connection the admin server already reaped fails with EOF and falls back to origin. |
 | `join_timeout` | `120s` | Max time to wait for cluster join. In strong mode, the pod stays not-ready if join fails. In eventual mode, the pod becomes ready and retries in the background. |
 | `handoff_queue_depth` | `4096` | Memberlist per-peer message buffer. Absorbs bursts of cache invalidations. Negative values are rejected. |
 | `tls.ca_bundle` | `""` | CA certificate path for peer-to-peer mTLS. Empty = plain HTTP. |
@@ -203,9 +207,11 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `stayin_alive` | `false` | Serve stale indefinitely when upstream is down (see [Stayin Alive](/docs/configuration/cache-policy/#stayin-alive)) |
 | `allow_set_cookie` | `false` | Allow caching responses that carry `Set-Cookie`. Default blocks caching such responses (nginx-style). When `true`, the response is cached but `Set-Cookie` is stripped from the stored copy. See [Set-Cookie caching](/docs/configuration/cache-policy/#set-cookie-caching). |
 | `max_object_size` | `0` | Skip caching responses whose body exceeds this size (e.g. `1MiB`). The response is still proxied. `0` = no limit. |
-| `max_response_bytes` | `64MiB` | Hard cap on origin response body size. Aborts the fetch if exceeded. Different from `max_object_size` which controls caching eligibility. |
-| `max_fetch_concurrency` | `64` | Max concurrent origin fetches per route (collapsed via singleflight). |
-| `fetch_timeout` | `60s` | Max duration for a single origin fetch. |
+| `max_response_bytes` | `64MiB` | Hard cap on bytes buffered per origin fetch. Aborts the fetch (502) when exceeded. Different from `max_object_size` which controls caching eligibility. Default derives from GOMEMLIMIT (7%) or a built-in 64 MiB floor. |
+| `max_fetch_concurrency` | `32` | Max concurrent foreground origin fetches per route (collapsed via singleflight). Excess requests wait up to `fetch_wait_timeout` for a slot, then shed. |
+| `fetch_timeout` | `60s` | Max duration for a single origin fetch (header + body), starting once a fetch slot is acquired. |
+| `fetch_wait_timeout` | `100ms` | How long a foreground miss waits for an origin-fetch slot (bounded by `max_fetch_concurrency`) before shedding: stale object served if one is in scope, otherwise 503 + `Retry-After: 1`. Validated range: 0–1s. Independent of `fetch_timeout`. See [Streaming and live responses](streaming/). |
+| `max_streaming_buffer_bytes` | auto (GOMEMLIMIT × 7%, floor 64MiB) | Total bytes held in live streaming tee buffers across concurrent miss-fetches on this route. When exceeded, new cacheable misses fall back to synchronous buffering instead of streaming. |
 | `refresh_before_expiry` | `false` | Enable proactive background conditional revalidation before TTL expiry. See [Refresh before expiry](/docs/configuration/cache-policy/#refresh-before-expiry). |
 | `refresh_margin_percent` | `10` | Percentage of TTL before expiry at which the background refresh fires (1–50). E.g. `20` fires at 80% of TTL. |
 | `refresh_timeout` | `10s` | Maximum duration for a single background refresh fetch (5s–120s) |
@@ -240,7 +246,7 @@ All fields are optional; a zero/empty value applies the built-in default, so exi
 | `max_connections` | `64` | Max concurrent connections per origin host (fasthttp `MaxConnsPerHost`). Per host, not per pool: a pool with N targets gets N × `max_connections`. Bounds FD consumption under slow origins. |
 | `max_idle_conn_duration` | `90s` | How long an idle pooled origin connection is kept before closing. Keep this **below** any LB idle timeout between bouine and the origin (e.g. AWS NLB 350s) so bouine closes idle connections first. |
 | `response_header_timeout` | `30s` | Max time to wait for response headers from upstream. Zero applies a 30s built-in default. Primary defence against slow-origin resource exhaustion. |
-| `hedge_timeout` | `""` | Fire a duplicate request after this duration; first response wins ([hedged fetch](#hedged-fetch)). Empty disables. |
+| `hedge_timeout` | `""` | Reserved for future use (hedged fetch — fire a duplicate request after this duration, first response wins). Currently parsed and validated but not applied. |
 
 ### Health checks
 
@@ -267,6 +273,7 @@ health:
 |---|---|---|
 | `token` | `""` (auto-generated) | Admin bearer token. See [Authentication](/docs/operations/authentication/). |
 | `max_batch_size` | `1000` | Max URLs per `/v1/purge/batch` request |
+| `idle_timeout` | `300s` | Keep-alive idle timeout for admin-server connections, including cluster peer RPCs (`/v1/peer/*`). Peer clients default to a 120s idle duration, so they close idle connections before the admin server reaps them; keep `cluster.peer_max_idle_conn_duration` below this value. |
 | `rate_limit_per_second` | `0` | Rate limit on admin write endpoints (0 = no limit) |
 | `pprof_enabled` | `false` | Enable `/debug/pprof/*` profiling endpoints |
 | `drain_duration` | `10s` | Duration the `/drain` endpoint blocks during shutdown (K8s preStop hook) |
@@ -289,8 +296,20 @@ Optional Cloudflare Cache API propagation. See [Cloudflare CDN propagation](/doc
 |---|---|---|
 | `zone_id` | `""` | Cloudflare zone identifier (non-secret) |
 | `api_token` | `""` | Cache Purge API token. Prefer `CF_API_TOKEN` env var. |
+| `api_tokens` | `[]` | Additional API tokens for rate-limit spreading (also injectable via `CF_API_TOKENS`, comma-separated). The client rotates across all tokens to multiply the effective rate-limit budget. |
 | `async` | `true` | Return immediately; CF call runs in background goroutine |
 | `timeout` | `10s` | Per-call timeout for CF API requests |
+| `batch.max_batch_size` | `0` (passthrough) | Max items coalesced per CF API call when > 0. Purges are deduplicated and batched. |
+| `batch.max_wait` | `500ms` | Max time a batched item waits before a flush |
+| `circuit.enabled` | `false` | Circuit breaker: fail fast during CF API outages |
+| `circuit.failure_threshold` | `5` | Consecutive failures before the circuit opens |
+| `circuit.open_timeout` | `30s` | Time before probing again |
+| `circuit.half_open_max_calls` | `1` | Probe calls allowed in half-open state |
+| `retry.enabled` | `false` | Dead-letter queue for failed CF purges: retried with exponential backoff so transient CF outages don't lose invalidations |
+| `retry.max_queue_size` | `1000` | Max items in the retry queue; new failed items are dropped when full |
+| `retry.max_retries` | `3` | Retry attempts per item |
+| `retry.base_delay` | `1s` | Initial retry delay (grows exponentially) |
+| `retry.max_delay` | `30s` | Retry backoff cap |
 | `propagate.purge` | `true` | Forward `POST /v1/purge` to CF `PurgeSingleFile` |
 | `propagate.ban` | `true` | Forward `POST /v1/ban` to CF (tags / prefixes / hostnames) |
 | `propagate.refresh` | `true` | Forward `POST /v1/refresh` to CF `PurgeSingleFile` |
@@ -302,6 +321,7 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 | Field | Default | Description |
 |---|---|---|
 | `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to the standard `fasthttp` handler. See [Experimental features](experimental/). |
+| `h1_reactor` | `false` | Enable the single-goroutine epoll event loop that batch-serves cache hits without per-request goroutine park/unpark (Linux only; requires `h1_fast_path`). See [Experimental features](experimental/). |
 
 ### Top-level fields
 
@@ -314,17 +334,7 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 
 ## Hedged fetch
 
-When `hedge_timeout` is set on an upstream pool, bouine fires a duplicate request to the origin after the specified duration if the first request hasn't responded. The first response to arrive wins; the other is discarded.
-
-```yaml
-upstream_pools:
-  - name: api
-    targets: [api.default.svc:8080]
-    connect:
-      hedge_timeout: 50ms
-```
-
-Use hedging when your origin has occasional high-latency outliers (p99 >> p50). It trades a small amount of extra origin load for significantly better tail latency. Do **not** use hedging for non-idempotent requests or when origin load is already near capacity.
+> **Not yet implemented.** The `hedge_timeout` config field is parsed and validated but the hedged-fetch origin client is not wired into the fetch path yet. Setting it has no effect today; the field exists so configurations written against the documented contract work unchanged when it lands.
 
 ---
 

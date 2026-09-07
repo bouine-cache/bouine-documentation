@@ -324,9 +324,6 @@ data:
         isDefault: true
         jsonData:
           timeInterval: "15s"
-          exemplarTraceIdDestinations:
-            - name: trace_id
-              datasourceUid: tempo
 
       - name: Loki
         type: loki
@@ -370,7 +367,7 @@ kubectl port-forward -n monitoring svc/grafana 3000:80
 | Signal | Best tool | Notes |
 |---|---|---|
 | Request rate, hit ratio, error rate | Prometheus / Grafana | Accurate; counters never sampled |
-| HIT p99 latency | `bouine_request_duration_seconds` histogram | Click a high bucket → exemplar → Tempo trace |
+| HIT p99 latency | `bouine_request_duration_seconds` histogram | `histogram_quantile` over classic `_bucket` series or the native histogram (Grafana Cloud/Mimir) |
 | 5xx errors | Loki (`status >= 500`) | All errors always logged (no sampling) |
 | Cache eviction pressure | `bouine_hot_store_evictions_total` rate | Rising rate means working set > hot_max_bytes |
 | GC pauses causing latency | `go_gc_duration_seconds{quantile="1"}` | >10 ms → raise GOMEMLIMIT (see Troubleshooting) |

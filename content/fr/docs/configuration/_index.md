@@ -35,6 +35,7 @@ routes:
 ## Pages dans cette section
 
 - [Politique de cache](cache-policy/) — sélection TTL, override, stale-while-revalidate, mise en cache négative, jitter, clés de cache.
+- [Streaming et réponses live](streaming/) — SSE, misses en streaming, shedding de fetch slots et limites mémoire.
 - [Modes de cluster](cluster-modes/) — strong, eventual ; Service headless ; gossip.
 - [Chart Helm](helm/) — valeurs configurables du chart Helm.
 - [Servir des fichiers statiques](static-files/) — servir des fichiers depuis le disque sans serveur d'origine.
@@ -51,7 +52,7 @@ routes:
 | `http` | `":8080"` | Adresse du listener HTTP/1.1 |
 | `https` | — | Adresse du listener HTTPS (H1) |
 | `admin` | `":9000"` | Adresse du serveur d'administration |
-| `max_connections` | `0` | Nombre maximal de connexions data-plane simultanées (0 = illimité). Les connexions keep-alive inactives occupent aussi un slot. |
+| `max_connections` | `0` | Nombre maximal de connexions data-plane simultanées (0 = défaut 4096). Protège contre l'épuisement des FD. Les connexions keep-alive inactives occupent aussi un slot. |
 | `idle_timeout` | `120s` | Timeout keep-alive des connexions data-plane inactives. Avec un proxy amont (upstream) en face, gardez son timeout keep-alive inactif **en dessous** de cette valeur pour que le proxy ferme les connexions inactives en premier. |
 | `tcp_quickack` | `true` (Linux) | Active TCP_QUICKACK sur les connexions acceptées pour réduire la latence (no-op sur les autres plateformes) |
 
@@ -87,6 +88,9 @@ routes:
 | `cache.negative_ttl` | TTL pour les réponses d'erreur cachables |
 | `cache.jitter_percent` | Pourcentage aléatoire appliqué au TTL |
 | `cache.enabled` | Active ou désactive le cache pour cette route (par défaut: true) |
+| `cache.max_fetch_concurrency` | Nombre maximal de fetch origin simultanés pour cette route (défaut 32) |
+| `cache.fetch_timeout` | Durée maximale d'un fetch origin (défaut 60s) |
+| `cache.fetch_wait_timeout` | Durée d'attente d'un slot de fetch avant shedding (défaut 100ms, max 1s) : objet périmé servi si disponible, sinon 503 + `Retry-After: 1` |
 
 ### `cluster`
 
@@ -95,6 +99,7 @@ routes:
 | `enabled` | Active le clustering |
 | `mode` | `strong` ou `eventual` |
 | `join[]` | Liste des adresses seed pour le gossip |
+| `peer_max_idle_conn_duration` | Durée de vie des connexions peer inactives (défaut 120s). Doit rester **en dessous** de `admin.idle_timeout` (défaut 300s) — la validation de config rejette toute combinaison explicite qui viole cet ordre |
 | `tls` | Configuration mTLS pour la communication entre peers |
 
 ### `tls`
@@ -126,3 +131,4 @@ routes:
 | Champ | Description |
 |------|-------------|
 | `token` | Jeton bearer pour l'authentification de l'API d'administration |
+| `idle_timeout` | Timeout keep-alive des connexions du serveur d'admin (défaut 300s), y compris les RPC peer du cluster (`/v1/peer/*`). Gardez `cluster.peer_max_idle_conn_duration` en dessous de cette valeur. |

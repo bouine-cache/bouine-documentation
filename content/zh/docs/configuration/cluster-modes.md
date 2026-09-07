@@ -35,8 +35,17 @@ cluster:
     - "bouine-0.bouine-headless.default.svc.cluster.local:8443"
     - "bouine-1.bouine-headless.default.svc.cluster.local:8443"
     - "bouine-2.bouine-headless.default.svc.cluster.local:8443"
-  hop_limit: 2         # only used in strong mode
+  hop_limit: 2                      # only used in strong mode
+  peer_max_conns_per_host: 8        # pipelined peer connections (8 × 16 pending = 128 fetches/peer)
+  peer_max_idle_conn_duration: 120s # MUST stay below admin.idle_timeout (default 300s)
 ```
+
+The `peer_max_idle_conn_duration` ↔ `admin.idle_timeout` ordering matters:
+peer RPCs ride keep-alive connections pooled by the client. If the admin
+server reaps an idle connection before the client closes it, the next
+peer-fetch or peer-put fails with `EOF` and falls back to origin, spiking
+latency. Config validation rejects any explicit combination that violates
+the ordering.
 
 On Kubernetes, gossip peer discovery requires a headless Service:
 

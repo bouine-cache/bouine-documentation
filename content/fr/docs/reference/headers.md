@@ -13,7 +13,7 @@ Indique comment la réponse a été servie.
 | `HIT` | Servi depuis le cache (frais) |
 | `MISS` | Récupéré depuis l'origine et mis en cache |
 | `STALE` | Servi depuis le cache (stale, dans la fenêtre stale-while-revalidate ou stale-if-error) |
-| `BYPASS` | Cache contourné (no-store, no-cache, ou cache désactivé pour la route) |
+| `BYPASS` | Cache contourné (no-store, no-cache, cache désactivé pour la route, ou requête SSE) |
 | `REVALIDATED` | Requête conditionnelle à l'origine a renvoyé 304, servi depuis le cache avec une fraîcheur mise à jour |
 
 ```bash
@@ -43,3 +43,20 @@ Indique quel tier de stockage a servi la réponse.
 | `peer` | Servi depuis un peer du cluster via peer fetch |
 | `origin` | Récupéré depuis l'origine upstream |
 | _(vide)_ | Non servi depuis un tier de stockage (BYPASS ou only-if-cached 504) |
+
+## X-Bouine-Route
+
+Le label de route qui a correspondu à la requête. Utilisé par le tableau
+de bord pour l'attribution par route et par le log d'accès. Ce n'est plus
+un label Prometheus : depuis v0.5.8, les métriques RED du data plane
+s'attribuent par `upstream_pool` (un petit ensemble borné par la
+configuration) au lieu des noms de routes ; voir
+[Supervision](/docs/operations/monitoring/#traffic-red).
+
+## X-Bouine-Pool
+
+L'upstream pool de la route servie. Défini par le routeur comme valeur
+process-locale et consommé par le middleware de métriques comme label
+Prometheus `upstream_pool` ; la forme entrante de l'en-tête est transférée
+telle quelle. Les routes sans pool (statiques, catch-all) rapportent
+`_default`.

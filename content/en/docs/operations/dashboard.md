@@ -107,7 +107,7 @@ Rule-based operational insights that flag suboptimal configurations and anomalie
 
 - **Cache** — low hit rate, disabled caching on high-traffic routes, no TTL, no SWR, high eviction rate, warm tier near full
 - **Anomaly** — bypass floods, p99 latency spikes, revalidation storms, vary explosion
-- **Upstream** — unhealthy targets, high 5xx rate, no health checks, no hedge, missing ETag or surrogate keys
+- **Upstream** — unhealthy targets, high 5xx rate, no health checks, missing ETag or surrogate keys
 - **CDN** — Cloudflare not configured, async latency, purge errors or skips
 - **Cluster** — stale peers, hop limit ineffective, broadcast failures, degraded peer health
 - **Config** — query params not stripped, allow-set-cookie enabled, zero jitter, TLS below 1.2, tracing sampling at zero
