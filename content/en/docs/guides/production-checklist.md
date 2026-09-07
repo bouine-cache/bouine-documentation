@@ -51,6 +51,8 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] Upstream connection timeout and response header timeout configured
 - [ ] `max_connections` set per pool to prevent FD exhaustion
 - [ ] `listen.max_connections` set to bound total data-plane connections
+- [ ] `listen.idle_timeout` tuned against front-end/LB idle timeouts (front-end must close idle connections first)
+- [ ] `connect.max_idle_conn_duration` kept below any LB idle timeout between bouine and the origin (AWS NLB: 350s)
 - [ ] `response_header_timeout` configured to prevent slow-origin connection churn
 - [ ] Hedged requests enabled for latency-sensitive routes
 
