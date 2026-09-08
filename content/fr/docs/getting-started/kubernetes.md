@@ -19,7 +19,7 @@ helm search repo bouine
 
 ```text
 NAME            CHART VERSION   APP VERSION     DESCRIPTION
-bouine/bouine   0.5.8           0.5.8           Cloud-native HTTP cache in Go ...
+bouine/bouine   0.5.9           0.5.9           Cloud-native HTTP cache in Go ...
 ```
 
 ## Démarrage rapide Helm

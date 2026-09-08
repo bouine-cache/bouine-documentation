@@ -72,6 +72,7 @@ Rendered into a ConfigMap and mounted at `/etc/bouine/config.yaml`.
 | `config.listen.admin` | `":9000"` | Admin API listener |
 | `config.listen.cluster` | `":8443"` | Gossip cluster port |
 | `config.listen.max_connections` | `4096` | Cap on simultaneously open data-plane connections. Under HTTP/1.1 a parked handler holds its connection, so this bounds the in-flight pile a slow origin can cause; over-limit connections get 503 + close at accept. Production / HA values: 8192 / 16384. |
+| `config.listen.read_timeout` | `30s` | Max time to read a single request's header and body. Slowloris defense; raise it for very slow mobile clients or large uploads. Must stay below 5 minutes. Since v0.5.9. |
 | `config.tls.certs` | `[]` | TLS certificate list; mount via Secret |
 | `config.storage.hot_max_bytes` | `2GiB` | RAM cache size |
 | `config.storage.warm_dir` | `/var/lib/bouine` | Warm-tier mmap directory |

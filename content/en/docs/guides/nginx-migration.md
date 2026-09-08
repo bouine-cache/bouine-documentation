@@ -28,6 +28,7 @@ description: "Migrate from NGINX proxy_cache to bouine by mapping directives, ca
 | `proxy_next_upstream error timeout` | `upstream_pools[].health.passive` | Passive health checks with outlier ejection |
 | `upstream backend { keepalive 32; }` | `upstream_pools[].connect.max_idle_conn_duration: 60s` | Idle pooled-connection lifetime to the origin. Keep bouine's value **below** any LB idle timeout between bouine and the origin (e.g. AWS NLB 350s) so bouine closes idle connections first. |
 | `keepalive_timeout 65s` | `listen.idle_timeout: 65s` | Keep-alive idle timeout for client-facing connections. Keep the front-end's value **below** bouine's so the front-end closes idle connections first; otherwise bouine may close a connection mid-reuse and the upstream logs `upstream prematurely closed connection`. |
+| `client_header_timeout 60s` / `client_body_timeout 60s` | `listen.read_timeout: 60s` | Max time to read a single request's header + body, per request (one knob covers both; default 30s). This is the slowloris defense — raise it for slow mobile clients or large uploads. Must stay below 5 minutes. Since v0.5.9. |
 
 ## Key differences
 
