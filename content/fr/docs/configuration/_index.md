@@ -54,6 +54,7 @@ routes:
 | `admin` | `":9000"` | Adresse du serveur d'administration |
 | `max_connections` | `0` | Nombre maximal de connexions data-plane simultanées (0 = défaut 4096). Protège contre l'épuisement des FD. Les connexions keep-alive inactives occupent aussi un slot. |
 | `idle_timeout` | `120s` | Timeout keep-alive des connexions data-plane inactives. Avec un proxy amont (upstream) en face, gardez son timeout keep-alive inactif **en dessous** de cette valeur pour que le proxy ferme les connexions inactives en premier. |
+| `read_timeout` | `30s` | Temps max de lecture de l'en-tête et du corps d'une requête, par requête. C'est la défense slowloris contre les clients qui envoient leurs octets au compte-gouttes ; ce n'est **pas** un délai de bout en bout (les fetch vers l'origine sont bornés par `fetch_timeout`). Augmentez-le pour des clients mobiles très lents ou de gros uploads. Doit rester sous 5 minutes (le write timeout du data-plane). Depuis v0.5.9 ; auparavant codé en dur. |
 | `tcp_quickack` | `true` (Linux) | Active TCP_QUICKACK sur les connexions acceptées pour réduire la latence (no-op sur les autres plateformes) |
 
 ### `storage`

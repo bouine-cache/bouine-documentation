@@ -52,6 +52,7 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] `max_connections` set per pool to prevent FD exhaustion
 - [ ] `listen.max_connections` set to bound total data-plane connections (default 4096)
 - [ ] `listen.idle_timeout` tuned against front-end/LB idle timeouts (front-end must close idle connections first)
+- [ ] `listen.read_timeout` sized for your slowest real clients (default 30s; raise it for slow mobile clients or large uploads, but keep it below 5 minutes)
 - [ ] `connect.max_idle_conn_duration` kept below any LB idle timeout between bouine and the origin (AWS NLB: 350s)
 - [ ] `response_header_timeout` configured to prevent slow-origin connection churn
 - [ ] `cluster.peer_max_idle_conn_duration` kept below `admin.idle_timeout` (default 300s)

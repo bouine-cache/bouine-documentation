@@ -123,6 +123,7 @@ routes:
 | `cluster` | `""` | Gossip cluster port |
 | `max_connections` | `0` | Max concurrent data-plane connections (0 = default 4096; Helm chart sets 4096 default / 8192 production / 16384 HA). Protects against FD exhaustion. Idle keep-alive connections hold a slot. |
 | `idle_timeout` | `120s` | Keep-alive idle timeout for data-plane connections: how long a connection with no in-flight request stays open. Also used by the H1 fast-path parser, so the two stay in sync. With an upstream proxy or LB in front, keep its keep-alive idle timeout **below** this value so it closes idle connections first — otherwise bouine can close a connection mid-reuse and the upstream logs `upstream prematurely closed connection`. |
+| `read_timeout` | `30s` | Max time to read a single request's header and body, per request. This is the slowloris defense against clients that drip-feed bytes; it is **not** an end-to-end request deadline (origin fetches are bounded by `fetch_timeout`). Raise it for very slow mobile clients or large uploads. Must stay below 5 minutes (the data-plane safety-net write timeout). Since v0.5.9; previously hard-coded. |
 | `tcp_fast_open` | `true` (Linux) | Enable TCP_FASTOPEN on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `tcp_defer_accept` | `true` (Linux) | Enable TCP_DEFER_ACCEPT on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `reuse_port` | `true` (Linux) | Enable SO_REUSEPORT on data-plane listeners (N parallel accept loops). Defaults to true on Linux, false on other platforms. |

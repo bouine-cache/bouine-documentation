@@ -28,6 +28,7 @@ description: "Migrate from NGINX proxy_cache to bouine by mapping directives, ca
 | `proxy_next_upstream error timeout` | `upstream_pools[].health.passive` | Passive health checks with outlier ejection |
 | `upstream backend { keepalive 32; }` | `upstream_pools[].connect.max_idle_conn_duration: 60s` | 指向源站的空闲连接池存活时长。将 bouine 的该值保持在 bouine 与源站之间任何 LB 空闲超时（如 AWS NLB 350s）**之下**，让 bouine 先关闭空闲连接。 |
 | `keepalive_timeout 65s` | `listen.idle_timeout: 65s` | 客户端侧连接的 keep-alive 空闲超时。将前端该值保持在 bouine **之下**，让前端先关闭空闲连接；否则 bouine 可能在连接复用时关闭它，上游日志出现 `upstream prematurely closed connection`。 |
+| `client_header_timeout 60s` / `client_body_timeout 60s` | `listen.read_timeout: 60s` | 读取单个请求头 + 请求体的最大时长（每个请求计，一个配置项同时覆盖两者；默认 30s）。这是针对 slowloris 攻击的防御——对慢速移动客户端或大体积上传可调大。必须保持在 5 分钟以内。自 v0.5.9 起。 |
 
 ## Key differences
 
