@@ -68,10 +68,11 @@ Rendered into a ConfigMap and mounted at `/etc/bouine/config.yaml`.
 | Key | Default | Description |
 |-----|---------|-------------|
 | `config.listen.http` | `":80"` | HTTP listener |
-| `config.listen.https` | `":443"` | HTTPS listener |
+| `config.listen.https` | `":443"` | HTTPS listener. Set to `""` to disable the TLS plane (e.g. when TLS terminates at an upstream proxy/LB) — the chart then drops the StatefulSet containerPort, the data-plane Service port, and the NetworkPolicy rule with it |
 | `config.listen.admin` | `":9000"` | Admin API listener |
 | `config.listen.cluster` | `":8443"` | Gossip cluster port |
 | `config.listen.max_connections` | `4096` | Cap on simultaneously open data-plane connections. Under HTTP/1.1 a parked handler holds its connection, so this bounds the in-flight pile a slow origin can cause; over-limit connections get 503 + close at accept. Production / HA values: 8192 / 16384. |
+| `config.listen.read_timeout` | `30s` | Per-request header/body read bound — the slowloris defense (since v0.5.9). Raise it for slow mobile clients or large uploads |
 | `config.tls.certs` | `[]` | TLS certificate list; mount via Secret |
 | `config.storage.hot_max_bytes` | `2GiB` | RAM cache size |
 | `config.storage.warm_dir` | `/var/lib/bouine` | Warm-tier mmap directory |

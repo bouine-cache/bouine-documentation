@@ -4,7 +4,6 @@ weight: 2
 description: "Understand how bouine chooses TTLs, overrides them per-route, serves stale content, applies negative caching, jitters expirations, refreshes proactively before expiry, and builds cache keys."
 ---
 
-
 ## TTL selection
 
 bouine picks freshness in this order:
@@ -19,7 +18,6 @@ bouine picks freshness in this order:
 If the route has `ttl_override` set, its value **replaces** the result of
 this waterfall entirely. See [TTL override](#ttl-override) below.
 
----
 
 ## TTL override
 
@@ -105,7 +103,6 @@ cache:
 fallback for responses the origin sends **without any freshness headers**.
 Set both if your origin is inconsistent about emitting `Cache-Control`.
 
----
 
 ## Stale serving
 
@@ -392,7 +389,6 @@ For routes with high key cardinality and a long tail of rarely-accessed
 objects, combine `refresh_min_hits` with `refresh_reactive_first` to
 ensure only popular objects consume refresh bandwidth.
 
----
 
 ## Jittered TTLs
 
@@ -493,3 +489,72 @@ Do not exclude headers that genuinely affect the response body — such as
 content-negotiation header causes bouine to serve the wrong variant to
 clients (cache poisoning). Only exclude headers you are certain do not
 change the response content.
+
+## Advanced URL normalization
+
+Beyond `strip_query_params`, bouine supports several additional cache key
+normalisation features to maximise hit ratio when origins or clients
+produce URL variants that should resolve to the same cached object.
+
+### Keep only specific query parameters
+
+`keep_query_params` is the inverse of `strip_query_params` — only the
+listed parameter names are included in the cache key; all others are
+excluded. This is useful when the origin has a small set of meaningful
+parameters and everything else is noise:
+
+```yaml
+cache:
+  key:
+    keep_query_params: [id, page, sort]
+```
+
+Mutually exclusive with `strip_query_params` and `strip_query_prefix`.
+Equivalent to Varnish `qs.keep()`.
+
+### Strip by prefix
+
+`strip_query_prefix` removes all query parameters whose names start with
+any of the listed prefixes. This covers wildcard stripping without
+enumerating every variant:
+
+```yaml
+cache:
+  key:
+    strip_query_prefix: [utm_, fb_, _ga]
+```
+
+Capped at 16 entries in validation.
+
+### Remove empty-value parameters
+
+`strip_empty_params` removes query parameters with empty values
+(`?foo=&bar=1` → `?bar=1`). Does not apply to params in `keep_query_params`
+— allowlisted params are always kept, even with empty values.
+
+```yaml
+cache:
+  key:
+    strip_empty_params: true
+```
+
+### Deduplicate repeated parameters
+
+`dedup_query_params` keeps only the first value for duplicate query
+parameters (`?a=2&a=1` → `?a=2`). "First" is first in request order,
+matching Varnish `qs.unique()`. Values are not sorted when dedup is
+enabled.
+
+```yaml
+cache:
+  key:
+    dedup_query_params: true
+```
+
+### Canonicalise path
+
+> **Removed in v0.5.19.** `cache.key.canonicalize_path` was parsed,
+> validated, and documented, but its listener-level wiring never landed, so
+> it had no effect on the cache key. Configs setting the knob now fail at
+> load time with the strict loader instead of being silently ignored —
+> remove the key when upgrading to v0.5.19 or later.

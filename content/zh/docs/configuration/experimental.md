@@ -24,6 +24,7 @@ experimental:
 |---|---|---|
 | `h1_fast_path` | `false` | Enable the custom HTTP/1.1 parser for zero-allocation cache hits. See below. |
 | `h1_reactor` | `false` | Enable the single-goroutine epoll event loop that batch-serves cache hits (Linux only; requires `h1_fast_path`). See [H1 reactor](#h1-reactor). |
+| `h1_fast_peer_path` | `false` | Serve peer-fetched objects directly on the fast path (requires `h1_fast_path` and a strong-mode cluster). See [H1 fast peer path](#h1-fast-peer-path). |
 
 ## H1 fast path
 
@@ -71,6 +72,32 @@ Keep-alive is preserved on fall-through, so mixed hit/miss workloads do not
 pay connection churn. Fast-path hits within the same wall-clock second
 reuse a fully serialized response head stored on the object, skipping
 per-hit header appends entirely.
+
+## H1 fast peer path
+
+> Available since v0.5.20, experimental. Requires `h1_fast_path` and a
+> cluster in `strong` mode; config validation rejects the flag without
+> `h1_fast_path`, and startup logs an error if the cluster is not in
+> strong mode. Not wired under the epoll reactor (`h1_reactor`), where
+> the hit path must never block on network I/O.
+
+Without this flag, a fast-path cache miss falls through to the slow
+path, which then performs the peer lookup — a full parser/handler
+round-trip per peer hit. With `h1_fast_peer_path` enabled, a plain-key
+miss on the fast path asks the key's ring owner first and serves the
+peer's object directly with `X-Cache-Source: peer`, without storing (the
+owner keeps ring placement authority) and without allocating. Freshness
+fields dropped by the wire codec are re-derived so peer hits are
+evaluated exactly like local hits; on any peer error the fast path falls
+through to the slow path's shed/origin machinery unchanged. On a
+definitive owner miss, the slow path skips its duplicate owner lookup
+and goes straight to origin.
+
+```yaml
+experimental:
+  h1_fast_path: true
+  h1_fast_peer_path: true
+```
 
 ## H1 reactor
 

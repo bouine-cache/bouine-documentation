@@ -127,6 +127,7 @@ routes:
 | `tcp_defer_accept` | `true` (Linux) | Enable TCP_DEFER_ACCEPT on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `reuse_port` | `true` (Linux) | Enable SO_REUSEPORT on data-plane listeners (N parallel accept loops). Defaults to true on Linux, false on other platforms. |
 | `tcp_quickack` | `true` (Linux) | Enable TCP_QUICKACK on accepted data-plane connections to reduce latency by avoiding delayed ACKs. Defaults to true on Linux, no-op elsewhere. |
+| `read_timeout` | `30s` | Bounds how long reading a single request's header and body may take, per request (since v0.5.9). This is the slowloris defense for clients that drip-feed bytes — it is **not** an end-to-end request deadline (origin fetches are bounded by `fetch_timeout`). Raise it for slow mobile clients or large uploads. Must stay below the 5-minute data-plane safety-net write timeout. |
 
 ### `storage`
 
@@ -162,6 +163,8 @@ routes:
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback (strong mode only) |
 | `peer_max_conns_per_host` | `8` | Pipelined peer connections per peer. Default 8, with 16 pending requests each, gives 128 concurrent peer fetches per peer. Set to 1 to disable pipelining. |
 | `peer_max_idle_conn_duration` | `120s` | How long idle peer RPC connections are kept before closing. Must stay **below** `admin.idle_timeout` (default 300s) — config validation rejects any explicit value that violates the ordering, because a peer request sent on a connection the admin server already reaped fails with EOF and falls back to origin. |
+| `peer_fetch_concurrency` | `4` | Bounds concurrent peer-fetch and peer-put RPCs per node (since v0.5.11, range 1–128). In strong mode most cache hits are peer hits, so this semaphore sits on the hot path; raise it together with `peer_max_conns_per_host` under load to cut peer-hit tail latency. |
+| `ban_ttl` | `24h` | How long a lazy invalidation ban stays in the active ban list before the reaper prunes it (since v0.5.20, must be ≥ 1s when set). RFC 9111 §4.4 exempts objects stored after the ban, so cache-lifecycle surrogate invalidations are safe at minutes scale — lower it to bound the hit-ratio damage of an over-broad ban. |
 | `join_timeout` | `120s` | Max time to wait for cluster join. In strong mode, the pod stays not-ready if join fails. In eventual mode, the pod becomes ready and retries in the background. |
 | `handoff_queue_depth` | `4096` | Memberlist per-peer message buffer. Absorbs bursts of cache invalidations. Negative values are rejected. |
 | `tls.ca_bundle` | `""` | CA certificate path for peer-to-peer mTLS. Empty = plain HTTP. |
@@ -189,7 +192,7 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 
 | Field | Default | Description |
 |---|---|---|
-| `header_set` | `{}` | Headers to set on the upstream request |
+| `header_set` | `{}` | Headers to set on the upstream request. Rewrites apply on every origin fetch (miss, revalidation, invalidating methods, background refresh) — enforced on all emit paths since v0.5.19. |
 | `header_remove` | `[]` | Headers to remove from the upstream request |
 | `strip_prefix` | `""` | Strip this path prefix before forwarding to the upstream (e.g. `/api/v1/users` → `/users`). Must start with `/`. The cache key still uses the original path. |
 
@@ -209,7 +212,7 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `max_object_size` | `0` | Skip caching responses whose body exceeds this size (e.g. `1MiB`). The response is still proxied. `0` = no limit. |
 | `max_response_bytes` | `64MiB` | Hard cap on bytes buffered per origin fetch. Aborts the fetch (502) when exceeded. Different from `max_object_size` which controls caching eligibility. Default derives from GOMEMLIMIT (7%) or a built-in 64 MiB floor. |
 | `max_fetch_concurrency` | `32` | Max concurrent foreground origin fetches per route (collapsed via singleflight). Excess requests wait up to `fetch_wait_timeout` for a slot, then shed. |
-| `fetch_timeout` | `60s` | Max duration for a single origin fetch (header + body), starting once a fetch slot is acquired. |
+| `fetch_timeout` | inherits `connect.response_header_timeout` (30s) | The authoritative per-route origin timeout (header + body), starting once a fetch slot is acquired (semantics since v0.5.11). When unset, the route inherits the pool's `connect.response_header_timeout`; when set, the value is enforced verbatim in either direction — a route may exceed the pool-wide knob to give a slow endpoint more time without raising the wait for every other route. Must stay below the 5-minute data-plane safety-net write timeout. |
 | `fetch_wait_timeout` | `100ms` | How long a foreground miss waits for an origin-fetch slot (bounded by `max_fetch_concurrency`) before shedding: stale object served if one is in scope, otherwise 503 + `Retry-After: 1`. Validated range: 0–1s. Independent of `fetch_timeout`. See [Streaming and live responses](streaming/). |
 | `max_streaming_buffer_bytes` | auto (GOMEMLIMIT × 7%, floor 64MiB) | Total bytes held in live streaming tee buffers across concurrent miss-fetches on this route. When exceeded, new cacheable misses fall back to synchronous buffering instead of streaming. |
 | `refresh_before_expiry` | `false` | Enable proactive background conditional revalidation before TTL expiry. See [Refresh before expiry](/docs/configuration/cache-policy/#refresh-before-expiry). |
@@ -233,7 +236,8 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `strip_query_prefix` | `[]` | Strip query params whose names start with any of these prefixes (e.g. `[utm_, fb_, _ga]`). Covers wildcard stripping without enumerating every variant. Capped at 16 entries. |
 | `strip_empty_params` | `false` | Remove query params with empty values (`?foo=&bar=1` → `?bar=1`). Does not apply to params in `keep_query_params`. |
 | `dedup_query_params` | `false` | Keep only the first value for duplicate query params (`?a=2&a=1` → `?a=2`). Values are not sorted. |
-| `canonicalize_path` | `false` | Normalize the path component: percent-decode unreserved chars, uppercase remaining hex, resolve dot-segments. Applies at the listener level if any route on that listener enables it. |
+
+> **`canonicalize_path` was removed in v0.5.19.** The knob was parsed and documented but its listener-level wiring never landed, so it had no effect; configs setting it now fail at load time with the strict loader. Remove the key from your config when upgrading.
 
 ### `upstream_pools[].connect`
 
@@ -245,8 +249,8 @@ All fields are optional; a zero/empty value applies the built-in default, so exi
 | `keep_alive` | `30s` | TCP keep-alive probe interval on origin connections |
 | `max_connections` | `64` | Max concurrent connections per origin host (fasthttp `MaxConnsPerHost`). Per host, not per pool: a pool with N targets gets N × `max_connections`. Bounds FD consumption under slow origins. |
 | `max_idle_conn_duration` | `90s` | How long an idle pooled origin connection is kept before closing. Keep this **below** any LB idle timeout between bouine and the origin (e.g. AWS NLB 350s) so bouine closes idle connections first. |
-| `response_header_timeout` | `30s` | Max time to wait for response headers from upstream. Zero applies a 30s built-in default. Primary defence against slow-origin resource exhaustion. |
-| `hedge_timeout` | `""` | Reserved for future use (hedged fetch — fire a duplicate request after this duration, first response wins). Currently parsed and validated but not applied. |
+| `response_header_timeout` | `30s` | Max time to wait for response headers from upstream. Zero applies a 30s built-in default. Primary defence against slow-origin resource exhaustion — and, since v0.5.11, the default origin timeout (header + body) for every route on the pool that does not set its own `cache.fetch_timeout`. |
+| `hedge_timeout` | `0` (disabled) | Hedged fetch (since v0.5.19): fire a duplicate request to the same pool when the primary does not respond within this duration; the first response wins. Only applies to idempotent methods (GET, HEAD, OPTIONS). Zero disables hedging. See [Hedged fetch](#hedged-fetch). |
 
 ### Health checks
 
@@ -266,6 +270,11 @@ health:
     consecutive_5xx: 5
     eject_for: 30s
 ```
+
+`passive.eject_for` restores passively ejected targets once the window
+elapses and re-ejects them automatically if they are still broken
+(enforced since v0.5.19; restores are counted in the
+`origin_restores_total` metric with a `source` label).
 
 ### `admin`
 
@@ -322,6 +331,7 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 |---|---|---|
 | `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to the standard `fasthttp` handler. See [Experimental features](experimental/). |
 | `h1_reactor` | `false` | Enable the single-goroutine epoll event loop that batch-serves cache hits without per-request goroutine park/unpark (Linux only; requires `h1_fast_path`). See [Experimental features](experimental/). |
+| `h1_fast_peer_path` | `false` | Serve peer-fetched objects directly on the H1 fast path without falling through to the slow path (since v0.5.20; requires `h1_fast_path` and a strong-mode cluster; not wired under `h1_reactor`). See [Experimental features](experimental/). |
 
 ### Top-level fields
 
@@ -334,7 +344,20 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 
 ## Hedged fetch
 
-> **Not yet implemented.** The `hedge_timeout` config field is parsed and validated but the hedged-fetch origin client is not wired into the fetch path yet. Setting it has no effect today; the field exists so configurations written against the documented contract work unchanged when it lands.
+Set `upstream_pools[].connect.hedge_timeout` to hedge slow origins (wired
+into the fetch path since v0.5.19). When the primary request does not get a
+response within `hedge_timeout`, bouine fires a duplicate request to the
+same pool and returns whichever response arrives first. Only idempotent
+methods (`GET`, `HEAD`, `OPTIONS`) are hedged — SSE and non-idempotent
+requests never duplicate. Zero (the default) disables hedging.
+
+```yaml
+upstream_pools:
+  - name: api
+    targets: [api.default.svc:8080]
+    connect:
+      hedge_timeout: 250ms
+```
 
 ---
 

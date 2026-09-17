@@ -54,6 +54,11 @@ These are always accessible without authentication — required for K8s probes a
 | `/v1/debug/cachecheck?url=...` | GET | ✓ | — | Cache debug info for a URL (key, hit/miss, source) |
 | `/debug/pprof/*` | GET | ✓ | — | Go pprof profiling endpoints _(only when `admin.pprof_enabled: true`)_ |
 
+> Since v0.5.14, `/v1/purge/batch` performs a single local purge pass, one
+> batched cluster fan-out for the whole batch (instead of one broadcast per
+> URL), and per-URL Cloudflare propagation only for successfully purged
+> entries.
+
 ## OpenAPI spec
 
 A formal OpenAPI 3.0 specification is available at

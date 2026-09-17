@@ -17,7 +17,7 @@ curl -X POST http://127.0.0.1:9000/v1/purge \
   -d '{"url":"https://example.com/products/123"}'
 ```
 
-In a cluster, the purge is forwarded to all live peers via HTTP fan-out (in `strong` mode) or gossiped via the memberlist broadcast queue (in `eventual` mode).
+In a cluster, the purge is forwarded to all live peers via HTTP fan-out (in `strong` mode) or gossiped via the memberlist broadcast queue (in `eventual` mode). Since v0.5.14, fan-out is **batched**: purge and refresh events coalesce into batch frames flushed on 256 events, a 10 ms interval, or shutdown — a 1000-key purge burst in a 3-peer cluster produces a handful of batched POSTs instead of 3000 — and receivers deduplicate by per-issuer sequence number. Events arriving on an idle queue still flush synchronously, preserving the purge API's fan-out-before-return guarantee. Ban events stay unbatched (rare; immediacy dominates).
 
 ## Cluster propagation
 
@@ -45,10 +45,10 @@ curl -X POST http://127.0.0.1:9000/v1/ban \
 
 Bans use a two-pronged invalidation strategy:
 
-1. **Eager eviction** — all entries currently in the hot store that match the predicate are deleted immediately.
-2. **Lazy check** — newly-stored objects are checked against the active ban list on every lookup. This ensures objects filled during the scan window (e.g. from a miss storm) are also invalidated.
+1. **Eager eviction** — all entries currently in the hot store that match the predicate are deleted immediately. Since v0.5.16, **surrogate-only bans skip the eager scan entirely**: the O(1) lazy check below enforces them identically (a banned entry is never served), and memory reclaim moves to the TTL reaper — a ~1800× faster registration path for the dominant production invalidation workload. `POST /v1/ban` therefore reports `count: 0` for surrogate-only bans. Host/path and multi-condition bans keep the coalesced scan (which also deduplicates identical bans registered concurrently, v0.5.14).
+2. **Lazy check** — newly-stored objects are checked against the active ban list on every lookup. Since v0.5.15 the ban list is compiled into an immutable snapshot (literal hosts, paths, and surrogate keys become set lookups; anchored prefixes become `HasPrefix` checks), so a full 1024-ban list costs ~22 ns per hit instead of ~10 µs.
 
-Active bans are retained for 24 hours and then pruned automatically.
+Active bans are retained for 24 hours by default and then pruned automatically by the reaper. Since v0.5.20 the retention window is configurable via `cluster.ban_ttl` (must be ≥ 1s when set): RFC 9111 §4.4 exempts objects stored *after* the ban from matching, so cache-lifecycle surrogate invalidations are safe at minutes scale — lower it to bound the hit-ratio damage of an over-broad ban (a typo'd ban previously poisoned the hit ratio for the full 24 h).
 
 ### Surrogate key ban
 

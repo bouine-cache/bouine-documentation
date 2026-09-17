@@ -557,16 +557,8 @@ cache:
 
 ### Canonicalise path
 
-`canonicalize_path` normalises the path component at parse time:
-percent-decodes unreserved characters, uppercases remaining percent-encoded
-hex, and resolves dot-segments (`/a/../b` → `/b`). This prevents
-path-variant cache fragmentation from encoding inconsistencies.
-
-```yaml
-cache:
-  key:
-    canonicalize_path: true
-```
-
-> Applies at the listener level: if any route on a listener enables this,
-> all requests on that listener get canonical paths.
+> **Removed in v0.5.19.** `cache.key.canonicalize_path` was parsed,
+> validated, and documented, but its listener-level wiring never landed, so
+> it had no effect on the cache key. Configs setting the knob now fail at
+> load time with the strict loader instead of being silently ignored —
+> remove the key when upgrading to v0.5.19 or later.
