@@ -23,7 +23,9 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 
 **`upstream_pool`** label: the matched route's upstream pool name (a small config-bounded set — "which upstream is slow or 5xx-ing"). Pool-less routes (static files, catch-all) and unmatched traffic land on `_default`. The dashboard rings keep per-route attribution, so per-route views lose nothing.
 
-> **v0.5.8 changes:** the `method` label was dropped from the data-plane RED metrics (no dashboard or SLO query used it; the access log keeps the method), and the duration histogram dropped its `source` axis and the 2.5/5/10 s tail buckets — a cache's latency mass sits far below 1 s, and hung-fetch tails are already 5xx counts on `bouine_requests_total`. The top bucket is now 1 s. Together these shrink the histogram footprint ~90 %. Update any dashboard queries that filtered on `method` or `source`.
+> **v0.5.8 changes:** the `method` label was dropped from the data-plane RED metrics (no dashboard or SLO query used it; the access log keeps the method), and the duration histogram dropped its `source` axis — the histogram footprint shrank ~90 %. Update any dashboard queries that filtered on `method` or `source`.
+>
+> **v0.5.13 update:** the 2.5 s, 5 s, and 10 s tail buckets were restored on `bouine_request_duration_seconds` and `bouine_peer_fetch_duration_seconds` (the v0.5.8 1 s top bucket made a 1.01 s miss indistinguishable from a 30 s miss via PromQL). Series count per tuple grows 13 → 16 and stays well under the cardinality budget.
 
 **Hit ratio** (PromQL):
 ```promql
@@ -47,12 +49,16 @@ sum by (upstream_pool) (rate(bouine_requests_total{status=~"5.."}[5m]))
 ### Native histogram cardinality
 
 Since v0.5.8, `bouine_request_duration_seconds` is registered with
-native-histogram support (client_golang dual representation): classic
+native-histogram support (client_golang dual representation), and since
+v0.5.18 **every** duration histogram has it — `cloudflare_purge`,
+`startup`, `peer_fetch`, `warm_compaction`, `wal_write`, and
+`origin_request_duration` included. Classic
 `_bucket`/`_sum`/`_count` series stay on the wire for layout-agnostic
 consumers, and the sparse-bucket native form lets Grafana Cloud / Mimir
 `histogram_quantile` work without materializing bucket series
 server-side. Resolution factor 1.1, capped at 80 sparse buckets, 1 h
-minimum reset window.
+minimum reset window. None of the converted histograms are on the
+cache-hit path, so the zero-alloc hit-path budget is unchanged.
 
 The native form does not reduce scrape cardinality by itself — the win
 requires dropping the classic `_bucket` series server-side. Add to your
@@ -125,6 +131,11 @@ bouine_hot_store_bytes / bouine_hot_store_max_bytes
 | `bouine_peer_fetch_misses_total` | — | `strong` |
 | `bouine_peer_fetch_hop_limit_hits_total` | — | `strong` |
 | `bouine_peer_fetch_duration_seconds` | — | `strong` |
+| `bouine_peer_fetch_queue_wait_seconds` | — | `strong` | Histogram of the peer-fetch semaphore wait (`cluster.peer_fetch_concurrency`), observed **before** slot acquisition — including the abandoned wait when a queued caller sheds or cancels (since v0.5.18). Compare against `bouine_peer_fetch_duration_seconds`: queue wait high with healthy RPC durations means the concurrency knob is the constraint. |
+| `bouine_peer_fetch_shed_total` | — | `strong` | Peer fetch/put RPCs shed after waiting 100 ms for a concurrency slot (since v0.5.20). Non-zero rate means `cluster.peer_fetch_concurrency` is saturated. |
+| `bouine_rewarm_fill_total` | — | `strong` | Background cache refills scheduled after a shed foreground miss (since v0.5.20) — counted next to `bouine_fetch_shed_total`. |
+| `bouine_peer_fetch_variant_mismatch_total` | `side` (`server`/`consumer`) | `strong` | Peer-fetch variant-assertion rejections (since v0.5.19). A sustained non-zero rate indicates a mixed-version fleet or a peer serving wrong-variant content. |
+| `bouine_peer_addr_blacklisted` | — | `strong` | Gauge of peer addresses currently blacklisted by the per-address failure breaker (since v0.5.17): three consecutive transport failures trip a 30 s cooldown, during which fetches fall back to origin. |
 | `bouine_cluster_invalidations_http_total` | `type` | `strong` |
 | `bouine_cluster_invalidations_gossip_total` | `type` | all |
 | `bouine_cluster_broadcast_failures_total` | `type`, `reason` | `strong` |
@@ -256,6 +267,12 @@ bouine.pipeline      (L2 — route matching, metrics, access log; one span per r
 
 The `bouine.origin` span carries **W3C TraceContext headers** (`traceparent`, `tracestate`) injected into the upstream request, so the origin server can continue the trace if it also exports spans.
 
+Since v0.5.13, the admin API also emits a `bouine.admin` server span for
+invalidation calls (`POST /v1/purge`, `/v1/ban`, `/v1/refresh`), joining
+the caller's trace via the propagated W3C `traceparent` — so a
+distributed trace initiated by an invalidation service no longer stops
+at the client span.
+
 ### Correlating traces with slow requests
 
 The data-plane middleware produces a single `bouine.pipeline` span per
@@ -358,4 +375,17 @@ groups:
       annotations:
         summary: "Pods running different cluster modes — configuration drift"
 
+    - alert: BouinePeerFetchVariantMismatch
+      expr: sum(rate(bouine_peer_fetch_variant_mismatch_total[5m])) > 0
+      for: 10m
+      labels: { severity: warning }
+      annotations:
+        summary: "Peer-fetch variant rejections — mixed-version fleet or a peer serving wrong-variant content"
+
+    - alert: BouinePeerFetchShedding
+      expr: sum(rate(bouine_peer_fetch_shed_total[5m])) > 0
+      for: 5m
+      labels: { severity: warning }
+      annotations:
+        summary: "Peer-fetch concurrency slots saturated — raise cluster.peer_fetch_concurrency"
 ```

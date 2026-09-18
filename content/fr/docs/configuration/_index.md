@@ -55,6 +55,7 @@ routes:
 | `max_connections` | `0` | Nombre maximal de connexions data-plane simultanées (0 = défaut 4096). Protège contre l'épuisement des FD. Les connexions keep-alive inactives occupent aussi un slot. |
 | `idle_timeout` | `120s` | Timeout keep-alive des connexions data-plane inactives. Avec un proxy amont (upstream) en face, gardez son timeout keep-alive inactif **en dessous** de cette valeur pour que le proxy ferme les connexions inactives en premier. |
 | `tcp_quickack` | `true` (Linux) | Active TCP_QUICKACK sur les connexions acceptées pour réduire la latence (no-op sur les autres plateformes) |
+| `read_timeout` | `30s` | Durée maximale de lecture de l'en-tête et du corps d'une requête (depuis v0.5.9). C'est la défense anti-slowloris — ce n'est **pas** un deadline de bout en bout (les fetch origin sont bornés par `fetch_timeout`). À augmenter pour des clients mobiles lents ou de gros uploads. Doit rester sous le filet de sécurité de 5 minutes du data-plane. |
 
 ### `storage`
 
@@ -89,7 +90,7 @@ routes:
 | `cache.jitter_percent` | Pourcentage aléatoire appliqué au TTL |
 | `cache.enabled` | Active ou désactive le cache pour cette route (par défaut: true) |
 | `cache.max_fetch_concurrency` | Nombre maximal de fetch origin simultanés pour cette route (défaut 32) |
-| `cache.fetch_timeout` | Durée maximale d'un fetch origin (défaut 60s) |
+| `cache.fetch_timeout` | Timeout origin par route (en-tête + corps). Sans valeur explicite, la route hérite de `connect.response_header_timeout` du pool (défaut 30s) ; avec une valeur, elle est appliquée telle quelle — une route peut dépasser le réglage du pool (sémantique depuis v0.5.11) |
 | `cache.fetch_wait_timeout` | Durée d'attente d'un slot de fetch avant shedding (défaut 100ms, max 1s) : objet périmé servi si disponible, sinon 503 + `Retry-After: 1` |
 
 ### `cluster`
@@ -100,6 +101,8 @@ routes:
 | `mode` | `strong` ou `eventual` |
 | `join[]` | Liste des adresses seed pour le gossip |
 | `peer_max_idle_conn_duration` | Durée de vie des connexions peer inactives (défaut 120s). Doit rester **en dessous** de `admin.idle_timeout` (défaut 300s) — la validation de config rejette toute combinaison explicite qui viole cet ordre |
+| `peer_fetch_concurrency` | RPC peer-fetch/put simultanés par nœud (défaut 4, plage 1–128, depuis v0.5.11). En mode strong la plupart des hits sont des peer hits : à augmenter avec `peer_max_conns_per_host` sous charge |
+| `ban_ttl` | Durée de rétention des bans d'invalidation avant élagage par le reaper (défaut 24h, ≥ 1s si défini, depuis v0.5.20) |
 | `tls` | Configuration mTLS pour la communication entre peers |
 
 ### `tls`

@@ -55,7 +55,9 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] `connect.max_idle_conn_duration` kept below any LB idle timeout between bouine and the origin (AWS NLB: 350s)
 - [ ] `response_header_timeout` configured to prevent slow-origin connection churn
 - [ ] `cluster.peer_max_idle_conn_duration` kept below `admin.idle_timeout` (default 300s)
+- [ ] `cluster.peer_fetch_concurrency` sized for strong-mode peer-hit load (default 4, range 1–128)
 - [ ] Alerting on `bouine_fetch_shed_total` (slow-origin shedding — see [Streaming](/docs/configuration/streaming/))
+- [ ] Alerting on `bouine_peer_fetch_shed_total` and `bouine_peer_fetch_queue_wait_seconds` in strong-mode clusters (peer-fetch saturation — see [Monitoring](/docs/operations/monitoring/#cluster))
 
 ## Observability
 
