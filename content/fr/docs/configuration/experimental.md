@@ -30,6 +30,19 @@ experimental:
 
 When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`internal/server/h1parser`) that bypasses `fasthttp` on cache hits. This eliminates `*http.Request` allocation, `http.ResponseWriter` wrapping, header-map operations, and tracing/metrics middleware for cacheable GET/HEAD requests.
 
+> **Since v0.5.21 the fast path is built per route** (issue #696): fast-path
+> hits are attributed to the route's configured `upstream_pool` (previously
+> every fast-path hit was recorded with `upstream_pool="_default"`, so
+> enabling `h1_fast_path` fleet-wide made per-pool dashboard series vanish),
+> and run under the route's `cache.key` policy. Requests matching no route or
+> a non-cached route fall through to the slow path instead of being served
+> store-level ghost hits. Route resolution adds 0 allocs/op and ~22 ns per
+> hit. The unified RFC 9111 evaluation (v0.5.21, issue #589) also brought the
+> fast path to feature parity with the slow path: stale-if-error,
+> validator-aware no-cache, and heuristic-freshness branches now run on all
+> three paths, and its variant-key overflow falls back to the allocation
+> path instead of silently returning the primary key.
+
 > **v0.5.0 context:** The entire data plane was migrated to `fasthttp` in
 > v0.5.0. The `h1_fast_path` goes one step further by bypassing
 > `fasthttp` entirely on cache hits, using a stack-allocated parser that

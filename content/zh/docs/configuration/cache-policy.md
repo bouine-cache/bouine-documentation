@@ -136,6 +136,7 @@ When `stayin_alive: true`:
 - If the upstream is unreachable (connection error, timeout), bouine serves the last known good response.
 - If the upstream returns 2xx, the fresh response replaces the stale one as normal.
 - If there is **no cached entry at all**, bouine cannot help — it returns 502.
+- **Since v0.5.22 the TTL reaper holds expired entries while the route's origin pool has no healthy target** (grace retention): the serve-stale-while-outage promise now survives outages longer than `TTL + stale_while_revalidate + stale_if_error`. When a healthy target returns, the next reaper pass collects expired entries normally. The hold is visible as `bouine_hot_store_reaper_grace_holds_total`; full protection requires passive (`health.passive.consecutive_5xx`) or active health checks on the pool. Related: the cache-path fetch client now records passive health exactly like the proxy path, so pool ejection works on cached routes.
 
 A `WARN` log is emitted on every stale-served request while the upstream is unhealthy:
 
@@ -155,6 +156,21 @@ cache:
 ```
 
 Caches 404, 405, 410, and 501 responses briefly. Use this to protect origins from repeated misses.
+
+### Per-status TTLs (since v0.5.22)
+
+`negative_ttl` also accepts a map mirroring Cloudflare's "Cache TTL by status code":
+
+```yaml
+cache:
+  negative_ttl:
+    404: 1m
+    5xx: 10s
+    503: 30s    # exact code shadows its class — "blanket + exception"
+    410: 0      # zero explicitly disables caching for this status
+```
+
+Keys are a single error status (`"404"`) or a class (`4xx`, `5xx`); exact codes are limited to 400–599 (2xx/3xx entries are rejected as configuration errors). The scalar form (`negative_ttl: 30s`) is shorthand for the default error set (404/405/410/501) — the same setting written two ways. Since v0.5.22 the negative-caching policy outranks `ttl_default` and heuristic (Last-Modified) freshness **for the statuses it covers**, and objects with a covered error status are never proactively refreshed regardless of how they were cached. The policy only applies when the origin sends no explicit freshness; RFC 9111 blocking directives still win.
 
 ## Set-Cookie caching
 
@@ -187,6 +203,49 @@ cache:
 > user-specific** (e.g. a non-personalised A/B cookie). Never enable it on
 > authentication or session routes.
 
+## Cookie bypass (since v0.5.26)
+
+`Set-Cookie` blocking protects against cookies the **origin sends**. The
+mirror-image risk is a cookie the **client sends**: an SSR origin that renders
+per-user HTML from the request's session cookie. Such a response must never be
+stored under a shared key (served to other users) and never shared in-flight
+(another user's body handed to a concurrent request). Enable `bypass_on_cookie`
+on those routes and any request carrying a non-empty `Cookie` header never
+touches the cache — the Varnish `return (pass)` equivalent for
+`req.http.Cookie`:
+
+```yaml
+routes:
+  - match: { path_prefix: /account/ }
+    pool: ssr
+    cache:
+      ttl_default: 60s
+      bypass_on_cookie: true
+```
+
+With the flag on, a cookied request is **never served from cache, never
+stored, and never shares an in-flight origin fetch** — it proxies to origin
+(`X-Cache: BYPASS`). Anonymous requests on the same route keep full MISS/HIT
+semantics, and invalidating methods (POST/PUT/DELETE) keep invalidating the
+shared GET key regardless of cookies. SSE-intent requests keep live-stream
+semantics.
+
+The trigger is Cookie-header **presence**, not a name list (fails closed): an
+A/B or analytics cookie also bypasses — strip those at the ingress, or accept
+the origin-render cost. The dashboard insight
+`config-cookie-bypass-missing` flags storing routes whose traffic is ≥5%
+cookied while the flag is off — the personalized-SSR leak shape.
+
+> **The in-flight half is unconditional** (since v0.5.26, ADR-0052/0054): on
+> **every** route, flag or not, a request carrying `Authorization` or `Cookie`
+> never joins a request-collapsed origin fetch — it always performs its own
+> fetch. Cookied requests still *use* the cache (a stored response is served to
+> them per RFC 9111); they just never *share a live fetch*. Concurrent cookied
+> misses on one URL now cost one origin fetch per caller, bounded by the fetch
+> semaphore and shed machinery. Anonymous requests keep collapsing bit-for-bit.
+> Use origin `Cache-Control: public, s-maxage=...` on routes that genuinely
+> share responses — storage converges authorized/cookied bursts to HITs.
+
 ## Object size limit
 
 Skip caching responses whose body exceeds a size limit. The response is still
@@ -213,6 +272,14 @@ Additionally, successful POST responses with explicit freshness
 (`Cache-Control: max-age` or `s-maxage`) and a matching `Content-Location`
 are stored under the GET key per RFC 9111 section 4.3.1. This is the only
 case where a non-GET response is cached.
+
+In a cluster, the invalidation **fans out to peers** (since v0.5.26): the
+purge for each invalidated key (including `Location`/`Content-Location`
+derived keys) is broadcast through the same batching pipeline as the admin
+purge API, in every cluster mode — a `POST` landing on a non-owner node no
+longer leaves the owner serving stale content until TTL. See
+[Cache invalidation](/docs/operations/cache-invalidation/) for the delivery
+mechanisms per cluster mode.
 
 ## Refresh before expiry
 
@@ -409,11 +476,42 @@ cache:
       - BM-Market
 ```
 
-Use this when the origin varies by request header. Keep the list short — every extra header increases variant cardinality.
+Use this when the origin varies by request header. Keep the list short — every extra header increases variant cardinality. Since v0.5.21 the list is unioned with the origin's `Vary` at object-build time (never a replacement), and validation rejects `*`, whitespace-only, non-token, case-insensitive duplicate entries, entries also present in `exclude_headers`, and lists longer than 16 entries. A listed header absent from the request hashes as an empty value — one variant — matching RFC 9111 `Vary` semantics. The list must be identical on every cluster node serving the route, or ownership of the merged keyspace splits across the ring.
 
 > **Avoid unbounded variants**
 >
 > Never key on raw `User-Agent`, unbounded cookies, or high-cardinality request IDs. This creates cache fragmentation and can be a cache-poisoning vector.
+
+## Variant caps and content-negotiation bucketing
+
+### Variant cap (`max_variants`, since v0.5.25)
+
+The number of distinct `Vary` variants stored per primary cache key is capped (default 1024), guarding against `Vary` blow-up per RFC 9110 §12.5.5. The cap is configurable per route; `0` applies the built-in default and negative values are rejected at config validation — the cap itself cannot be disabled. When the cap is hit, further variant storage is skipped and `bouine_vary_cap_hits_total` increments; requests keep being proxied, only caching is affected.
+
+```yaml
+cache:
+  max_variants: 256
+```
+
+### Accept-Encoding bucketing (since v0.5.22)
+
+When the origin declares `Vary: Accept-Encoding`, the header value is reduced to the coding bouine actually negotiates (`br | zstd | gzip`; highest q-value wins with ties preferring br — the sharing-maximizing order — `q=0` excludes; absent or no acceptable coding → `identity`), and origin-bound requests carry the canonical bucket token instead of the client's raw dialect. A resource's variant count becomes the number of distinct negotiated codings (at most four) instead of the number of header spellings — every br-capable browser shares one stored variant. Expect a one-TTL miss-rate step on `Vary: Accept-Encoding` routes after upgrading (old variant keys become unreachable); mixed-version clusters cannot share AE variants until the rollout completes (peer gates fail safe — miss, never a wrong body). Origins that genuinely vary bodies by the full AE string can restore the pre-bucketing behavior with `cache.key.verbatim_encoding: true` — it re-fragments the variant space.
+
+### Accept-Language bucketing (since v0.5.22)
+
+`Vary: Accept-Language` variants key by the **negotiated language**: the highest-weight tag — subtag preserved, ties resolved lexicographically — replaces the raw chain in the variant key, and origin-bound requests carry the winner tag. q-cascade spellings that select the same language share one stored variant instead of fragmenting one per spelling. Subtags (`en-US` vs `en-GB`) deliberately do not collapse; unbucketable chains (absent, `*`, malformed, all `q=0`) keep the legacy keying. This is the behavior the upstream `http-tests/cache-tests` suite specifies in `vary-normalise-lang-select` (kind: optimal).
+
+### Dropping the host from the key (`include_host: false`, since v0.5.22)
+
+An explicitly-false `cache.key.include_host` drops the host segment from the primary cache key, so the same URL+query resolves to one entry regardless of the request `Host`:
+
+```yaml
+cache:
+  key:
+    include_host: false
+```
+
+Motivated by routes fronted by a router that forwards an internal service host and public site hosts to the same cache (same bytes, two entries, each fed by only part of the URL's traffic). Absent and `true` keep today's `scheme|host|path|query|method` key byte-for-byte — the default cannot silently re-key existing deployments. Requests are still forwarded with the client's original Host; only key computation changes. Validation rejects `include_host: false` on a route that sets `match.host`. Like `include_headers`/`exclude_headers`, the flag must be identical on every cluster node serving the route. The admin URL-key surfaces (`/v1/purge`, `/v1/purge/batch`, `/v1/refresh`, `/v1/cachecheck`) resolve the matching route's key policy before rebuilding keys, and stored `X-Bouine-Host` metadata keeps the filling request's host — prefer path-regex or surrogate-key bans on such routes.
 
 ## Stripping query parameters from the key
 

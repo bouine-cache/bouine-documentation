@@ -85,7 +85,8 @@ for cost numbers and rollback.
 | `bouine_hot_store_entries` | gauge | Number of objects currently stored in the hot tier. |
 | `bouine_hot_store_max_bytes` | gauge | Configured hot-tier byte budget, set once at startup. |
 | `bouine_hot_store_evictions_total` | counter | Total objects evicted by SIEVE since boot. Rising rate indicates cache churn. |
-| `bouine_vary_cap_hits_total` | counter | Vary-variant insertions rejected because `MaxVariants` (64) was exceeded. |
+| `bouine_vary_cap_hits_total` | counter | Vary-variant insertions rejected because the route's `max_variants` cap was exceeded (per-route since v0.5.25; built-in default 1024). |
+| `bouine_hot_store_reaper_grace_holds_total` | counter | Expired entries held (not reaped) on `stayin_alive` routes while the route's origin pool has no healthy target (since v0.5.22). |
 
 **Cache utilisation** (PromQL):
 ```promql
@@ -140,6 +141,7 @@ bouine_hot_store_bytes / bouine_hot_store_max_bytes
 | `bouine_cluster_invalidations_gossip_total` | `type` | all |
 | `bouine_cluster_broadcast_failures_total` | `type`, `reason` | `strong` |
 | `bouine_cluster_gossip_drops_total` | — | all |
+| `bouine_cluster_gossip_oversized_drops_total` | — | all | Gossip frames dropped because they can never fit a gossip round (~1.4 KiB UDP window) — since v0.5.26. Zero at steady state; a sustained non-zero rate means a frame-size regression is wedging the gossip queue (issue #754). |
 
 ### Startup
 
@@ -266,6 +268,8 @@ bouine.pipeline      (L2 — route matching, metrics, access log; one span per r
 ```
 
 The `bouine.origin` span carries **W3C TraceContext headers** (`traceparent`, `tracestate`) injected into the upstream request, so the origin server can continue the trace if it also exports spans.
+
+Since v0.5.22, `bouine.origin` spans on the miss, revalidate, invalidating-proxy, bypass, and streaming paths are **parented on the request's `bouine.pipeline` span** instead of starting a detached root trace, and carry `http.method`, `http.path`, `http.route`, and `upstream_pool` attributes so slow fetches are filterable by route (bounded label) and pool in the trace backend. Linked spans inherit the root sampling decision — no more 50/50 random drop of origin traces under partial sampling. Background fetches (SWR revalidation, shed refill, background refresh) stay detached (the triggering request's span is already ended) but carry the same attributes on their root spans.
 
 Since v0.5.13, the admin API also emits a `bouine.admin` server span for
 invalidation calls (`POST /v1/purge`, `/v1/ban`, `/v1/refresh`), joining

@@ -86,10 +86,12 @@ routes:
 | `cache.ttl_override` | Override le TTL interne de bouine |
 | `cache.stale_while_revalidate` | Durée pendant laquelle le contenu périmé est servi pendant la revalidation |
 | `cache.stale_if_error` | Durée pendant laquelle le contenu périmé est servi en cas d'erreur d'origine |
-| `cache.negative_ttl` | TTL pour les réponses d'erreur cachables |
+| `cache.negative_ttl` | TTL pour les réponses d'erreur cachables. Depuis v0.5.22 accepte aussi une map par statut — `negative_ttl: {404: 1m, 5xx: 10s, 410: 0}` (codes exacts 400–599, classes `4xx`/`5xx`, un code exact prime sur sa classe, `0` désactive ce statut) — qui prime sur `ttl_default`/fraîcheur heuristique pour les statuts couverts. Voir [Mise en cache négative](cache-policy/#negative-caching). |
 | `cache.jitter_percent` | Pourcentage aléatoire appliqué au TTL |
 | `cache.enabled` | Active ou désactive le cache pour cette route (par défaut: true) |
+| `cache.bypass_on_cookie` | Si `true`, toute requête portant un en-tête `Cookie` non vide ne touche jamais le cache sur cette route : ni lookup, ni stockage, ni partage de fetch en cours — elle est proxiée vers l'origine (`X-Cache: BYPASS`). L'équivalent Varnish `return (pass)` pour `req.http.Cookie` ; conçu pour les routes SSR personnalisées (depuis v0.5.26). Voir [Cookie bypass](cache-policy/#cookie-bypass-since-v0526). |
 | `cache.max_fetch_concurrency` | Nombre maximal de fetch origin simultanés pour cette route (défaut 32) |
+| `cache.max_variants` | Plafond de variantes Vary distinctes stockées par clé primaire pour cette route (défaut intégré 1024, depuis v0.5.25 ; négatif rejeté, le plafond ne peut pas être désactivé ; `vary_cap_hits_total` s'incrémente quand il est atteint) |
 | `cache.fetch_timeout` | Timeout origin par route (en-tête + corps). Sans valeur explicite, la route hérite de `connect.response_header_timeout` du pool (défaut 30s) ; avec une valeur, elle est appliquée telle quelle — une route peut dépasser le réglage du pool (sémantique depuis v0.5.11) |
 | `cache.fetch_wait_timeout` | Durée d'attente d'un slot de fetch avant shedding (défaut 100ms, max 1s) : objet périmé servi si disponible, sinon 503 + `Retry-After: 1` |
 
