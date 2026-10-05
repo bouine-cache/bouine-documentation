@@ -102,9 +102,11 @@ A consistent-hash ring (256 virtual nodes per node) determines which node *owns*
 
 Typical peer-fetch latency: ~0.5–2 ms on the same datacenter LAN.
 
-**Invalidation:** Purge and ban are delivered via HTTP fan-out to all live peers (sub-second). A secondary gossip broadcast provides redundant delivery. Refresh is forwarded to the key's owner node only.
+**Invalidation:** Purge and ban are delivered via HTTP fan-out to all live peers (sub-second). A secondary gossip broadcast provides redundant delivery. Refresh is forwarded to the key's owner node only. Since v0.5.26, **data-plane invalidations (POST/PUT/DELETE per RFC 9111 §4.4) also fan out** through the same batching pipeline as the admin purge API — a write landing on a non-owner node no longer leaves the owner serving stale content until TTL. The data-plane hook is enqueue-only (10 ms coalescing bound), so the proxied response is never blocked on peer fan-out.
 
 > **Anti-entropy**: Nodes exchange ring digests on every gossip push/pull cycle. If a peer was unreachable during a rolling restart, it is automatically re-added to the ring when digests diverge.
+
+> **Wire format (since v0.5.22):** memberlist node metadata (peer info) and push/pull state (ring digests) are binary frames (magic + version header); receivers reject unversioned or unknown-version frames, and peer-fetch requests only accept the binary v2 format. Mixed-version clusters running a pre-v0.5.22 build will fail to exchange meta/state during a rolling upgrade — upgrade all nodes together. Also since v0.5.22 the admin API and Go SDK parse request bodies with `encoding/json/v2`: duplicate JSON keys and misspelled (case-mismatched) field names are rejected with `400` instead of silently accepted.
 
 ### Peer-fetch resilience (v0.5.17–v0.5.20)
 
@@ -141,7 +143,7 @@ Every node is independent — no sharding, no peer-fetch. Each node caches whate
 1. Node receives a request, looks up in local store.
 2. HIT → returns immediately. MISS → fetches from origin directly (no peer hop).
 
-**Invalidation:** Purge, ban, and refresh are delivered exclusively via gossip. Convergence window: 1–5 seconds. Stale reads are possible during convergence.
+**Invalidation:** Purge, ban, and refresh are delivered exclusively via gossip. Convergence window: 1–5 seconds. Stale reads are possible during convergence. Data-plane invalidations (POST/PUT/DELETE) broadcast the same way (since v0.5.26). Since v0.5.26, gossip batch frames larger than the ~1.4 KiB UDP gossip window are split into standalone sub-frames at flush time (previously a full 256-event batch could never fit a gossip round and was re-queued forever, silently dropping the batch — issue #754); `bouine_cluster_gossip_oversized_drops_total` counts frames that could never fit and are dropped defensively.
 
 **When to use:**
 
@@ -158,6 +160,7 @@ Every node is independent — no sharding, no peer-fetch. Each node caches whate
 | Purge | HTTP fan-out + gossip | Gossip only |
 | Ban | HTTP fan-out + gossip | Gossip only |
 | Refresh | HTTP POST to owner | Gossip only |
+| Data-plane invalidation (POST/PUT/DELETE) | Batched broadcast, all modes (since v0.5.26) | Batched broadcast (gossip) |
 
 
 ## Switching modes

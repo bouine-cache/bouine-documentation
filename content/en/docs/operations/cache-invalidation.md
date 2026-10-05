@@ -19,6 +19,8 @@ curl -X POST http://127.0.0.1:9000/v1/purge \
 
 In a cluster, the purge is forwarded to all live peers via HTTP fan-out (in `strong` mode) or gossiped via the memberlist broadcast queue (in `eventual` mode). Since v0.5.14, fan-out is **batched**: purge and refresh events coalesce into batch frames flushed on 256 events, a 10 ms interval, or shutdown — a 1000-key purge burst in a 3-peer cluster produces a handful of batched POSTs instead of 3000 — and receivers deduplicate by per-issuer sequence number. Events arriving on an idle queue still flush synchronously, preserving the purge API's fan-out-before-return guarantee. Ban events stay unbatched (rare; immediacy dominates).
 
+Since v0.5.26, gossip-delivered batch frames are **split to the gossip window** (issue #754): a 256-event batch encodes to ~10 KiB — far above memberlist's ~1.4 KiB UDP gossip window — so before the fix such a frame never fit any gossip round and was re-queued forever, silently dropping the whole batch in `eventual` mode and growing the gossip queue without bound in every mode. Frames are now split at flush time into sub-frames sized to the window, and the gossip drain drops (with `bouine_cluster_gossip_oversized_drops_total`) any frame that could never fit a gossip round, so a regression can no longer wedge the queue. HTTP fan-out is unaffected.
+
 ## Cluster propagation
 
 The delivery mechanism depends on `cluster.mode`:
@@ -29,6 +31,10 @@ The delivery mechanism depends on `cluster.mode`:
 | `eventual` | Gossip only (1–5 s convergence) | Gossip only (1–5 s convergence) | Gossip only |
 
 See [Clustering](/docs/configuration/cluster-modes/) for details on choosing a mode.
+
+### Data-plane invalidation also propagates (since v0.5.26)
+
+A `POST`/`PUT`/`DELETE` request (RFC 9111 §4.4 invalidation, including `Location`/`Content-Location`-derived keys) previously purged only the receiving node's local store — in `strong` mode an invalidating request landing on a non-owner left the owner serving stale content until TTL, and in `eventual` mode every other node stayed stale. Invalidations from the data plane now broadcast one purge per invalidated key through the same batching pipeline as the admin purge API, in every cluster mode — the broadcast fires even when the local purge reports the key absent (the owner may still hold it). Delivery is enqueue-only (within the same 10 ms coalescing bound every batched event accepts), so the proxied response is never blocked on peer fan-out. Since v0.5.26 a `HEAD` exchange can also no longer poison the cache with an empty body (a `HEAD` revalidation answered `200` used to store the empty response under the shared GET key; background refreshes now remap `HEAD` to `GET` per RFC 9110 §9.3.2).
 
 ## Ban (predicate-based)
 
@@ -46,7 +52,7 @@ curl -X POST http://127.0.0.1:9000/v1/ban \
 Bans use a two-pronged invalidation strategy:
 
 1. **Eager eviction** — all entries currently in the hot store that match the predicate are deleted immediately. Since v0.5.16, **surrogate-only bans skip the eager scan entirely**: the O(1) lazy check below enforces them identically (a banned entry is never served), and memory reclaim moves to the TTL reaper — a ~1800× faster registration path for the dominant production invalidation workload. `POST /v1/ban` therefore reports `count: 0` for surrogate-only bans. Host/path and multi-condition bans keep the coalesced scan (which also deduplicates identical bans registered concurrently, v0.5.14).
-2. **Lazy check** — newly-stored objects are checked against the active ban list on every lookup. Since v0.5.15 the ban list is compiled into an immutable snapshot (literal hosts, paths, and surrogate keys become set lookups; anchored prefixes become `HasPrefix` checks), so a full 1024-ban list costs ~22 ns per hit instead of ~10 µs.
+2. **Lazy check** — newly-stored objects are checked against the active ban list on every lookup. Since v0.5.15 the ban list is compiled into an immutable snapshot (literal hosts, paths, and surrogate keys become set lookups; anchored prefixes become `HasPrefix` checks), so a full 1024-ban list costs ~22 ns per hit instead of ~10 µs. Since v0.5.26 the snapshot read itself is lock-free on the hit path: the compiled snapshot is published through an atomic pointer with an atomic dirty flag, so the clean steady state pays one uncontended load and a concurrent ban registration rebuilds the snapshot without parking every reader (issue #757 — contended hit + registrations went 594–776 → 178 ns/op, 0 allocs/op).
 
 Active bans are retained for 24 hours by default and then pruned automatically by the reaper. Since v0.5.20 the retention window is configurable via `cluster.ban_ttl` (must be ≥ 1s when set): RFC 9111 §4.4 exempts objects stored *after* the ban from matching, so cache-lifecycle surrogate invalidations are safe at minutes scale — lower it to bound the hit-ratio damage of an over-broad ban (a typo'd ban previously poisoned the hit ratio for the full 24 h).
 

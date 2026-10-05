@@ -136,9 +136,9 @@ The dedicated admin Service (`ClusterIP` by default) splits the admin plane (met
 | `tolerations` | `[]` | Tolerations |
 | `priorityClassName` | `""` | Pod priority class |
 | `dnsPolicy` / `dnsConfig` | `""` / `{}` | DNS policy/config overrides |
-| `podManagementPolicy` | `Parallel` | Parallel pod start (correct for strong-mode gossip join); `maxUnavailable: 1` rolls one pod at a time |
+| `podManagementPolicy` | `Parallel` | Parallel pod start (correct for strong-mode gossip join); rolls one pod at a time |
 | `updateStrategy.type` | `RollingUpdate` | StatefulSet update strategy |
-| `updateStrategy.maxUnavailable` | `1` | Max unavailable pods during rolling update |
+| `updateStrategy.rollingUpdate` | `{}` | Raw Kubernetes values passed through to the StatefulSet `rollingUpdate` (e.g. `maxUnavailable`, `partition`). Since v0.5.26 the chart emits an empty object by default and passes overrides through verbatim — previously it rendered the beta `maxUnavailable` field that GKE versions silently drop, causing permanent Argo CD drift. Existing overrides move `maxUnavailable` and `partition` under `updateStrategy.rollingUpdate`. |
 | `minReadySeconds` | `30` | Seconds a pod must be ready before entering Service endpoints — lets the cluster ring converge |
 
 ### Metadata and labels
