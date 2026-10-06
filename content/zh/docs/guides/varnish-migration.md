@@ -169,7 +169,7 @@ routes:
 | POST/PUT/DELETE | `return(pass)` (bypass cache) | Only `GET`/`HEAD` cached per RFC 9111 |
 | `/api/` bypass | `return(pass)` in `vcl_recv` | `cache.enabled: false` on matched route |
 | Static asset TTL | `set beresp.ttl = 1d` | `ttl_default: 86400s` on route match |
-| Session cookie | `return(pass)` if Cookie matches | Not cached per RFC 9111 when `Set-Cookie` present |
+| Session cookie | `return(pass)` if Cookie matches | `bypass_on_cookie: true` (any cookie) or `bypass_on_cookie_names: [sessionID, ...]` (named cookies, since v0.5.27) — the request never touches the cache |
 | Authorization | `return(pass)` | Not cached by default (RFC 9111) |
 | 5xx retry | `return(retry)` | Passive health ejection (configurable) |
 | Cache hits header | `obj.hits` | `X-Cache` header added automatically |

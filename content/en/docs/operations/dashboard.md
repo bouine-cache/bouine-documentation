@@ -110,7 +110,7 @@ Rule-based operational insights that flag suboptimal configurations and anomalie
 - **Upstream** — unhealthy targets, high 5xx rate, no health checks, missing ETag or surrogate keys
 - **CDN** — Cloudflare not configured, async latency, purge errors or skips
 - **Cluster** — stale peers, hop limit ineffective, broadcast failures, degraded peer health
-- **Config** — query params not stripped, allow-set-cookie enabled, zero jitter, TLS below 1.2, tracing sampling at zero, storing routes serving cookied traffic without `bypass_on_cookie` (since v0.5.26: `config-cookie-bypass-missing` fires MED when a route stores responses while ≥5% of its measured traffic carries a `Cookie` header and the flag is off — the personalized-SSR leak shape, since an SSR origin that reads the cookie emits `Set-Cookie` once at login, not per render, so the Set-Cookie storage block never fires)
+- **Config** — query params not stripped, allow-set-cookie enabled, zero jitter, TLS below 1.2, tracing sampling at zero, storing routes serving cookied traffic without `bypass_on_cookie` (since v0.5.26: `config-cookie-bypass-missing` fires MED when a route stores responses while ≥5% of its measured traffic carries a `Cookie` header and the flag is off — the personalized-SSR leak shape, since an SSR origin that reads the cookie emits `Set-Cookie` once at login, not per render, so the Set-Cookie storage block never fires; since v0.5.27 a non-empty `bypass_on_cookie_names` list counts as explicit operator coverage and suppresses the insight)
 
 Each insight shows a severity badge, the affected route or component, and a recommended action. The page refreshes automatically every 30 seconds.
 

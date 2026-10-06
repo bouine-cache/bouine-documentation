@@ -233,11 +233,56 @@ semantics, and invalidating methods (POST/PUT/DELETE) keep invalidating the
 shared GET key regardless of cookies. SSE-intent requests keep live-stream
 semantics.
 
-The trigger is Cookie-header **presence**, not a name list (fails closed): an
-A/B or analytics cookie also bypasses — strip those at the ingress, or accept
-the origin-render cost. The dashboard insight
-`config-cookie-bypass-missing` flags storing routes whose traffic is ≥5%
-cookied while the flag is off — the personalized-SSR leak shape.
+The trigger is Cookie-header **presence** (fails closed): an A/B or analytics
+cookie also bypasses — strip those at the ingress, accept the origin-render
+cost, or scope the bypass to specific names with
+[`bypass_on_cookie_names`](#named-cookie-bypass-bypass_on_cookie_names-since-v0527)
+below. The dashboard insight `config-cookie-bypass-missing` flags storing
+routes whose traffic is ≥5% cookied while the flag is off — the
+personalized-SSR leak shape.
+
+### Named-cookie bypass (`bypass_on_cookie_names`, since v0.5.27)
+
+The presence trigger fails closed, so a route whose traffic ubiquitously
+carries analytics or consent cookies degrades to "cache off". When only
+*specific* cookies personalize the origin response, scope the bypass to
+their names instead:
+
+```yaml
+routes:
+  - match: { path_prefix: /account/ }
+    pool: ssr
+    cache:
+      ttl_default: 60s
+      bypass_on_cookie_names:
+        - session_id
+        - debug_mode
+```
+
+A request carrying any listed cookie name takes the full bypass contract —
+never served from cache, never stored, never shares an in-flight origin
+fetch, `X-Cache: BYPASS`. A request carrying only *unlisted* cookies
+participates in the cache per RFC 9111, so the anonymous-and-analytics
+population keeps full MISS/HIT semantics. This is the Varnish
+`if (req.http.Cookie ~ "(^|;\s*)session_id=") { return (pass); }` equivalent,
+without the regex.
+
+Matching is on the cookie-**name token** (RFC 6265 §4.1.1),
+case-insensitively — never a substring and never a value: a cookie named
+`mysession_id2` does not match `session_id`, and `other=session_id` does not
+either. A listed name matches in every `"; "`-separated position and on every
+repeated `Cookie` field line, whatever the client's wire shape. Validation at
+load: entries must be valid cookie-name tokens, the list is capped at 16
+entries with case-insensitive uniqueness, and the knob is mutually exclusive
+with `bypass_on_cookie` (the presence trigger is a strict superset — a name
+list under it is dead config).
+
+The in-flight guarantee is inherited wholesale: per ADR-0054, every cookied
+request — listed or not — is refused request-collapsed sharing on every
+route, so a bypassed request can never receive another user's in-flight
+body. The dashboard insight `config-cookie-bypass-missing` treats a
+non-empty name list as the operator's explicit coverage choice and no
+longer fires on such routes.
 
 > **The in-flight half is unconditional** (since v0.5.26, ADR-0052/0054): on
 > **every** route, flag or not, a request carrying `Authorization` or `Cookie`
@@ -516,6 +561,44 @@ cache:
 ```
 
 Motivated by routes fronted by a router that forwards an internal service host and public site hosts to the same cache (same bytes, two entries, each fed by only part of the URL's traffic). Absent and `true` keep today's `scheme|host|path|query|method` key byte-for-bit — the default cannot silently re-key existing deployments. Requests are still forwarded with the client's original Host; only key computation changes. Validation rejects `include_host: false` on a route that sets `match.host`. Like `include_headers`/`exclude_headers`, the flag must be identical on every cluster node serving the route. The admin URL-key surfaces (`/v1/purge`, `/v1/purge/batch`, `/v1/refresh`, `/v1/cachecheck`) resolve the matching route's key policy before rebuilding keys, and stored `X-Bouine-Host` metadata keeps the filling request's host — prefer path-regex or surrogate-key bans on such routes.
+
+### Cookie presence keying (`cache.key.cookie_presence`, since v0.5.27)
+
+Some origins render different content depending on whether a cookie *exists*
+— a consent banner, an A/B bucket — rather than on its value. Listing those
+cookie names under `cache.key.cookie_presence` adds one **presence bit** per
+name to the Vary-based variant key: present or absent, never the value
+(values are PII and would explode the variant cardinality; this is the CDN
+`check_presence` equivalent). All value spellings of a listed cookie share
+one variant.
+
+```yaml
+cache:
+  key:
+    cookie_presence:
+      - consent
+      - ab_bucket
+```
+
+Presence rides a synthetic Vary field unioned into the stored variant
+exactly like `include_headers` (union at object-build time, never a
+replacement), so every keying invariant composes unchanged: store/lookup
+pairing, peer-gate assertions, `304` revalidation, and background-refresh
+replay all hash the same bits. Repeated `Cookie` field lines are
+canonicalized to the RFC 6265 §4.2 form before the bits are computed, so a
+presence bit never depends on which line a cookie landed on.
+
+N listed names multiply the variant space by up to 2^N per primary key —
+keep the list short (capped at 16 entries, validated as RFC 6265
+cookie-name tokens with case-insensitive uniqueness) and prefer listing only
+cookies the origin actually reads. `max_variants` bounds the total: an
+over-cap store is refused and `bouine_vary_cap_hits_total` increments, never
+a wrong variant served. The knob is mutually exclusive with both
+`bypass_on_cookie` and `bypass_on_cookie_names` (a bypassed request never
+reaches the cache, so keying it is dead config — rejected at load). Like
+`include_headers`, the list must be identical on every cluster node serving
+the route, or nodes store and resolve variants under different keys (peer
+gates fail safe — miss, never a wrong body).
 
 ## Stripping query parameters from the key
 
