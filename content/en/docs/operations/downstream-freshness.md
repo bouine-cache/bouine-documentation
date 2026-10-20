@@ -6,7 +6,7 @@ description: "Cap how long a downstream CDN trusts bouine's answers by synthesiz
 
 > **Status:** `downstream_freshness` is **planned, not yet released** — the
 > design is accepted ([bouine PR #799](https://github.com/bouine-cache/bouine/pull/799),
-> [ADR-0060](https://github.com/bouine-cache/bouine/blob/main/docs/decisions/0060-downstream-freshness-sync.md))
+> [ADR-0063](https://github.com/bouine-cache/bouine/blob/main/docs/decisions/0063-downstream-freshness-sync.md))
 > and will land behind a default-off knob. This page documents the approved
 > behaviour so you can plan rollouts in advance.
 
@@ -97,7 +97,7 @@ curl -sD - -o /dev/null https://bouine.internal/api/stats
 ```
 
 Full behaviour matrix, invariants and ceiling math:
-[ADR-0060](https://github.com/bouine-cache/bouine/blob/main/docs/decisions/0060-downstream-freshness-sync.md).
+[ADR-0063](https://github.com/bouine-cache/bouine/blob/main/docs/decisions/0063-downstream-freshness-sync.md).
 
 ## Cloudflare caveats
 
@@ -150,5 +150,5 @@ header is additive and ignored where unsupported.
   pattern (the complement of this feature).
 - [Cache policy](/docs/configuration/cache-policy/) — `ttl_override`,
   `stale_while_revalidate`, `stale_if_error` reference.
-- [ADR-0060](https://github.com/bouine-cache/bouine/blob/main/docs/decisions/0060-downstream-freshness-sync.md)
+- [ADR-0063](https://github.com/bouine-cache/bouine/blob/main/docs/decisions/0063-downstream-freshness-sync.md)
   — full decision record, behaviour matrix and rejected alternatives.
