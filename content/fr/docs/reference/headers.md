@@ -41,8 +41,21 @@ Indique quel tier de stockage a servi la réponse.
 | `hot` | Servi depuis le hot tier en RAM (L0) |
 | `warm` | Servi depuis le warm tier mmap (L1) |
 | `peer` | Servi depuis un peer du cluster via peer fetch |
-| `origin` | Récupéré depuis l'origine upstream |
-| _(vide)_ | Non servi depuis un tier de stockage (BYPASS ou only-if-cached 504) |
+| `origin` | Récupéré depuis l'origine upstream — y compris tous les chemins BYPASS (fetch origine streamé, SSE, le fallback upstream-in-process) depuis v0.5.28 |
+| _(vide)_ | Non servi depuis un tier de stockage : réponses synthétisées par bouine lui-même (le 504 only-if-cached, le 503 de shedding, le 502 sans upstream). Depuis v0.5.28, le label Prometheus `source` les rend sous la forme `bouine` au lieu de la chaîne vide. |
+
+## Statuts d'erreur upstream (depuis v0.5.29)
+
+Un fetch vers un pool upstream qui expire — timeout de dial, timeout
+d'en-tête de réponse, ou deadline `cache.fetch_timeout` de la route —
+est renvoyé au client comme `504 Gateway Timeout` (RFC 9110 §15.6.5)
+avec le corps « upstream timeout » et l'attribution habituelle
+`X-Cache` / `X-Cache-Source`. Tout autre échec upstream (refus, reset,
+DNS) conserve `502 Bad Gateway`. La classification du timeout est la
+même chaîne que porte le label reason de
+`bouine_origin_connection_errors_total`, donc le statut sur le wire et
+la métrique sont d'accord. Le 504 only-if-cached et le 503 de shedding
+restent inchangés.
 
 ## X-Bouine-Route
 

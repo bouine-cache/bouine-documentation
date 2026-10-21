@@ -25,6 +25,11 @@ description: "Migrate from NGINX proxy_cache to bouine by mapping directives, ca
 | `proxy_cache_lock_timeout 5s` | Built-in | Subscribers wait for leader fetch |
 | `proxy_cache_min_uses 3` | Not needed | bouine caches on first response (RFC 9111) |
 | `add_header X-Cache-Status $upstream_cache_status` | Built-in | `X-Cache` header (HIT, MISS, STALE, BYPASS, REVALIDATED) |
+| `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for` (with `X-Forwarded-Proto`, `X-Forwarded-Host`, `Via`) | `routes[].request.forwarded: standard` (v0.5.27) | Client-identity injection on origin-bound fetches; declare once with `route_defaults.request.forwarded`. See [Forwarded headers](/docs/configuration/#forwarded-headers) |
+| `proxy_set_header Host $host` | `upstream_pools[].connect.preserve_host: true` (v0.5.28) | Keep the client's Host on the wire; the dial target stays the configured pool target |
+| `server_name *.example.com;` | `match: { host: "*.example.com" }` (v0.5.27) | Leading-`*.` suffix match anchored on the label boundary |
+| `location ~ ^/api/...$ { ... }` | `match: { path: "^/api/...$" }` (v0.5.27) | Anchored RE2 pattern; mutually exclusive with `path_prefix` |
+| `map $http_user_agent $bypass` / crawler carve-outs | `routes[].cache.bypass_on_user_agent: ["*Bot*"]` (v0.5.27) | UA-matched requests never touch the cache; declare once with `route_defaults.cache.bypass_on_user_agent` |
 | `proxy_next_upstream error timeout` | `upstream_pools[].health.passive` | Passive health checks with outlier ejection |
 | `upstream backend { keepalive 32; }` | `upstream_pools[].connect.max_idle_conn_duration: 60s` | Durée de vie des connexions inactives vers l'origine. Gardez la valeur de bouine **en dessous** de tout timeout inactif de LB entre bouine et l'origine (ex. AWS NLB 350s) pour que bouine ferme les connexions inactives en premier. |
 | `keepalive_timeout 65s` | `listen.idle_timeout: 65s` | Timeout keep-alive inactif des connexions côté client. Gardez la valeur du frontal **en dessous** de celle de bouine pour que le frontal ferme les connexions inactives en premier ; sinon bouine peut fermer une connexion en cours de réutilisation et l'upstream journalise `upstream prematurely closed connection`. |

@@ -123,7 +123,7 @@ routes:
 | `cluster` | `""` | Gossip cluster port |
 | `max_connections` | `0` | Max concurrent data-plane connections (0 = default 4096; Helm chart sets 4096 default / 8192 production / 16384 HA). Protects against FD exhaustion. Idle keep-alive connections hold a slot. |
 | `idle_timeout` | `120s` | Keep-alive idle timeout for data-plane connections: how long a connection with no in-flight request stays open. Also used by the H1 fast-path parser, so the two stay in sync. With an upstream proxy or LB in front, keep its keep-alive idle timeout **below** this value so it closes idle connections first — otherwise bouine can close a connection mid-reuse and the upstream logs `upstream prematurely closed connection`. |
-| `tcp_fast_open` | `true` (Linux) | Enable TCP_FASTOPEN on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
+| `tcp_fast_open` | `false` | Enable server-side TCP_FASTOPEN on data-plane listeners (Linux only, no-op elsewhere). **Default changed from enabled to disabled in v0.5.29** — deployments that relied on the old default must set `true` explicitly. With a kernel-cached TFO cookie the request bytes ride in the client's SYN, saving one RTT on fresh connections. Advisory: accepts never fail because of it. See [TCP Fast Open](#tcp-fast-open). |
 | `tcp_defer_accept` | `true` (Linux) | Enable TCP_DEFER_ACCEPT on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
 | `reuse_port` | `true` (Linux) | Enable SO_REUSEPORT on data-plane listeners (N parallel accept loops). Defaults to true on Linux, false on other platforms. |
 | `tcp_quickack` | `true` (Linux) | Enable TCP_QUICKACK on accepted data-plane connections to reduce latency by avoiding delayed ACKs. Defaults to true on Linux, no-op elsewhere. |
@@ -163,7 +163,8 @@ routes:
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback (strong mode only) |
 | `peer_max_conns_per_host` | `8` | Pipelined peer connections per peer. Default 8, with 16 pending requests each, gives 128 concurrent peer fetches per peer. Set to 1 to disable pipelining. |
 | `peer_max_idle_conn_duration` | `120s` | How long idle peer RPC connections are kept before closing. Must stay **below** `admin.idle_timeout` (default 300s) — config validation rejects any explicit value that violates the ordering, because a peer request sent on a connection the admin server already reaped fails with EOF and falls back to origin. |
-| `peer_fetch_concurrency` | `4` | Bounds concurrent peer-fetch and peer-put RPCs per node (since v0.5.11, range 1–128). In strong mode most cache hits are peer hits, so this semaphore sits on the hot path; raise it together with `peer_max_conns_per_host` under load to cut peer-hit tail latency. |
+| `peer_fetch_concurrency` | `16` | Bounds concurrent peer-fetch and peer-put RPCs per node (since v0.5.11, range 1–128; **default raised from 4 to 16 in v0.5.29** — four slots sat at the queueing knee on 3-node clusters of the 6k req/s class, where any peer-RPC slowdown cascaded into shed-runaway and origin ejections). In strong mode most cache hits are peer hits, so this semaphore sits on the hot path; raise it together with `peer_max_conns_per_host` under load to cut peer-hit tail latency. |
+| `peer_tcp_fast_open` | `false` | Enable outbound TCP Fast Open (`TCP_FASTOPEN_CONNECT`) on peer-bound dials — peer fetch/put and the invalidation-broadcast client (since v0.5.29). With a kernel-cached TFO cookie the first RPC bytes ride in the SYN, saving one RTT on every fresh peer connection. Opt-in, Linux 4.11+ only, no-op elsewhere; bouine↔bouine peer dials use TFO end-to-end when the dialing side sets this flag, the answering side sets `listen.tcp_fast_open`, and each peer's kernel has `net.ipv4.tcp_fastopen` including the server bit. Advisory: dials never fail because of it. |
 | `ban_ttl` | `24h` | How long a lazy invalidation ban stays in the active ban list before the reaper prunes it (since v0.5.20, must be ≥ 1s when set). RFC 9111 §4.4 exempts objects stored after the ban, so cache-lifecycle surrogate invalidations are safe at minutes scale — lower it to bound the hit-ratio damage of an over-broad ban. |
 | `join_timeout` | `120s` | Max time to wait for cluster join. In strong mode, the pod stays not-ready if join fails. In eventual mode, the pod becomes ready and retries in the background. |
 | `handoff_queue_depth` | `4096` | Memberlist per-peer message buffer. Absorbs bursts of cache invalidations. Negative values are rejected. |
@@ -173,15 +174,16 @@ routes:
 
 ### `routes[]`
 
-Route matching uses `host`, `path_prefix`, and optionally `methods`. Routes are matched in declaration order; the first match wins. Regex-based path matching is not supported in routes — use `path_regex` in [ban predicates](/docs/operations/cache-invalidation/) for invalidation.
+Route matching uses `host` (exact or a leading-`*.` wildcard since v0.5.27), `path_prefix` **or** `path` (an anchored RE2 regex, since v0.5.27), and optionally `methods`. Routes are matched in declaration order; the first match wins. A later route fully covered by an earlier one (host, path, and methods all covered) is dead config and is reported at Error level at boot while boot proceeds. Ban predicates still use their own `path_regex` — see [ban predicates](/docs/operations/cache-invalidation/).
 
 A route must specify exactly one of `pool` or `static.root`. The former proxies to an upstream pool; the latter serves files from a local directory. See [Static file serving](static-files/).
 
 | Field | Default | Description |
 |---|---|---|
-| `name` | `""` | Human-readable label used in Prometheus `route` label and the dashboard. Defaults to `host:path_prefix` when empty. |
-| `match.host` | `""` | Match on `Host` header (empty = any) |
+| `name` | `""` | Human-readable label used in Prometheus `route` label and the dashboard. Defaults to the host + path predicate when empty (a `match.path` regex is shown verbatim). |
+| `match.host` | `""` | Match on `Host` header (empty = any). Since v0.5.27 a leading `*.` performs a suffix match anchored on the label boundary: `*.staging.example.com` covers `abc.staging.example.com` and the whole per-PR subdomain tree, never the bare `staging.example.com` or `evilstaging.example.com`. Any wildcard that is not the single leading `*.` form is rejected at config validation. |
 | `match.path_prefix` | `""` | Match on URL path prefix (empty = any) |
+| `match.path` | `""` | Anchored RE2 pattern matched against the request path, query excluded, e.g. `^/[a-z]{2}-[a-z]{2}/l/campaign-.*$` (since v0.5.27). Mutually exclusive with `path_prefix`. Validation rejects invalid regexes, unanchored patterns, patterns over 512 B, and control bytes. Regexes compile once at startup, so route resolution never pays compile cost; prefix-only route tables keep their zero-alloc hit path. Reduces `route`-label and config cardinality versus the per-host/per-page route explosion they replace. |
 | `match.methods` | `[]` | Restrict to listed HTTP methods, e.g. `[GET, HEAD]`. Empty = all methods. Normalised to upper-case. Lets you give GET and POST on the same path independent cache policies. |
 | `pool` | — | Upstream pool name. Required unless `static.root` is set. |
 | `static.root` | `""` | Absolute path to a directory to serve files from. Required unless `pool` is set. See [Static file serving](static-files/). |
@@ -196,6 +198,7 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `header_remove` | `[]` | Headers to remove from the upstream request |
 | `strip_prefix` | `""` | Strip this path prefix before forwarding to the upstream (e.g. `/api/v1/users` → `/users`). Must start with `/`. The cache key still uses the original path. |
 | `path_rewrite` | — | Per-route regex path rewrite applied to the origin-bound request path (since v0.5.21) — the nginx `rewrite ... break` / Varnish `regsub` equivalent. `match` (Go RE2, linear time) and `replace` (`$1` capture references, `${1}x` braced disambiguation) are compiled once at config load and applied exactly once on every origin-bound fetch: miss, bypass, invalidating methods, revalidation, background refresh, streams. The query string is never matched or modified; only the first match is replaced (nginx semantics); pattern and template are capped at 512 B; every `$reference` must resolve against the pattern's groups at config load. Mutually exclusive with `strip_prefix` (validation rejects both). The cache key, ban matching, purges, and all client-facing surfaces keep the original public path. |
+| `forwarded` | off | Client-identity header injection on origin-bound fetches (since v0.5.27): `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`, and `Via`. Accepts four YAML shapes — the `standard` preset, a token list (`[client_ip, proto]`), the opt-out (`false`/`none`), or a full mapping with `max_append` (default 5, range 1–64). Never applied on the hit path, never part of the cache key or stored request headers. Requires a pool; mutually exclusive with `header_set` entries targeting the same header. Declare once for every route with `route_defaults.request.forwarded`. See [Forwarded headers](#forwarded-headers). |
 
 ### `routes[].cache`
 
@@ -203,7 +206,7 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 |---|---|---|
 | `enabled` | `true` | Set to `false` to bypass caching for this route |
 | `ttl_default` | `0` | Default TTL when origin has no `Cache-Control` |
-| `ttl_override` | `0` | Force bouine's internal TTL regardless of upstream `Cache-Control`/`Expires`; upstream headers are forwarded unaltered. See [TTL override](/docs/configuration/cache-policy/#ttl-override). |
+| `ttl_override` | `0` | Force bouine's internal TTL regardless of upstream `Cache-Control`/`Expires`; upstream headers are forwarded unaltered. Since v0.5.29 the override applies to success and redirect responses only (status < 400) — storable error responses follow the negative-caching TTL ladder (origin explicit freshness > `negative_ttl` > heuristic > `ttl_default`) instead of being pinned fresh for the override duration. See [TTL override](/docs/configuration/cache-policy/#ttl-override). |
 | `stale_while_revalidate` | `0` | Serve stale while refreshing in background |
 | `stale_if_error` | `0` | Serve stale on origin 5xx |
 | `negative_ttl` | `0` | Cache 404/405/410/501 responses for this duration. Since v0.5.22 also accepts a per-status map — `negative_ttl: {404: 1m, 5xx: 10s, 410: 0}` (exact codes 400–599, classes `4xx`/`5xx`, exact shadows class, `0` disables that status) — which outranks `ttl_default`/heuristic freshness for the statuses it covers. See [Negative caching](/docs/configuration/cache-policy/#negative-caching). |
@@ -211,6 +214,8 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `stayin_alive` | `false` | Serve stale indefinitely when upstream is down (see [Stayin Alive](/docs/configuration/cache-policy/#stayin-alive)) |
 | `allow_set_cookie` | `false` | Allow caching responses that carry `Set-Cookie`. Default blocks caching such responses (nginx-style). When `true`, the response is cached but `Set-Cookie` is stripped from the stored copy. See [Set-Cookie caching](/docs/configuration/cache-policy/#set-cookie-caching). |
 | `bypass_on_cookie` | `false` | When `true`, a request carrying any non-empty `Cookie` header never touches the cache on this route: no lookup, no storage, no in-flight sharing — it proxies to origin (`X-Cache: BYPASS`). The Varnish `return (pass)` equivalent for `req.http.Cookie`; designed for personalized SSR routes whose origin renders per-user content from the request cookie (since v0.5.26). The trigger is Cookie-header presence, not a name list. See [Cookie bypass](/docs/configuration/cache-policy/#cookie-bypass-since-v0526). |
+| `bypass_on_cookie_names` | `[]` | Cookie names that route a request carrying any of them entirely around the cache — the same no-lookup/no-storage/no-in-flight contract as `bypass_on_cookie`, scoped to the listed names (since v0.5.27). Requests carrying only unlisted cookies participate in the cache per RFC 9111. Matching is case-insensitive on the cookie-name token only, in every `; `-separated position and on every repeated `Cookie` field line. Capped at 16 names; mutually exclusive with `bypass_on_cookie`. See [Cookie-name bypass](/docs/configuration/cache-policy/#cookie-name-bypass-since-v0527). |
+| `bypass_on_user_agent` | `[]` | User-Agent `*`-glob patterns that route matching requests entirely around the cache — no lookup, no storage, no in-flight sharing; the request proxies to origin with `X-Cache: BYPASS` (since v0.5.27). Patterns match the full UA string case-insensitively; `*` matches any run of bytes including `/`; an exact pattern matches the whole string (`*Bot*` for substring semantics). Capped at 16 entries / 256 B each. Declare once via `route_defaults.cache.bypass_on_user_agent`. See [User-Agent bypass](/docs/configuration/cache-policy/#user-agent-bypass-since-v0527). |
 | `max_object_size` | `0` | Skip caching responses whose body exceeds this size (e.g. `1MiB`). The response is still proxied. `0` = no limit. |
 | `max_response_bytes` | `64MiB` | Hard cap on bytes buffered per origin fetch. Aborts the fetch (502) when exceeded. Different from `max_object_size` which controls caching eligibility. Default derives from GOMEMLIMIT (7%) or a built-in 64 MiB floor. |
 | `max_fetch_concurrency` | `32` | Max concurrent foreground origin fetches per route (collapsed via singleflight). Excess requests wait up to `fetch_wait_timeout` for a slot, then shed. |
@@ -236,6 +241,7 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `include_host` | `true` | Explicitly `false` drops the host segment from the primary cache key (since v0.5.22): the same URL+query resolves to one entry regardless of request Host. Requests still forward the client's Host; only key computation changes. Absent/`true` keeps the key byte-for-byte. Rejected on routes that set `match.host`. Must be identical across cluster nodes serving the route. See [Dropping the host from the key](/docs/configuration/cache-policy/#dropping-the-host-from-the-key-include_host-false-since-v0522). |
 | `verbatim_encoding` | `false` | `true` restores the pre-bucketing `Accept-Encoding` keying: the raw value is lowercased+sorted and forwarded to the upstream unchanged. Use only when the origin varies response bodies by the full AE string — it re-fragments the variant space (since v0.5.22). Must be identical across cluster nodes. See [Accept-Encoding bucketing](/docs/configuration/cache-policy/#accept-encoding-bucketing-since-v0522). |
 | `exclude_headers` | `[]` | Request header names to strip from the Vary-based variant key, preventing cache fragmentation from per-request headers like `X-Request-Id`. Matched case-insensitively. See [Excluding headers](/docs/configuration/cache-policy/#excluding-headers-from-the-cache-key). |
+| `cookie_presence` | `[]` | Cookie names whose **presence** (never the value) contributes one bit each to the Vary variant key (since v0.5.27) — for origins that render different content depending on whether a consent/analytics cookie exists. Presence rides a synthetic Vary field, so store/lookup pairing, peer gates, 304 revalidation, and background-refresh replay hash the same bits everywhere; repeated `Cookie` lines are canonicalized to the RFC 6265 §4.2 form before the bits are computed. Capped at 16 names (N names = up to 2^N presence combinations); mutually exclusive with both bypass knobs. Must be identical on every cluster node serving the route. See [Cookie presence keying](/docs/configuration/cache-policy/#cookie-presence-keying-since-v0527). |
 | `strip_query_params` | `[]` | Query parameter names to exclude from the cache key, e.g. `[utm_source, fbclid]`. The params are still forwarded to the upstream. See [Stripping query parameters](/docs/configuration/cache-policy/#stripping-query-parameters-from-the-key). |
 | `keep_query_params` | `[]` | When non-empty, restricts the cache key to only these query parameters; all others are excluded. Mutually exclusive with `strip_query_params` and `strip_query_prefix`. Equivalent to Varnish `qs.keep()`. |
 | `strip_query_prefix` | `[]` | Strip query params whose names start with any of these prefixes (e.g. `[utm_, fb_, _ga]`). Covers wildcard stripping without enumerating every variant. Capped at 16 entries. |
@@ -243,6 +249,23 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `dedup_query_params` | `false` | Keep only the first value for duplicate query params (`?a=2&a=1` → `?a=2`). Values are not sorted. |
 
 > **`canonicalize_path` was removed in v0.5.19.** The knob was parsed and documented but its listener-level wiring never landed, so it had no effect; configs setting it now fail at load time with the strict loader. Remove the key from your config when upgrading.
+
+### `route_defaults`
+
+Declare per-route blocks once instead of repeating them on every route (since v0.5.27). Values are merged into every route before validation; only the two blocks with defined merge semantics are accepted — any other route field under `route_defaults` is rejected at decode time.
+
+```yaml
+route_defaults:
+  request:
+    forwarded: standard        # inherited by every route that does not opt out
+  cache:
+    bypass_on_user_agent: ["*ShoppingFeedBot*"]
+```
+
+| Field | Merge semantics |
+|---|---|
+| `request.forwarded` | A route without its own `forwarded` block inherits the default wholesale; a preset or token list **replaces** the default's flags (only `max_append` falls back); the mapping form **ORs** field-by-field with the default — use the token-list form to drop a single header; `forwarded: false`/`none` opts the route out. Static routes ignore the inherited default (no origin-bound request exists); validation (pool requirement, `header_set` conflict, `max_append` bounds) runs on the resolved value. |
+| `cache.bypass_on_user_agent` | Every pool route without its own list inherits the default wholesale; a route's own list **replaces** it (never a union); an explicit empty list (`bypass_on_user_agent: []`) opts the route out; static routes inherit nothing. An invalid default is reported once at `route_defaults`' own path. |
 
 ### `upstream_pools[].connect`
 
@@ -254,8 +277,10 @@ All fields are optional; a zero/empty value applies the built-in default, so exi
 | `keep_alive` | `30s` | TCP keep-alive probe interval on origin connections |
 | `max_connections` | `64` | Max concurrent connections per origin host (fasthttp `MaxConnsPerHost`). Per host, not per pool: a pool with N targets gets N × `max_connections`. Bounds FD consumption under slow origins. |
 | `max_idle_conn_duration` | `90s` | How long an idle pooled origin connection is kept before closing. Keep this **below** any LB idle timeout between bouine and the origin (e.g. AWS NLB 350s) so bouine closes idle connections first. |
-| `response_header_timeout` | `30s` | Max time to wait for response headers from upstream. Zero applies a 30s built-in default. Primary defence against slow-origin resource exhaustion — and, since v0.5.11, the default origin timeout (header + body) for every route on the pool that does not set its own `cache.fetch_timeout`. |
+| `response_header_timeout` | `30s` | Max time to wait for response headers from upstream. Zero applies a 30s built-in default. Primary defence against slow-origin resource exhaustion — and, since v0.5.11, the default origin timeout (header + body) for every route on the pool that does not set its own `cache.fetch_timeout`. Since v0.5.29 a fetch that times out (dial, response-header, or per-route deadline) surfaces to clients as `504 Gateway Timeout`, not `502` — every other upstream failure keeps `502`. |
 | `hedge_timeout` | `0` (disabled) | Hedged fetch (since v0.5.19): fire a duplicate request to the same pool when the primary does not respond within this duration; the first response wins. Only applies to idempotent methods (GET, HEAD, OPTIONS). Zero disables hedging. See [Hedged fetch](#hedged-fetch). |
+| `tcp_fast_open` | `false` | Enable outbound TCP Fast Open (`TCP_FASTOPEN_CONNECT`) on origin dials for this pool (since v0.5.29) — the pool's shared and SSE clients set the option before connect, so with a kernel-cached TFO cookie the first request bytes ride in the SYN, saving one RTT on every fresh origin connection. Opt-in, Linux 4.11+ only, no-op elsewhere; origins without TFO never issue a cookie and the dial silently falls back to the regular handshake, so there is no penalty for enabling it. See [TCP Fast Open](#tcp-fast-open). |
+| `preserve_host` | `false` | Keep the request's own `Host` header on origin-bound fetches instead of replacing it with the pool target (since v0.5.28). Only the wire-level Host header changes — the dial target stays the configured pool target, and the cache key, Vary variant key, `X-Bouine-Host` attribution, ban/purge matching, and `request.forwarded` are untouched. Enable for origins that derive behaviour from the request Host (market/country selection, virtual-host routing); host-blind origins keep the historical behaviour, and the `host` token of `request.forwarded` remains the mechanism for origins that read `X-Forwarded-Host`. |
 
 ### Health checks
 
@@ -280,6 +305,23 @@ health:
 elapses and re-ejects them automatically if they are still broken
 (enforced since v0.5.19; restores are counted in the
 `origin_restores_total` metric with a `source` label).
+
+### `metrics`
+
+| Field | Default | Description |
+|---|---|---|
+| `traffic_classes` | `[]` | Up to 8 named traffic populations matched by request-host patterns (since v0.5.27). Adds an always-present `traffic_class` label to `bouine_requests_total`, `bouine_request_duration_seconds`, and `bouine_response_bytes_total`, plus a matching `traffic_class` access-log attribute — enabling per-population hit-ratio, latency, and saved-bandwidth queries inside one instance. Each class carries a unique lowercase name (the reserved `unclassified` is rejected; it is the fallback for requests matching no class) and up to 64 host patterns: an exact host, a leading `*.` (suffix match), or a trailing `.*`/`*` (prefix match). Declaration order is precedence — first match wins — and a later class fully shadowed by an earlier one is reported at Error level at boot while boot proceeds. |
+
+```yaml
+metrics:
+  traffic_classes:
+    - name: checkout
+      hosts: ["checkout.example.com"]
+    - name: marketing
+      hosts: ["*.example.com"]   # suffix match on the label boundary
+```
+
+Every invalid field is reported at once, each anchored to its own `metrics.traffic_classes[i].name` / `.hosts[j]` path. See [Monitoring → traffic classes](/docs/operations/monitoring/#traffic-classes) for the label semantics and the series-cardinality note.
 
 ### `admin`
 
@@ -344,6 +386,8 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 |---|---|---|
 | `gogc` | `100` | Go GC percentage. Set to `-1` to disable percentage-based GC, relying solely on `GOMEMLIMIT`. |
 | `url_ring_sample_rate` | `0` | 1-in-N sampling for the dashboard URL ring buffer. `0` = record every non-HIT request. `100` = 1 in 100 (reduces sync.Map overhead under high miss rates). `1` = record every call (debug mode). |
+| `route_defaults` | — | Declare `request.forwarded` and `cache.bypass_on_user_agent` once for every route instead of repeating them per route. See [`route_defaults`](#route_defaults). |
+| `metrics.traffic_classes` | `[]` | Named host-matched traffic populations for the `traffic_class` metric label. See [`metrics`](#metrics). |
 
 ---
 
@@ -363,6 +407,76 @@ upstream_pools:
     connect:
       hedge_timeout: 250ms
 ```
+
+---
+
+## Forwarded headers
+
+`routes[].request.forwarded` (since v0.5.27) injects client-identity
+headers onto **origin-bound** requests only — miss, invalidating proxy
+(POST/PUT/DELETE), bypass, revalidate, streaming/SSE, and the background
+fetchers. The cache-hit path is untouched, and the headers never join the
+cache key or the stored request headers.
+
+| Header | Token | Behaviour |
+|---|---|---|
+| `X-Forwarded-For` | `client_ip` | Appends the address of bouine's immediate peer (the edge) to the carried chain — existing entries are never rewritten. Client-supplied chains are append-only untrusted input; a spoofed chain merely costs an origin fetch. |
+| `X-Forwarded-Proto` | `proto` | **Set** to the scheme bouine received the request on (`https` on a TLS listener, `http` otherwise) — not the scheme used towards the origin. |
+| `X-Forwarded-Host` | `host` | **Set** to the Host header bouine received, replacing any client-supplied value. Tells multi-host origins which hostname was requested, and matters wherever the outbound Host is rewritten to a pool target — pair with `connect.preserve_host`. |
+| `Via` | `via` | Appends `1.1 bouine` per RFC 9110 §7.6.3, complementing the internal cluster hop limit. |
+
+Four YAML shapes:
+
+```yaml
+request:
+  forwarded: standard           # all four headers, one line
+  forwarded: [client_ip, proto]  # exactly these headers, no implicit extras
+  forwarded: false              # explicit opt-out (kills a route_default)
+  forwarded:                    # full mapping, field-by-field
+    client_ip: true
+    proto: true
+    max_append: 10              # chain cap, default 5 (range 1–64)
+```
+
+The XFF and `Via` chains are capped at `max_append` entries (the
+rightmost — nearest — entries are kept) and the 8 KiB per-header budget.
+Background fetches (SWR revalidation, refresh-before-expiry, shed refill)
+inject proto/host/`Via` from the captured request but deliberately never
+append `X-Forwarded-For` — there is no live peer, and replaying the
+original requester's address would attribute one user's identity to an
+anonymous refresh. `forwarded` requires a pool (rejected on static
+routes) and is mutually exclusive with `header_set` entries targeting the
+same header.
+
+---
+
+## TCP Fast Open
+
+bouine supports TCP Fast Open on three surfaces, all **disabled by
+default since v0.5.29** (previously an unset `listen.tcp_fast_open`
+meant "enabled on Linux"):
+
+| Surface | Key | Direction |
+|---|---|---|
+| Data-plane listeners | `listen.tcp_fast_open` | Server-side TFO on accepts |
+| Origin dials | `upstream_pools[].connect.tcp_fast_open` | Client-side `TCP_FASTOPEN_CONNECT` per pool |
+| Peer dials | `cluster.peer_tcp_fast_open` | Client-side `TCP_FASTOPEN_CONNECT` on peer fetch/put and invalidation broadcast |
+
+With a kernel-cached TFO cookie, the first request bytes ride in the SYN
+packet — one full RTT saved on every fresh connection. The option is
+advisory: peers or origins without server-side TFO never issue a cookie
+and the dial silently falls back to the regular handshake, so there is no
+penalty for enabling it. Linux only (4.11+ for the client side; no-op
+elsewhere); the kernel is probed once at startup and an unsupported
+option is left unwired with a single warn line. bouine↔bouine peer dials
+use TFO end-to-end when both sides opt in — `cluster.peer_tcp_fast_open`
+on the dialing side, `listen.tcp_fast_open` on the answering side — and
+peers' kernels need `net.ipv4.tcp_fastopen` to include the server bit.
+Per-socket failures are best-effort and never fail a dial.
+
+> **Upgrade note (v0.5.29):** deployments relying on the old
+> listener-side default must set `listen.tcp_fast_open: true` explicitly
+> after upgrading.
 
 ---
 

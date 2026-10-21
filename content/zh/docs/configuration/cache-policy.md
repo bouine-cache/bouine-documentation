@@ -86,6 +86,17 @@ the override TTL is **re-applied** to the refreshed object — the object does
 not revert to the origin's `max-age`. A full `200` is stored fresh with the
 override TTL.
 
+### Error responses (since v0.5.29)
+
+The override applies to **success and redirect responses only** (status < 400).
+Storable error responses follow the negative-caching TTL ladder — origin
+explicit freshness > `negative_ttl` > heuristic > `ttl_default` — instead of
+being pinned fresh for the full override duration. Previously an origin that
+opted a 404 into negative caching (`Cache-Control: public, max-age=30`) got
+cached for the full override duration (30 minutes instead of 30 seconds),
+bypassing `negative_ttl` policies entirely. Re-check routes that pair
+`ttl_override` with `negative_ttl`: storable errors now expire per the ladder.
+
 ### Combining with other cache fields
 
 `ttl_override` composes cleanly with the rest of the cache policy:
@@ -96,7 +107,7 @@ cache:
   stale_while_revalidate: 10m     # serve stale during background refresh
   stale_if_error: 24h             # serve if origin is down for up to 24 h
   jitter_percent: 5               # ±5 % jitter on the 2 h override
-  negative_ttl: 10s               # cache 404s for 10 s (unaffected)
+  negative_ttl: 10s               # cache 404s for 10 s (applies to storable errors since v0.5.29)
 ```
 
 `ttl_default` is not superseded when `ttl_override` is set — it remains the
@@ -245,6 +256,102 @@ cookied while the flag is off — the personalized-SSR leak shape.
 > semaphore and shed machinery. Anonymous requests keep collapsing bit-for-bit.
 > Use origin `Cache-Control: public, s-maxage=...` on routes that genuinely
 > share responses — storage converges authorized/cookied bursts to HITs.
+
+## Cookie-name bypass (since v0.5.27)
+
+`bypass_on_cookie` triggers on Cookie-header **presence** — an A/B or
+analytics cookie bypasses as much as a session cookie, which on
+cookie-personalized SSR routes turns into "cache off". Scope the same
+bypass contract to specific cookie names instead:
+
+```yaml
+routes:
+  - match: { path_prefix: /account/ }
+    pool: ssr
+    cache:
+      ttl_default: 60s
+      bypass_on_cookie_names: [session_id, debug]
+```
+
+A request carrying **any listed cookie name** bypasses the cache entirely
+— no lookup, no storage, no in-flight sharing, `X-Cache: BYPASS` — while
+requests carrying only unlisted cookies participate in the cache per
+RFC 9111.
+
+- **Matching is on the name token only** (case-insensitive, never a value
+  or a substring), after RFC 6265 OWS trimming. A listed cookie matches in
+  every `; `-separated position — real browsers put the session cookie last
+  in the joined line — and on **every repeated `Cookie` field line**.
+- Capped at 16 names; empty entries and case-insensitive duplicates are
+  rejected, as is combining it with `bypass_on_cookie` (the presence
+  trigger is a strict superset — listing names under it is dead config).
+- Mutually exclusive with `key.cookie_presence`: a bypassed request never
+  reaches the cache, so keying it is dead config.
+
+## User-Agent bypass (since v0.5.27)
+
+`bypass_on_user_agent` routes requests whose `User-Agent` matches one of
+the configured `*`-glob patterns entirely around the cache — the
+`bypass_on_cookie` contract, triggered by the UA instead of a cookie.
+It exists for **layered deployments** (client → edge → bouine) where the
+edge already bypasses its own cache for a verified crawler (e.g. a
+shopping-feed bot that must see current product data): without mirroring
+the rule, bouine would serve its own stored copy and silently defeat the
+edge rule's freshness intent.
+
+```yaml
+route_defaults:
+  cache:
+    bypass_on_user_agent: ["*ShoppingFeedBot*"]   # declared once for every route
+```
+
+- Patterns match the **full UA string, case-insensitively**; `*` is the
+  only wildcard and matches any run of bytes including `/`; an exact
+  pattern matches the whole string — `*Bot*` for substring semantics.
+  Spaces cannot appear in a pattern (real UA strings contain them); use
+  the substring form.
+- Validation caps the list at 16 entries / 256 bytes each and rejects
+  lone `*`, `**`, `?`/`[`/`]`/`\`, bytes outside graphic ASCII, and
+  duplicates.
+- A route's own list **replaces** an inherited `route_defaults` list
+  (never a union); an explicit empty list (`[]`) opts the route out;
+  static routes inherit nothing.
+- The UA is spoofable client input: a spoofed UA merely costs an origin
+  fetch (same as a `no-cache` request) — bypass never invalidates, evicts,
+  or stores anything. Default off; RFC 9111 semantics and the cache-tests
+  score are untouched, and invalidating methods (POST/PUT/DELETE) keep
+  invalidating the shared key.
+
+## Cookie presence keying (since v0.5.27)
+
+For origins that render different content depending on whether a
+consent/analytics cookie **exists** (regardless of its value),
+`cache.key.cookie_presence` adds one keying bit per listed cookie name —
+the CDN `check_presence` equivalent:
+
+```yaml
+cache:
+  key:
+    cookie_presence: [consent, analytics_opt_out]
+```
+
+Each listed name contributes a present/absent bit to the Vary variant key
+(never the value). Presence rides a **synthetic Vary field** unioned into
+the stored Vary value, so store/lookup pairing, peer-gate assertions,
+304 revalidation, and the background-refresh replay hash the same bits
+everywhere. Every request representation canonicalizes repeated
+`Cookie` field lines to the RFC 6265 §4.2 form before the bits are
+computed, so a presence bit never depends on which line a cookie landed
+on; the refresh registry saves the `Cookie` header on presence-keyed
+routes so the background replay cannot skew the variant pair.
+
+N names multiply the stored variant count by up to 2^N — cap the list
+(16, same as `include_headers`) and prefer listing only cookies the
+origin actually reads; `max_variants` bounds the total. Mutually
+exclusive with both `bypass_on_cookie` and `bypass_on_cookie_names`:
+a bypassed request never reaches the cache, so keying it is dead config.
+Like `include_headers`, the list must be identical on every cluster node
+serving the route (peer gates fail safe — miss, never a wrong body).
 
 ## Object size limit
 
@@ -492,6 +599,32 @@ The number of distinct `Vary` variants stored per primary cache key is capped (d
 cache:
   max_variants: 256
 ```
+
+### Request collapsing and Vary (since v0.5.27)
+
+Concurrent misses on one key collapse onto a single origin fetch
+(singleflight). Since v0.5.27 the collapsing flight is keyed on the
+response's **declared variation dimensions** — the Vary surface plus
+`cache.key.include_headers` — instead of the primary cache key alone:
+on a cold miss, two requests differing only in a selector header can no
+longer collapse onto one leader whose variant body every follower would
+receive. Warm flights keep the lookup key; cold flights on a declared
+route extend the key with the declared headers; cold flights on an
+include-free route are refused (one extra origin fetch per concurrent
+caller, first fill only).
+
+### Vary drift detection (since v0.5.27)
+
+An origin that changes its `Vary` header under a live cache previously
+left variant keys computed under the abandoned surface until TTL —
+serving wrong-variant HITs. Every revalidation now compares the stored
+declaration against the fresh response's as **field sets** (reordered or
+re-cased fields are the same surface; only a field appearing or
+disappearing is a change) and, on a change, purges the primary key —
+resolver and variants. Only 304 and cacheable 2xx responses are
+declaration sources, so an origin in duress can never trigger the purge.
+`bouine_vary_drift_total` is the operator signal; expect a one-cycle
+hit-ratio dip per drifted key.
 
 ### Accept-Encoding bucketing (since v0.5.22)
 

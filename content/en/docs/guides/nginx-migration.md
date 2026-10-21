@@ -25,6 +25,11 @@ description: "Migrate from NGINX proxy_cache to bouine by mapping directives, ca
 | `proxy_cache_lock_timeout 5s` | Built-in | Subscribers wait for leader fetch |
 | `proxy_cache_min_uses 3` | Not needed | bouine caches on first response (RFC 9111) |
 | `add_header X-Cache-Status $upstream_cache_status` | Built-in | `X-Cache` header (HIT, MISS, STALE, BYPASS, REVALIDATED) |
+| `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for` (with `X-Forwarded-Proto`, `X-Forwarded-Host`, `Via`) | `routes[].request.forwarded: standard` (v0.5.27) | Client-identity injection on origin-bound fetches; declare once with `route_defaults.request.forwarded`. See [Forwarded headers](/docs/configuration/#forwarded-headers) |
+| `proxy_set_header Host $host` | `upstream_pools[].connect.preserve_host: true` (v0.5.28) | Keep the client's Host on the wire; the dial target stays the configured pool target |
+| `server_name *.example.com;` | `match: { host: "*.example.com" }` (v0.5.27) | Leading-`*.` suffix match anchored on the label boundary |
+| `location ~ ^/api/...$ { ... }` | `match: { path: "^/api/...$" }` (v0.5.27) | Anchored RE2 pattern; mutually exclusive with `path_prefix` |
+| `map $http_user_agent $bypass` / crawler carve-outs | `routes[].cache.bypass_on_user_agent: ["*Bot*"]` (v0.5.27) | UA-matched requests never touch the cache; declare once with `route_defaults.cache.bypass_on_user_agent` |
 | `proxy_next_upstream error timeout` | `upstream_pools[].health.passive` | Passive health checks with outlier ejection |
 | `upstream backend { keepalive 32; }` | `upstream_pools[].connect.max_idle_conn_duration: 60s` | Idle pooled-connection lifetime to the origin. Keep bouine's value **below** any LB idle timeout between bouine and the origin (e.g. AWS NLB 350s) so bouine closes idle connections first. |
 | `keepalive_timeout 65s` | `listen.idle_timeout: 65s` | Keep-alive idle timeout for client-facing connections. Keep the front-end's value **below** bouine's so the front-end closes idle connections first; otherwise bouine may close a connection mid-reuse and the upstream logs `upstream prematurely closed connection`. |

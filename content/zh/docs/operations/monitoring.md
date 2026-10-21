@@ -12,20 +12,26 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 
 | Metric | Labels | Description |
 |---|---|---|
-| `bouine_requests_total` | `status`, `cache_result`, `source`, `upstream_pool` | Total requests processed, carrying the exact status code. **This is the primary RED counter.** |
-| `bouine_request_duration_seconds` | `status` (response class), `cache_result`, `upstream_pool` | Request latency histogram. The status label carries the response class (`1xx`–`5xx`), not the exact code; exact codes stay on `bouine_requests_total`. Also exposed as a **native histogram** for high-resolution percentiles — see [below](#native-histogram-cardinality). |
-| `bouine_response_bytes_total` | `cache_result`, `source`, `upstream_pool` | Total bytes written in responses. |
+| `bouine_requests_total` | `status`, `cache_result`, `source`, `upstream_pool`, `traffic_class` | Total requests processed, carrying the exact status code. **This is the primary RED counter.** |
+| `bouine_request_duration_seconds` | `status` (response class), `cache_result`, `upstream_pool`, `traffic_class` | Request latency histogram. The status label carries the response class (`1xx`–`5xx`), not the exact code; exact codes stay on `bouine_requests_total`. Also exposed as a **native histogram** for high-resolution percentiles — see [below](#native-histogram-cardinality). |
+| `bouine_response_bytes_total` | `cache_result`, `source`, `upstream_pool`, `traffic_class` | Total bytes written in responses. |
 | `bouine_fetch_shed_total` | — | Foreground origin fetches shed after waiting `fetch_wait_timeout` for a fetch-semaphore slot. Non-zero rate means miss demand exceeds `max_fetch_concurrency`. See [Streaming and live responses](/docs/configuration/streaming/). |
 
 **`cache_result`** values: `HIT`, `MISS`, `STALE`, `REVALIDATED`, `BYPASS`.
 
-**`source`** values: `hot` (hot in-memory tier), `warm` (warm disk-backed tier), `peer` (cluster peer via peer-fetch), `origin` (fetched from upstream, including errors and write-through proxy).
+**`source`** values: `hot` (hot in-memory tier), `warm` (warm disk-backed tier), `peer` (cluster peer via peer-fetch), `origin` (fetched from upstream, including errors, write-through proxy, and — since v0.5.28 — **BYPASS** responses, which previously landed on an unnamed default series), `bouine` (responses bouine synthesized itself: the only-if-cached 504 and the shed 503 — the label was the empty string before v0.5.28). The wire `X-Cache-Source` header stays empty for `bouine`-sourced responses.
 
 **`upstream_pool`** label: the matched route's upstream pool name (a small config-bounded set — "which upstream is slow or 5xx-ing"). Pool-less routes (static files, catch-all) and unmatched traffic land on `_default`. The dashboard rings keep per-route attribution, so per-route views lose nothing.
+
+**`traffic_class`** label (since v0.5.27): always present; values come exclusively from the configured [`metrics.traffic_classes`](/docs/configuration/#metrics) set plus the `unclassified` fallback for requests matching no class. See [Traffic classes](#traffic-classes).
 
 > **v0.5.8 changes:** the `method` label was dropped from the data-plane RED metrics (no dashboard or SLO query used it; the access log keeps the method), and the duration histogram dropped its `source` axis — the histogram footprint shrank ~90 %. Update any dashboard queries that filtered on `method` or `source`.
 >
 > **v0.5.13 update:** the 2.5 s, 5 s, and 10 s tail buckets were restored on `bouine_request_duration_seconds` and `bouine_peer_fetch_duration_seconds` (the v0.5.8 1 s top bucket made a 1.01 s miss indistinguishable from a 30 s miss via PromQL). Series count per tuple grows 13 → 16 and stays well under the cardinality budget.
+>
+> **v0.5.27 series identity reset:** adding the `traffic_class` label changes every data-plane series' identity — expect one `rate()` gap window at the upgrade boundary.
+>
+> **v0.5.28 series identity reset:** the `source` label's default slot was named `bouine` (previously the empty string) and BYPASS traffic moved to `origin` — the former `source=""` series and the BYPASS default series move to their new labels, so `rate()` queries show one gap window at the deploy boundary.
 
 **Hit ratio** (PromQL):
 ```promql
@@ -45,6 +51,37 @@ sum(rate(bouine_requests_total[1m]))
 ```promql
 sum by (upstream_pool) (rate(bouine_requests_total{status=~"5.."}[5m]))
 ```
+
+**Per-traffic-class hit ratio** (PromQL) — requires `metrics.traffic_classes` configured:
+```promql
+sum by (traffic_class) (rate(bouine_requests_total{cache_result="HIT"}[5m]))
+/
+sum by (traffic_class) (rate(bouine_requests_total[5m]))
+```
+
+### Traffic classes
+
+Since v0.5.27, `metrics.traffic_classes` (see
+[Configuration](/docs/configuration/#metrics)) declares up to 8 named
+traffic populations matched by request-host patterns. The `traffic_class`
+label is added — always present, values exclusively from the configured
+set plus the `unclassified` fallback — to `bouine_requests_total`,
+`bouine_request_duration_seconds`, and `bouine_response_bytes_total`,
+enabling per-population hit-ratio, latency, and saved-bandwidth queries
+inside one instance. Access logs gain a matching `traffic_class`
+attribute. The label set is closed and spoof-proof by construction.
+
+- **Declaration order is precedence** — first match wins. A host pattern
+  in a later class fully shadowed by an earlier one (it can never match)
+  is reported at Error level at boot; boot proceeds.
+- **Cardinality**: the label multiplies the data-plane series by
+  `1 + #classes`. `bouine_requests_total` crosses a 10 000-series line
+  when `pools × (1 + #classes) > 57`; the overage is opt-in (no
+  configured classes means no multiplication), and the
+  `metric_relabel_configs` mitigation in the
+  [native-histogram runbook](https://github.com/bouine-cache/bouine/blob/main/docs/runbook/native-histogram.md)
+  applies.
+- Zero allocations on the hit path.
 
 ### Native histogram cardinality
 
@@ -86,6 +123,7 @@ for cost numbers and rollback.
 | `bouine_hot_store_max_bytes` | gauge | Configured hot-tier byte budget, set once at startup. |
 | `bouine_hot_store_evictions_total` | counter | Total objects evicted by SIEVE since boot. Rising rate indicates cache churn. |
 | `bouine_vary_cap_hits_total` | counter | Vary-variant insertions rejected because the route's `max_variants` cap was exceeded (per-route since v0.5.25; built-in default 1024). |
+| `bouine_vary_drift_total` | counter | Revalidations that detected a changed origin `Vary` declaration and purged the primary key (since v0.5.27). Expect a one-cycle hit-ratio dip per drifted key; a sustained non-zero rate means an origin is changing its Vary surface under a live cache. See [Vary drift detection](/docs/configuration/cache-policy/#vary-drift-detection-since-v0527). |
 | `bouine_hot_store_reaper_grace_holds_total` | counter | Expired entries held (not reaped) on `stayin_alive` routes while the route's origin pool has no healthy target (since v0.5.22). |
 
 **Cache utilisation** (PromQL):
@@ -131,9 +169,9 @@ bouine_hot_store_bytes / bouine_hot_store_max_bytes
 | `bouine_peer_fetch_hits_total` | — | `strong` |
 | `bouine_peer_fetch_misses_total` | — | `strong` |
 | `bouine_peer_fetch_hop_limit_hits_total` | — | `strong` |
-| `bouine_peer_fetch_duration_seconds` | — | `strong` |
+| `bouine_peer_fetch_duration_seconds` | — | `strong` | Peer-fetch RPC latency. Since v0.5.27 the histogram observes the untruncated duration — previously sub-millisecond fetches (the ~95% majority) floored to the zero bucket. |
 | `bouine_peer_fetch_queue_wait_seconds` | — | `strong` | Histogram of the peer-fetch semaphore wait (`cluster.peer_fetch_concurrency`), observed **before** slot acquisition — including the abandoned wait when a queued caller sheds or cancels (since v0.5.18). Compare against `bouine_peer_fetch_duration_seconds`: queue wait high with healthy RPC durations means the concurrency knob is the constraint. |
-| `bouine_peer_fetch_shed_total` | — | `strong` | Peer fetch/put RPCs shed after waiting 100 ms for a concurrency slot (since v0.5.20). Non-zero rate means `cluster.peer_fetch_concurrency` is saturated. |
+| `bouine_peer_shed_total` | `direction` (`fetch`/`put`) | `strong` | Peer fetch/put RPCs shed after waiting 100 ms for a concurrency slot (since v0.5.20; split by direction and renamed from `bouine_peer_fetch_shed_total` in v0.5.29). Non-zero rate means `cluster.peer_fetch_concurrency` is saturated. |
 | `bouine_rewarm_fill_total` | — | `strong` | Background cache refills scheduled after a shed foreground miss (since v0.5.20) — counted next to `bouine_fetch_shed_total`. |
 | `bouine_peer_fetch_variant_mismatch_total` | `side` (`server`/`consumer`) | `strong` | Peer-fetch variant-assertion rejections (since v0.5.19). A sustained non-zero rate indicates a mixed-version fleet or a peer serving wrong-variant content. |
 | `bouine_peer_addr_blacklisted` | — | `strong` | Gauge of peer addresses currently blacklisted by the per-address failure breaker (since v0.5.17): three consecutive transport failures trip a 30 s cooldown, during which fetches fall back to origin. |
@@ -217,9 +255,13 @@ bouine emits a structured JSON access log line to **stdout** for every request.
   "bytes_out":    15234,
   "dur_ms":       1,
   "cache_status": "HIT",
+  "traffic_class": "ssr",
   "remote":       "10.42.0.1:54321"
 }
 ```
+
+The `traffic_class` attribute (since v0.5.27) mirrors the metric label —
+the configured class name for the request host, or `unclassified`.
 
 ### ⚠️ Access log sampling — use Prometheus for throughput
 
@@ -382,7 +424,7 @@ groups:
         summary: "Peer-fetch variant rejections — mixed-version fleet or a peer serving wrong-variant content"
 
     - alert: BouinePeerFetchShedding
-      expr: sum(rate(bouine_peer_fetch_shed_total[5m])) > 0
+      expr: sum(rate(bouine_peer_shed_total[5m])) > 0
       for: 5m
       labels: { severity: warning }
       annotations:

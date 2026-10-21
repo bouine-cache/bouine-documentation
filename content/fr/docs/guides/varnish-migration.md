@@ -52,7 +52,7 @@ This means:
 | Cluster | Via `varnish-plus` or external HA | Built-in gossip (strong, eventual) |
 | TLS termination | `varnish-plus` or separate proxy | Built-in (HTTP/1.1) |
 
-> **Route matching**: bouine routes match on `host` and `path_prefix` only — regex-based path matching is not supported in routes. Use path prefixes for routing, and `path_regex` in ban predicates for cache invalidation.
+> **Route matching**: since v0.5.27 bouine routes match on `host` (exact or leading-`*.` wildcard), `path_prefix` **or** an anchored RE2 `path` pattern, and `methods` — the VCL `if (req.url ~ "^/…")` routing idiom maps to `match: { path: "^/…$" }`. Ban predicates keep their own `path_regex`.
 
 ## 2. Side-by-side: e-commerce workload
 
@@ -169,7 +169,8 @@ routes:
 | POST/PUT/DELETE | `return(pass)` (bypass cache) | Only `GET`/`HEAD` cached per RFC 9111 |
 | `/api/` bypass | `return(pass)` in `vcl_recv` | `cache.enabled: false` on matched route |
 | Static asset TTL | `set beresp.ttl = 1d` | `ttl_default: 86400s` on route match |
-| Session cookie | `return(pass)` if Cookie matches | Not cached per RFC 9111 when `Set-Cookie` present |
+| Session cookie | `return(pass)` if Cookie matches | Not cached per RFC 9111 when `Set-Cookie` present; scope a bypass to cookie names with `cache.bypass_on_cookie_names` (v0.5.27), or key presence-only with `cache.key.cookie_presence` |
+| Crawler / UA carve-out | `return(pass)` on `req.http.User-Agent` | `cache.bypass_on_user_agent` glob patterns (v0.5.27) |
 | Authorization | `return(pass)` | Not cached by default (RFC 9111) |
 | 5xx retry | `return(retry)` | Passive health ejection (configurable) |
 | Cache hits header | `obj.hits` | `X-Cache` header added automatically |

@@ -38,7 +38,8 @@ cluster:
   hop_limit: 2                      # only used in strong mode
   peer_max_conns_per_host: 8        # pipelined peer connections (8 × 16 pending = 128 fetches/peer)
   peer_max_idle_conn_duration: 120s # MUST stay below admin.idle_timeout (default 300s)
-  peer_fetch_concurrency: 4         # concurrent peer-fetch/put RPCs per node (1–128)
+  peer_fetch_concurrency: 16        # concurrent peer-fetch/put RPCs per node (1–128; default since v0.5.29)
+  peer_tcp_fast_open: true          # outbound TFO on peer dials (opt-in, Linux only, since v0.5.29)
   ban_ttl: 24h                      # how long invalidation bans stay active (≥ 1s when set)
 ```
 
@@ -51,12 +52,20 @@ the ordering.
 
 Two sizing knobs matter under strong-mode load (both added in v0.5.11):
 
-- **`peer_fetch_concurrency`** (default 4, range 1–128) bounds concurrent
-  peer-fetch/peer-put RPCs per node. In strong mode most cache hits are
-  peer hits, so this semaphore sits on the hot path — raise it together
-  with `peer_max_conns_per_host` so the pipeline clients stay the binding
-  constraint. Excess callers wait up to 100 ms for a slot, then shed to
-  the slow path / origin fallback.
+- **`peer_fetch_concurrency`** (default 16 since v0.5.29 — previously 4 —
+  range 1–128) bounds concurrent peer-fetch/peer-put RPCs per node. In
+  strong mode most cache hits are peer hits, so this semaphore sits on
+  the hot path — raise it together with `peer_max_conns_per_host` so the
+  pipeline clients stay the binding constraint. The default was raised
+  because four slots sat at the queueing knee on 3-node clusters of the
+  6k req/s class, where any peer-RPC slowdown cascaded into
+  shed-runaway and origin ejections. Excess callers wait up to 100 ms
+  for a slot, then shed to the slow path / origin fallback.
+- **`peer_tcp_fast_open`** (default off, since v0.5.29) enables outbound
+  TCP Fast Open on peer dials — with a kernel-cached TFO cookie the
+  first RPC bytes ride in the SYN, saving one RTT on every fresh peer
+  connection. Opt-in and Linux-only; bouine↔bouine dials use TFO
+  end-to-end when the answering side also enables `listen.tcp_fast_open`.
 - **`ban_ttl`** (default 24h, ≥ 1s when set; added in v0.5.20) bounds how
   long invalidation bans stay in the active ban list. See
   [Cache invalidation](/docs/operations/cache-invalidation/).
@@ -110,7 +119,7 @@ Typical peer-fetch latency: ~0.5–2 ms on the same datacenter LAN.
 
 > **Wire format (since v0.5.22):** memberlist node metadata (peer info) and push/pull state (ring digests) are binary frames (magic + version header); receivers reject unversioned or unknown-version frames, and peer-fetch requests only accept the binary v2 format. Mixed-version clusters running a pre-v0.5.22 build will fail to exchange meta/state during a rolling upgrade — upgrade all nodes together. Also since v0.5.22 the admin API and Go SDK parse request bodies with `encoding/json/v2`: duplicate JSON keys and misspelled (case-mismatched) field names are rejected with `400` instead of silently accepted.
 
-### Peer-fetch resilience (v0.5.17–v0.5.20)
+### Peer-fetch resilience (v0.5.17–v0.5.29)
 
 The peer-fetch machinery is hardened against rolling restarts, HPA
 scale-down, and miss storms:
@@ -127,8 +136,12 @@ scale-down, and miss storms:
   instead of pinning fetch slots.
 - **Bounded queue wait + shedding** — callers waiting for a
   `peer_fetch_concurrency` slot shed after 100 ms
-  (`bouine_peer_fetch_shed_total`); the queue wait itself is observed in
-  `bouine_peer_fetch_queue_wait_seconds`.
+  (`bouine_peer_shed_total`, with a `direction` label splitting fetch
+  from put RPCs since v0.5.29); the queue wait itself is observed in
+  `bouine_peer_fetch_queue_wait_seconds`. Since v0.5.29 a shed
+  fast-path peer fetch carries a hint that suppresses the slow path's
+  duplicate peer RPC — the request goes straight to origin instead of
+  re-queueing behind the same saturated semaphore.
 - **Background re-warm** — a shed foreground miss schedules a bounded
   background refill (`bouine_rewarm_fill_total`), so a shed miss no longer
   loses the cache refill and miss storms converge back to hits.
