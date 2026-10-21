@@ -252,3 +252,46 @@ routes:
 - Empty/omitted `methods` matches all methods (the default).
 
 See the [routes field reference](/docs/configuration/#routes) for all options.
+
+## Wildcard hosts, regex paths, and forwarded headers
+
+Since v0.5.27, `match.host` accepts a leading-`*.` wildcard and
+`match.path` accepts an anchored RE2 pattern (mutually exclusive with
+`path_prefix`). `request.forwarded` injects client-identity headers on
+origin-bound fetches, and `route_defaults` declares them once instead of
+per route:
+
+```yaml
+upstream_pools:
+  - name: web
+    targets: ["web.default.svc.cluster.local:80"]
+    connect:
+      preserve_host: true   # keep the client's Host on the wire (v0.5.28)
+                             # — for origins that route by Host
+
+route_defaults:
+  request:
+    forwarded: standard      # X-Forwarded-For/Proto/Host + Via on every route
+
+routes:
+  # Wildcard host: the whole per-PR subdomain tree, never the bare host.
+  - name: previews
+    match: { host: "*.staging.example.com" }
+    pool: web
+    cache:
+      ttl_default: 60s
+
+  # Regex path: path classes a prefix cannot express.
+  - name: campaigns
+    match: { path: "^/[a-z]{2}-[a-z]{2}/l/campaign-.*$" }
+    pool: web
+    cache:
+      ttl_default: 300s
+```
+
+Regexes compile once at startup — route resolution never pays compile
+cost. A later route fully covered by an earlier one (host, path, and
+methods) is dead config and is reported at Error level at boot while
+boot proceeds. See [Configuration](/docs/configuration/#routes) for the
+matching rules and [Forwarded headers](/docs/configuration/#forwarded-headers)
+for the four YAML shapes of the `forwarded` block.

@@ -42,7 +42,9 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] `negative_ttl` set for routes that return errors (prevents error storms)
 - [ ] `jitter_percent > 0` to prevent synchronized revalidation bursts
 - [ ] `allow_set_cookie` is off unless you explicitly need Set-Cookie caching
-- [ ] Cache key configuration reviewed (query param stripping, header includes)
+- [ ] Cache key configuration reviewed (query param stripping, header includes, cookie presence bits)
+- [ ] Personalized routes bypass via `bypass_on_cookie`/`bypass_on_cookie_names` — or key consent cookies via `key.cookie_presence` (see [Cache policy](/docs/configuration/cache-policy/))
+- [ ] Layered edge deployments mirror their crawler bypass rules with `cache.bypass_on_user_agent` (declare once under `route_defaults`) (see [Cache policy](/docs/configuration/cache-policy/))
 
 ## Upstream and origin
 
@@ -55,9 +57,9 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] `connect.max_idle_conn_duration` kept below any LB idle timeout between bouine and the origin (AWS NLB: 350s)
 - [ ] `response_header_timeout` configured to prevent slow-origin connection churn
 - [ ] `cluster.peer_max_idle_conn_duration` kept below `admin.idle_timeout` (default 300s)
-- [ ] `cluster.peer_fetch_concurrency` sized for strong-mode peer-hit load (default 4, range 1–128)
+- [ ] `cluster.peer_fetch_concurrency` sized for strong-mode peer-hit load (default 16 since v0.5.29, range 1–128)
 - [ ] Alerting on `bouine_fetch_shed_total` (slow-origin shedding — see [Streaming](/docs/configuration/streaming/))
-- [ ] Alerting on `bouine_peer_fetch_shed_total` and `bouine_peer_fetch_queue_wait_seconds` in strong-mode clusters (peer-fetch saturation — see [Monitoring](/docs/operations/monitoring/#cluster))
+- [ ] Alerting on `bouine_peer_shed_total` and `bouine_peer_fetch_queue_wait_seconds` in strong-mode clusters (peer-fetch saturation — see [Monitoring](/docs/operations/monitoring/#cluster))
 
 ## Observability
 

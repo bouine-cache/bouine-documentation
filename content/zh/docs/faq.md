@@ -48,9 +48,10 @@ details.
 ### How do I debug cache misses?
 
 Check the `X-Cache` response header: `MISS` means the object was not in
-cache, `BYPASS` means the cache was bypassed (no-store, no-cache, or cache
-disabled for the route). Use the `X-Cache-Source` header to see which tier
-served the response (`hot`, `warm`, `peer`, `origin`).
+cache, `BYPASS` means the cache was bypassed (no-store, no-cache, cache
+disabled for the route, or a `bypass_on_cookie`/`bypass_on_cookie_names`/
+`bypass_on_user_agent` trigger). Use the `X-Cache-Source` header to see which
+tier served the response (`hot`, `warm`, `peer`, `origin`).
 
 The `GET /v1/debug/cachecheck?url=...` admin endpoint shows the full
 decision tree for a given request (key, hit/miss, source).

@@ -105,8 +105,14 @@ round trip that existed before the `fasthttp` migration.
 
 bouine enables `TCP_QUICKACK` on accepted data-plane connections (Linux
 only) to reduce latency by acknowledging data immediately rather than
-delaying the ACK. This complements `TCP_FASTOPEN` and `TCP_DEFER_ACCEPT`
-on the listen path.
+delaying the ACK. This complements `TCP_DEFER_ACCEPT` on the listen
+path. TCP Fast Open exists on three surfaces — server-side on listeners
+(`listen.tcp_fast_open`), client-side on origin dials
+(`upstream_pools[].connect.tcp_fast_open`) and peer dials
+(`cluster.peer_tcp_fast_open`) — and is **disabled by default on every
+surface since v0.5.29**: with a kernel-cached TFO cookie the first
+request bytes ride in the SYN packet, saving one RTT on fresh
+connections; the option is advisory and never fails a dial or accept.
 
 ### Stale-while-revalidate (SWR)
 
@@ -149,6 +155,16 @@ Pods retry joining every 2 seconds for up to 60 seconds. Success requires `Membe
 > `epoll_wait` wakeup per listener. All hot-path code uses pre-computed
 > cache-control flags, status lines, Date formatting, and Vary values to
 > avoid per-request allocations.
+>
+> Later releases kept shaving the hot path: the v0.5.28 `bouine-cache/xxhash`
+> v3.0.1 bump unrolls the XXH3-128 accumulator loops for register-resident
+> hashing (bit-for-bit identical output, so cache keys survive rolling
+> deploys); v0.5.29 makes the peer-hit Vary check allocation-free, skips the
+> per-RPC circuit-breaker mutex while no peer address is failing, builds
+> linux release artifacts at `GOARM64=v8.1` (LSE atomics), and compiles
+> every build of the main package against a committed profile-guided
+> optimization profile (`cmd/bouine/default.pgo`) refreshed per release —
+> the allocs/op budgets are unaffected.
 
 Load-test results (Docker, 3k RPS, single node vs Varnish + nginx):
 

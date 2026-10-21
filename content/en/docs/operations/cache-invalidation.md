@@ -56,6 +56,15 @@ Bans use a two-pronged invalidation strategy:
 
 Active bans are retained for 24 hours by default and then pruned automatically by the reaper. Since v0.5.20 the retention window is configurable via `cluster.ban_ttl` (must be ≥ 1s when set): RFC 9111 §4.4 exempts objects stored *after* the ban from matching, so cache-lifecycle surrogate invalidations are safe at minutes scale — lower it to bound the hit-ratio damage of an over-broad ban (a typo'd ban previously poisoned the hit ratio for the full 24 h).
 
+> **Bans no longer poison objects stored after them (v0.5.29).** A bug
+> since v0.5.13 made a ban treat every object as subject forever —
+> including objects stored long *after* the ban's registration — so an
+> over-broad ban (e.g. `host_regex: ".*"`) permanently banned every
+> later cache fill on the node. Per RFC 9111 §4.4, invalidation only
+> removes responses that existed at invalidation time: objects stored
+> after the ban's registration are now exempt on all snapshot paths
+> (literal sets, anchored prefixes, and opaque regex bans).
+
 ### Surrogate key ban
 
 ```bash
