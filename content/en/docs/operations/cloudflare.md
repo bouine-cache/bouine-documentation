@@ -137,6 +137,11 @@ the browser still honour the service's intended 60-second freshness window.
 
 See the full reference in [Cache policy → TTL override](/docs/configuration/cache-policy/#ttl-override).
 
+The inverse case — bouine *tighter* than the downstream clock, where the
+bouine↔CDN chain amplifies bouine's own TTL — is what
+[Downstream freshness sync](/docs/operations/downstream-freshness/)
+(`downstream_freshness: sync`, planned) solves.
+
 ---
 
 ## Kubernetes deployment
