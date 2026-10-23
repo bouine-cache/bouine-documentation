@@ -34,14 +34,13 @@ RUN HUGO_ENABLEGITINFO=false ./scripts/build-versioned.sh public
 
 FROM --platform=linux/amd64 debian:bookworm-slim AS redbean-pack
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    zip \
+RUN apt-get update && apt-get install -y --no-install-recommends zip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fSL -o /bouine-docs.com "https://cosmo.zip/pub/cosmos/v/4.0.2/bin/redbean" \
-    && chmod +x /bouine-docs.com
+# redbean is vendored in-repo (extracted from the official cosmopolitan 4.0.2
+# "cosmos" release zip). Downloading it from cosmo.zip at build time broke
+# deploys whenever that server was unreachable.
+COPY --chmod=755 redbean/redbean-4.0.2.com /bouine-docs.com
 
 COPY --from=hugo-build /src/public /public
 COPY redbean-init.lua /public/.init.lua
