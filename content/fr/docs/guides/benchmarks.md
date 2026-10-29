@@ -117,10 +117,11 @@ Unit-level benchmarks isolating specific hot-path components, from the current `
 All hit-path benchmarks enforce **0 allocs/op** in CI via benchmark gates. Any
 allocation on the hit path blocks merge.
 
-> **Comparability note.** The nightly load-test configuration enables
-> `experimental.h1_fast_path` (since v0.5.3) and `experimental.h1_reactor`
-> (since v0.5.5). Nightly proxy-comparison numbers from v0.5.2 and earlier
-> were measured without the fast path and are **not comparable**.
+> **Comparability note.** Since v0.6.0 the H1 fast path is always on (the
+> `experimental.h1_fast_path` / `experimental.h1_reactor` keys are retired,
+> the reactor is removed, and `make conformance` exercises the fast path by
+> default). Nightly proxy-comparison numbers from v0.5.2 and earlier were
+> measured without the fast path and are **not comparable**.
 
 ## Benchmark infrastructure
 

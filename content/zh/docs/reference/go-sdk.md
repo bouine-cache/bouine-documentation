@@ -64,6 +64,30 @@ version, err := c.Version(ctx)
 
 // List cluster peers
 peers, err := c.Peers(ctx)
+
+// Node overview (since v0.6.0): node, cache, origins, cluster, insights
+status, err := c.Status(ctx)
+```
+
+### Cache-key introspection (since v0.6.0)
+
+```go
+// State of one URL via the side-effect-free store probe
+state, err := c.KeysFind(ctx, "https://example.com/page")
+
+// URL-ring listings with per-cache-result breakdown
+top, err := c.KeysTop(ctx, 50, "miss")
+recent, err := c.KeysRecent(ctx, 50, "")
+```
+
+### Hot configuration (since v0.6.0)
+
+```go
+// Read live knob values and their source (file / default / runtime)
+knobs, err := c.HotConfig(ctx)
+
+// Apply a validated point mutation (fans out to peers in strong mode)
+res, err := c.HotSet(ctx, "cluster.ban_ttl", "45m")
 ```
 
 ### Cache invalidation

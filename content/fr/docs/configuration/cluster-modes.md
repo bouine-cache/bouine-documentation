@@ -37,7 +37,7 @@ cluster:
   hop_limit: 2                      # only used in strong mode
   peer_max_conns_per_host: 8        # pipelined peer connections (8 × 16 pending = 128 fetches/peer)
   peer_max_idle_conn_duration: 120s # MUST stay below admin.idle_timeout (default 300s)
-  peer_fetch_concurrency: 16        # concurrent peer-fetch/put RPCs per node (1–128; default since v0.5.29)
+  peer_fetch_concurrency: 64        # concurrent peer-fetch/put RPCs per node (1–128; default 64 since v0.6.0)
   peer_tcp_fast_open: true          # outbound TFO on peer dials (opt-in, Linux only, since v0.5.29)
   ban_ttl: 24h                      # how long invalidation bans stay active (≥ 1s when set)
 ```
@@ -51,15 +51,15 @@ the ordering.
 
 Two sizing knobs matter under strong-mode load (both added in v0.5.11):
 
-- **`peer_fetch_concurrency`** (default 16 since v0.5.29 — previously 4 —
-  range 1–128) bounds concurrent peer-fetch/peer-put RPCs per node. In
-  strong mode most cache hits are peer hits, so this semaphore sits on
-  the hot path — raise it together with `peer_max_conns_per_host` so the
-  pipeline clients stay the binding constraint. The default was raised
-  because four slots sat at the queueing knee on 3-node clusters of the
-  6k req/s class, where any peer-RPC slowdown cascaded into
-  shed-runaway and origin ejections. Excess callers wait up to 100 ms
-  for a slot, then shed to the slow path / origin fallback.
+- **`peer_fetch_concurrency`** (default 64 since v0.6.0 — previously 16 since
+  v0.5.29, originally 4 — range 1–128) bounds concurrent peer-fetch/peer-put
+  RPCs per node. In strong mode most cache hits are peer hits, so this
+  semaphore sits on the hot path — raise it together with
+  `peer_max_conns_per_host` so the pipeline clients stay the binding
+  constraint. The default was raised again in v0.6.0 because too small a
+  pool queues peer hits behind in-flight fetches and adds tail latency on
+  strong-mode clusters. Excess callers wait up to 100 ms for a slot, then
+  shed to the slow path / origin fallback.
 - **`peer_tcp_fast_open`** (default off, since v0.5.29) enables outbound
   TCP Fast Open on peer dials — with a kernel-cached TFO cookie the
   first RPC bytes ride in the SYN, saving one RTT on every fresh peer
@@ -143,6 +143,17 @@ scale-down, and miss storms:
 - **Background re-warm** — a shed foreground miss schedules a bounded
   background refill (`bouine_rewarm_fill_total`), so a shed miss no longer
   loses the cache refill and miss storms converge back to hits.
+- **Config-derived Vary resolution on the cold-miss peer path (since v0.6.2, ADR-0071).**
+  On a route whose `cache.key` policy alone determines the Vary list
+  (`include_headers` / `cookie_presence`), both the H1 fast path and the
+  slow path now derive the variant key locally and ask the variant's owner
+  directly — one admin-port RPC instead of two. A wrong derivation falls
+  back to the two-step; `bouine_peer_fetch_derived_fallback_total` counts
+  the fallback so the degraded mode announces itself.
+- **Stale objects served through a peer are refreshed (since v0.6.2).** In
+  strong mode a non-owner serving the owner's stale copy now starts the
+  background revalidation itself and forwards the fresh object to the owner,
+  so the object no longer stays stale for the whole SWR window.
 
 
 ## Eventual mode

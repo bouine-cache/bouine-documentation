@@ -43,6 +43,19 @@ routes:
 - [TLS](tls/) — terminaison TLS, mTLS entre pairs, certificats.
 - [Fonctionnalités expérimentales](experimental/) — fonctionnalités opt-in susceptibles de changer.
 
+## Nouveautés v0.6
+
+- **`listen.max_connections`** — plafond par défaut relevé de 4096 à **65536** (v0.6.0) ; les refus à l'accept sont comptés par `bouine_conn_rejections_total`.
+- **Chemin rapide H1 toujours actif** (v0.6.0, ADR-0069) : `experimental.h1_fast_path` et `h1_fast_peer_path` sont retirés (clés ignorées, avis au démarrage), `experimental.h1_reactor` est **supprimé** (erreur de parsing stricte — retirez la clé).
+- **`routes[].cache.max_fetch_concurrency`** — défaut intégré relevé de 32 à **256** (v0.6.0).
+- **`cluster.peer_fetch_concurrency`** — défaut relevé de 16 à **64** (v0.6.0).
+- **`health.passive`** — `eject_for` non défini = fenêtre de restauration intégrée de 30 s (v0.6.1) ; les 5xx ne comptent vers l'éjection qu'après une fenêtre de succès de 5 s (v0.6.0) ; `consecutive_5xx` et `eject_for` modifiables à chaud par pool (v0.6.0).
+- **Configuration à chaud** (v0.6.0) : `bouine config get/set/diff`, `bouine config reload` (expérimental, `experimental.config_reload`), `GET|POST /v1/config/hot`, `POST /v1/config/reload` — voir [Configuration à chaud](#hot-configuration).
+- **Nouvelles commandes CLI / API** (v0.6.0) : `bouine status`, `bouine explain`, `bouine keys find/top/recent`, `GET /v1/status`, `GET /v1/explain`, `GET /v1/keys/*` — voir [CLI](/docs/reference/cli/) et [API](/docs/reference/api/).
+- **`Set-Login`** rejoint `Set-Cookie` dans toutes les portes de stockage et le strip (v0.6.0) ; les réponses à état client ne sont plus servies à un second client via le collapse (ADR-0067).
+- **Collapse des miss froid sans include_headers** onto one fill flight, served from the store (ADR-0066, v0.6.0).
+- **Plafond de bans** relevé de 1024 à **4096**, registration O(1) et bans surrogate appliqués via un ensemble lock-free (v0.6.0).
+
 ## Référence des champs
 
 ### `listen`
@@ -52,7 +65,7 @@ routes:
 | `http` | `":8080"` | Adresse du listener HTTP/1.1 |
 | `https` | — | Adresse du listener HTTPS (H1) |
 | `admin` | `":9000"` | Adresse du serveur d'administration |
-| `max_connections` | `0` | Nombre maximal de connexions data-plane simultanées (0 = défaut 4096). Protège contre l'épuisement des FD. Les connexions keep-alive inactives occupent aussi un slot. |
+| `max_connections` | `0` | Nombre maximal de connexions data-plane simultanées (0 = défaut intégré **65536 depuis v0.6.0**, précédemment 4096 ; 0 désactive le plafond). Protège contre l'épuisement des FD. Les connexions keep-alive inactives occupent aussi un slot : dimensionnez pour toute la population cliente qu'un seul front CDN produit, pas seulement le pic de concurrence ; chaque connexion acceptée épingle ~32 KiB, donc 65536 connexions épinglent au plus ~2 GiB — réduisez sur les petits pods. Les connexions au-delà de la limite reçoivent un `503 + Connection: close` instantané à l'accept, compté exactement par `bouine_conn_rejections_total` (le log warn est limité à une ligne par 10 s par listener). |
 | `idle_timeout` | `120s` | Timeout keep-alive des connexions data-plane inactives. Avec un proxy amont (upstream) en face, gardez son timeout keep-alive inactif **en dessous** de cette valeur pour que le proxy ferme les connexions inactives en premier. |
 | `tcp_quickack` | `true` (Linux) | Active TCP_QUICKACK sur les connexions acceptées pour réduire la latence (no-op sur les autres plateformes) |
 | `tcp_fast_open` | `false` | Active le TCP Fast Open côté serveur sur les listeners data-plane (Linux uniquement, no-op ailleurs). **Défaut passé de activé à désactivé en v0.5.29** — les déploiements qui comptaient sur l'ancien défaut doivent le mettre à `true` explicitement. Avec un cookie TFO mis en cache par le noyau, les octets de requête partent dans le SYN du client : un RTT économisé sur chaque nouvelle connexion. |
@@ -95,7 +108,7 @@ routes:
 | `cache.bypass_on_cookie_names` | Noms de cookies qui contournent entièrement le cache pour une requête qui en porte l'un d'eux — même contrat que `bypass_on_cookie`, limité aux noms listés (depuis v0.5.27). Les requêtes ne portant que des cookies non listés participent au cache selon RFC 9111. Correspondance insensible à la casse sur le token de nom, dans chaque position et sur chaque ligne `Cookie` répétée. Plafond 16 noms ; mutuellement exclusif avec `bypass_on_cookie`. Voir [Cookie-name bypass](cache-policy/#cookie-name-bypass-since-v0527). |
 | `cache.bypass_on_user_agent` | Motifs glob `*` d'User-Agent qui contournent entièrement le cache (depuis v0.5.27) : la requête est proxiée vers l'origine avec `X-Cache: BYPASS`. Correspondance insensible à la casse sur la chaîne UA complète ; `*` est le seul joker ; un motif exact correspond à la chaîne entière (`*Bot*` pour une sous-chaîne). Plafond 16 entrées / 256 o. À déclarer une fois via `route_defaults.cache.bypass_on_user_agent`. Voir [User-Agent bypass](cache-policy/#user-agent-bypass-since-v0527). |
 | `cache.key.cookie_presence` | Noms de cookies dont la **présence** (jamais la valeur) ajoute un bit de clé chacun à la clé de variante Vary (depuis v0.5.27) — pour les origines qui rendent un contenu différent selon l'existence d'un cookie de consentement. Plafond 16 noms (jusqu'à 2^N combinaisons) ; mutuellement exclusif avec les deux boutons de bypass ; identique sur tous les nœuds du cluster. Voir [Cookie presence keying](cache-policy/#cookie-presence-keying-since-v0527). |
-| `cache.max_fetch_concurrency` | Nombre maximal de fetch origin simultanés pour cette route (défaut 32) |
+| `cache.max_fetch_concurrency` | Nombre maximal de fetch origin simultanés pour cette route (défaut **256 depuis v0.6.0**, précédemment 32) |
 | `cache.max_variants` | Plafond de variantes Vary distinctes stockées par clé primaire pour cette route (défaut intégré 1024, depuis v0.5.25 ; négatif rejeté, le plafond ne peut pas être désactivé ; `vary_cap_hits_total` s'incrémente quand il est atteint) |
 | `cache.fetch_timeout` | Timeout origin par route (en-tête + corps). Sans valeur explicite, la route hérite de `connect.response_header_timeout` du pool (défaut 30s) ; avec une valeur, elle est appliquée telle quelle — une route peut dépasser le réglage du pool (sémantique depuis v0.5.11) |
 | `cache.fetch_wait_timeout` | Durée d'attente d'un slot de fetch avant shedding (défaut 100ms, max 1s) : objet périmé servi si disponible, sinon 503 + `Retry-After: 1` |
@@ -124,9 +137,9 @@ route_defaults:
 | `mode` | `strong` ou `eventual` |
 | `join[]` | Liste des adresses seed pour le gossip |
 | `peer_max_idle_conn_duration` | Durée de vie des connexions peer inactives (défaut 120s). Doit rester **en dessous** de `admin.idle_timeout` (défaut 300s) — la validation de config rejette toute combinaison explicite qui viole cet ordre |
-| `peer_fetch_concurrency` | RPC peer-fetch/put simultanés par nœud (défaut 16 depuis v0.5.29 — précédemment 4 —, plage 1–128, depuis v0.5.11). En mode strong la plupart des hits sont des peer hits : à augmenter avec `peer_max_conns_per_host` sous charge. Le défaut a été relevé car quatre slots se situaient au point d'inflexion de la file sur des clusters à 3 nœuds, où tout ralentissement de RPC peer se répercutait en shed-runaway et éjections d'origine |
+| `peer_fetch_concurrency` | RPC peer-fetch/put simultanés par nœud (plage 1–128, depuis v0.5.11 ; **défaut relevé à 64 en v0.6.0** — après 16 depuis v0.5.29 et 4 avant — car un pool trop petit fait attendre les peer hits derrière des fetchs en cours et ajoute de la latence de queue en mode strong). En mode strong la plupart des hits sont des peer hits : à augmenter avec `peer_max_conns_per_host` sous charge |
 | `peer_tcp_fast_open` | Active le TCP Fast Open sortant (`TCP_FASTOPEN_CONNECT`) sur les dials peer — peer fetch/put et broadcast d'invalidation (depuis v0.5.29, défaut désactivé). Opt-in, Linux 4.11+ uniquement ; les dials bouine↔bouine utilisent TFO de bout en bout quand le côté répondant active aussi `listen.tcp_fast_open`. Advisory : un dial n'échoue jamais à cause de lui |
-| `ban_ttl` | Durée de rétention des bans d'invalidation avant élagage par le reaper (défaut 24h, ≥ 1s si défini, depuis v0.5.20) |
+| `ban_ttl` | Durée de rétention des bans d'invalidation avant élagage par le reaper (défaut 24h, ≥ 1s si défini, depuis v0.5.20 ; **modifiable à chaud depuis v0.6.0** via `bouine config set cluster.ban_ttl 45m`) |
 | `tls` | Configuration mTLS pour la communication entre peers |
 
 ### `tls`
@@ -238,3 +251,18 @@ doivent avoir `net.ipv4.tcp_fastopen` avec le bit serveur.
 > **Note de mise à jour (v0.5.29) :** les déploiements qui comptaient sur
 > l'ancien défaut côté listener doivent définir `listen.tcp_fast_open: true`
 > explicitement après la mise à niveau.
+
+## Configuration à chaud
+
+Depuis v0.6.0, deux surfaces d'exécution existent en complément du redémarrage :
+
+- **Boutons de configuration à chaud** (`bouine config get/set/diff`, `GET|POST /v1/config/hot`) : modifient des champs réellement appliquables à chaud sur un démon en cours d'exécution. Boutons actuels : `cluster.ban_ttl`, `url_ring_sample_rate`, et par pool `pool:<name>.health.passive.consecutive_5xx` / `pool:<name>.health.passive.eject_for`. Les overrides runtime sont éphémères (perdus au redémarrage, dérive visible via `bouine config diff`) et `bouine config set` se propage à tous les peers vivants en mode strong (`POST /v1/peer/config/hot`).
+- **`bouine config reload` / `POST /v1/config/reload`** (expérimental, derrière `experimental.config_reload`) : ré-applique un fichier de config à un démon en cours, applique le sous-ensemble à chaud, et rapporte applied / unchanged / NEEDS RESTART.
+
+```bash
+bouine config get
+bouine config set cluster.ban_ttl 45m
+bouine config set cluster.ban_ttl 45m --dry-run
+bouine config diff
+bouine config reload --file /etc/bouine/config.yaml
+```

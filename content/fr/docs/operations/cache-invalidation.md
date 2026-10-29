@@ -54,7 +54,18 @@ Bans use a two-pronged invalidation strategy:
 1. **Eager eviction** — all entries currently in the hot store that match the predicate are deleted immediately. Since v0.5.16, **surrogate-only bans skip the eager scan entirely**: the O(1) lazy check below enforces them identically (a banned entry is never served), and memory reclaim moves to the TTL reaper — a ~1800× faster registration path for the dominant production invalidation workload. `POST /v1/ban` therefore reports `count: 0` for surrogate-only bans. Host/path and multi-condition bans keep the coalesced scan (which also deduplicates identical bans registered concurrently, v0.5.14).
 2. **Lazy check** — newly-stored objects are checked against the active ban list on every lookup. Since v0.5.15 the ban list is compiled into an immutable snapshot (literal hosts, paths, and surrogate keys become set lookups; anchored prefixes become `HasPrefix` checks), so a full 1024-ban list costs ~22 ns per hit instead of ~10 µs. Since v0.5.26 the snapshot read itself is lock-free on the hit path: the compiled snapshot is published through an atomic pointer with an atomic dirty flag, so the clean steady state pays one uncontended load and a concurrent ban registration rebuilds the snapshot without parking every reader (issue #757 — contended hit + registrations went 594–776 → 178 ns/op, 0 allocs/op).
 
-Active bans are retained for 24 hours by default and then pruned automatically by the reaper. Since v0.5.20 the retention window is configurable via `cluster.ban_ttl` (must be ≥ 1s when set): RFC 9111 §4.4 exempts objects stored *after* the ban from matching, so cache-lifecycle surrogate invalidations are safe at minutes scale — lower it to bound the hit-ratio damage of an over-broad ban (a typo'd ban previously poisoned the hit ratio for the full 24 h).
+Active bans are retained for 24 hours by default and then pruned automatically by the reaper. Since v0.5.20 the retention window is configurable via `cluster.ban_ttl` (must be ≥ 1s when set; **hot-configurable at runtime since v0.6.0** — `bouine config set cluster.ban_ttl 45m`): RFC 9111 §4.4 exempts objects stored *after* the ban from matching, so cache-lifecycle surrogate invalidations are safe at minutes scale — lower it to bound the hit-ratio damage of an over-broad ban (a typo'd ban previously poisoned the hit ratio for the full 24 h).
+
+> **Ban registration is O(1) and surrogate-only bans are enforced through the
+> O(1) snapshot set again (v0.6.0, issues #871/#874).** The lazy ban-list cap
+> rises from 1024 to **4096** — with O(1) registration and a lock-free hit
+> path it is only a memory bound (~a few hundred bytes per ban, ~1–2 MB at
+> 4096), and the larger retention window means a distinct ban survives 4×
+> longer under a tag-invalidation storm before eviction forgets it.
+> Surrogate-key-only bans are published to a sharded, copy-on-write surrogate
+> set that the hit path reads lock-free, so a tag ban is enforced by the very
+> next read with no snapshot recompile (~0.5–1.2 µs per registration+hits
+> storm step at any cap from 1k to 256k).
 
 > **Bans no longer poison objects stored after them (v0.5.29).** A bug
 > since v0.5.13 made a ban treat every object as subject forever —

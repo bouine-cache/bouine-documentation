@@ -71,7 +71,7 @@ routes:
 |---|---|
 | 流在约 10 分钟静默后结束 | 空闲预算触发——源站停止发送且无心跳 |
 | 流恰好在 `fetch_timeout` 时结束 | 客户端未发送 `Accept: text/event-stream`（未声明路径） |
-| 未启用 fast path 时流在 1 小时结束 | 普通 fasthttp 服务路径上的预期行为；启用 `experimental.h1_fast_path` 或依赖客户端重连 |
+| 未启用 fast path 时流在 1 小时结束 | 自 v0.6.0 起不适用——H1 fast path 始终启用；改用 `listen.idle_timeout` 限制空闲 keep-alive 连接 |
 | 流开始时收到 `503 + Retry-After` | `fetch_wait_timeout` 内 fetch 队列已满——提高 `max_fetch_concurrency` 或排查源站延迟 |
 
 ## 流式 miss
@@ -99,14 +99,14 @@ routes:
 2. 客户端收到 **503 + `Retry-After: 1`**——与源站故障的 502 映射不同。
 
 Singleflight 跟随者与进行中流的跟随者以 leader 的卸载结果一并解除
-阻塞。`bouine_fetch_shed_total` 计数器暴露卸载率用于告警。
+阻塞。`bouine_fetch_shed_total` 计数器暴露卸载率用于告警。**自 v0.6.0 起，`max_fetch_concurrency` 的内置默认值改为 256（之前为 32）**：一次 miss 会占用 fetch 信号量槽位约一个源站延迟，因此一条路由每秒最多承受 `slots / 源站延迟` 次 miss——32 个槽位在 50 ms 源站下上限约 640 miss/s，超出部分约 75% 被卸载；而 256 个槽位在相同延迟下可承受约 5 100 miss/s。请将 `slots × 2 × max_response_bytes` 控制在 `GOMEMLIMIT` 的约三分之二以内（小型 pod）。
 
 ```yaml
 routes:
   - match: { path_prefix: / }
     pool: app
     cache:
-      max_fetch_concurrency: 32
+      max_fetch_concurrency: 256
       fetch_wait_timeout: 100ms
 ```
 

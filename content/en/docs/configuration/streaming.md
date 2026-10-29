@@ -81,7 +81,7 @@ result.
 |---|---|
 | Stream ends after ~10 min of silence | Idle budget fired — the origin stopped sending without heartbeats |
 | Stream ends at exactly `fetch_timeout` | The client did not send `Accept: text/event-stream` (non-hinted path) |
-| Stream ends at 1 h with the fast path disabled | Expected on the plain fasthttp serving path; enable `experimental.h1_fast_path` or rely on client reconnects |
+| Stream ends at 1 h with the fast path disabled | Not applicable since v0.6.0 — the H1 fast path is always on; use `listen.idle_timeout` to bound idle keep-alive connections instead |
 | `503 + Retry-After` at stream start | Fetch queue was full for `fetch_wait_timeout` — raise `max_fetch_concurrency` or investigate origin latency |
 
 ## Streaming misses
@@ -117,14 +117,23 @@ When a foreground miss cannot acquire an origin-fetch slot (bounded by
 Singleflight followers and inflight-stream followers un-park with the
 leader's shed result, so a shed affects the whole collapsed group
 consistently. The `bouine_fetch_shed_total` counter exposes the shed rate
-for alerting.
+for alerting. **Since v0.6.0 the built-in `max_fetch_concurrency` default is
+256 (previously 32):** a miss holds its fetch-semaphore slot for roughly the
+origin latency, so a route sustains at most `slots / origin-latency` misses
+per second — 32 slots capped at ~640 misses/s against a 50 ms origin and shed
+~75% of misses above that on a 10% miss-rate / 25k RPS profile, while 256
+sustains ~5 100 misses/s at the same latency with zero sheds. Buffered misses
+are still capped per-fetch by `max_response_bytes` (worst case
+`256 × 2 × max_response_bytes` across a route), so size
+`slots × 2 × max_response_bytes` within about two thirds of `GOMEMLIMIT` on
+small pods.
 
 ```yaml
 routes:
   - match: { path_prefix: / }
     pool: app
     cache:
-      max_fetch_concurrency: 32
+      max_fetch_concurrency: 256
       fetch_wait_timeout: 100ms
 ```
 
