@@ -52,12 +52,14 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] Passive health checks enabled (`consecutive_5xx`, `eject_for`)
 - [ ] Upstream connection timeout and response header timeout configured
 - [ ] `max_connections` set per pool to prevent FD exhaustion
-- [ ] `listen.max_connections` set to bound total data-plane connections (default 4096)
+- [ ] `listen.max_connections` set to bound total data-plane connections (default 65536 since v0.6.0; 0 disables the cap; refusals counted by `bouine_conn_rejections_total`)
 - [ ] `listen.idle_timeout` tuned against front-end/LB idle timeouts (front-end must close idle connections first)
 - [ ] `connect.max_idle_conn_duration` kept below any LB idle timeout between bouine and the origin (AWS NLB: 350s)
 - [ ] `response_header_timeout` configured to prevent slow-origin connection churn
 - [ ] `cluster.peer_max_idle_conn_duration` kept below `admin.idle_timeout` (default 300s)
-- [ ] `cluster.peer_fetch_concurrency` sized for strong-mode peer-hit load (default 16 since v0.5.29, range 1–128)
+- [ ] `cluster.peer_fetch_concurrency` sized for strong-mode peer-hit load (default 64 since v0.6.0, range 1–128)
+- [ ] Alerting on `bouine_conn_rejections_total` (data-plane accept refusals — `listen.max_connections` reached)
+- [ ] Alerting on `bouine_conn_rejections_total` (data-plane accept refusals — `listen.max_connections` reached)
 - [ ] Alerting on `bouine_fetch_shed_total` (slow-origin shedding — see [Streaming](/docs/configuration/streaming/))
 - [ ] Alerting on `bouine_peer_shed_total` and `bouine_peer_fetch_queue_wait_seconds` in strong-mode clusters (peer-fetch saturation — see [Monitoring](/docs/operations/monitoring/#cluster))
 
@@ -80,7 +82,7 @@ are grouped by area. Skip items that don't apply to your deployment.
 - [ ] `serviceAccount.automount: false` (bouine doesn't need K8s API access)
 - [ ] Probes configured: startup (30 min budget), readiness (`/readyz`), liveness (`/healthz`)
 - [ ] Rolling update strategy: `maxUnavailable: 1` for sequential pod restarts
-- [ ] Config changes deployed via rolling update (no live config reload)
+- [ ] Config changes deployed via rolling update (hot knobs via `bouine config set`, experimental `config reload` behind `experimental.config_reload` since v0.6.0)
 
 ## Operations
 

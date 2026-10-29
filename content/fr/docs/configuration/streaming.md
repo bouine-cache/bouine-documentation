@@ -83,7 +83,7 @@ partageable.
 |---|---|
 | Le flux se termine après ~10 min de silence | Budget d'inactivité atteint — l'origine a cessé d'envoyer sans heartbeat |
 | Le flux se termine à exactement `fetch_timeout` | Le client n'a pas envoyé `Accept: text/event-stream` (chemin non annoncé) |
-| Le flux se termine à 1 h avec le fast path désactivé | Comportement attendu sur le chemin fasthttp standard ; activez `experimental.h1_fast_path` ou comptez sur la reconnexion des clients |
+| Le flux se termine à 1 h avec le fast path désactivé | Non applicable depuis v0.6.0 — le fast path H1 est toujours actif ; utilisez `listen.idle_timeout` pour borner les connexions keep-alive inactives |
 | `503 + Retry-After` au démarrage du flux | File de fetch pleine pendant `fetch_wait_timeout` — augmentez `max_fetch_concurrency` ou investiguez la latence origin |
 
 ## Miss en streaming
@@ -118,14 +118,21 @@ Quand un miss au premier plan ne peut pas acquérir un slot de fetch origin
 
 Les followers singleflight et des flux en cours se déparquent avec le
 résultat sheddé du leader. Le compteur `bouine_fetch_shed_total` expose le
-taux de shedding pour l'alerting.
+taux de shedding pour l'alerting. **Depuis v0.6.0, le défaut intégré de
+`max_fetch_concurrency` est 256 (précédemment 32)** : un miss occupe son
+slot de sémaphore de fetch pendant environ la latence de l'origine, donc une
+route soutient au plus `slots / latence-origine` miss/s — 32 slots plafonnaient
+à ~640 miss/s contre une origine à 50 ms et sheddaient ~75 % des miss au-delà,
+tandis que 256 soutiennent ~5 100 miss/s à la même latence. Dimensionnez
+`slots × 2 × max_response_bytes` à environ deux tiers de `GOMEMLIMIT` sur les
+petits pods.
 
 ```yaml
 routes:
   - match: { path_prefix: / }
     pool: app
     cache:
-      max_fetch_concurrency: 32
+      max_fetch_concurrency: 256
       fetch_wait_timeout: 100ms
 ```
 

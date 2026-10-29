@@ -68,16 +68,21 @@ kill — avoid if possible.
 
 ## Config updates
 
-bouine does not support live config reload. Config changes require a
-rolling pod restart. This is intentional: storage, cluster, and TLS
-settings cannot be safely reconfigured at runtime, and keeping reload
-out of the critical path removes a class of race conditions.
+Most config changes require a rolling pod restart. This is intentional:
+storage, cluster, and TLS settings cannot be safely reconfigured at runtime.
 
 On Kubernetes, update the ConfigMap and rolling-restart:
 
 ```bash
 kubectl rollout restart statefulset/bouine
 ```
+
+Since v0.6.0, two narrower runtime surfaces exist on top of the restart
+path — the [hot-config knobs](/docs/configuration/#hot-configuration)
+(`bouine config set`, e.g. `cluster.ban_ttl`) and experimental
+`bouine config reload` (behind `experimental.config_reload`), which applies
+a config file to a running daemon and reports what still needs a restart.
+Runtime overrides are ephemeral and lost at restart; reload is per-node.
 
 The graceful shutdown sequence (below) ensures zero-5xx rolling updates
 when combined with a PodDisruptionBudget and readiness probes.

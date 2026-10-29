@@ -1,9 +1,14 @@
 [
   {
-    "version": "0.5",
-    "label": "v0.5.x",
+    "version": "0.6",
+    "label": "v0.6.x",
     "latest": true,
     "path": ""
+  },
+  {
+    "version": "0.5",
+    "label": "v0.5.x",
+    "path": "/v0.5"
   },
   {
     "version": "0.4",

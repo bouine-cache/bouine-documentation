@@ -121,7 +121,7 @@ routes:
 | `https` | `""` | HTTPS (TLS) listener. See [TLS](tls/). |
 | `admin` | `":9000"` | Admin API (health, metrics, purge) |
 | `cluster` | `""` | Gossip cluster port |
-| `max_connections` | `0` | Max concurrent data-plane connections (0 = default 4096; Helm chart sets 4096 default / 8192 production / 16384 HA). Protects against FD exhaustion. Idle keep-alive connections hold a slot. |
+| `max_connections` | `0` | Max concurrent data-plane connections (0 = built-in default **65536 since v0.6.0**, previously 4096; Helm chart sets 65536 default / 8192 production / 16384 HA — explicit values are untouched, and 0 disables the cap). Protects against FD exhaustion. Idle keep-alive connections hold a slot, so size for the whole client population a single CDN front produces, not just peak concurrency; each accepted connection pins ~32 KiB, so 65536 conns pin at most ~2 GiB — size down on small pods. Over-limit connections get an instant `503 + Connection: close` at accept, counted exactly by `bouine_conn_rejections_total` (the warn log is rate-limited to one line per 10 s per listener). |
 | `idle_timeout` | `120s` | Keep-alive idle timeout for data-plane connections: how long a connection with no in-flight request stays open. Also used by the H1 fast-path parser, so the two stay in sync. With an upstream proxy or LB in front, keep its keep-alive idle timeout **below** this value so it closes idle connections first — otherwise bouine can close a connection mid-reuse and the upstream logs `upstream prematurely closed connection`. |
 | `tcp_fast_open` | `false` | Enable server-side TCP_FASTOPEN on data-plane listeners (Linux only, no-op elsewhere). **Default changed from enabled to disabled in v0.5.29** — deployments that relied on the old default must set `true` explicitly. With a kernel-cached TFO cookie the request bytes ride in the client's SYN, saving one RTT on fresh connections. Advisory: accepts never fail because of it. See [TCP Fast Open](#tcp-fast-open). |
 | `tcp_defer_accept` | `true` (Linux) | Enable TCP_DEFER_ACCEPT on data-plane listeners. Defaults to true on Linux, no-op elsewhere. |
@@ -163,7 +163,7 @@ routes:
 | `hop_limit` | `2` | Max peer-fetch hops before origin fallback (strong mode only) |
 | `peer_max_conns_per_host` | `8` | Pipelined peer connections per peer. Default 8, with 16 pending requests each, gives 128 concurrent peer fetches per peer. Set to 1 to disable pipelining. |
 | `peer_max_idle_conn_duration` | `120s` | How long idle peer RPC connections are kept before closing. Must stay **below** `admin.idle_timeout` (default 300s) — config validation rejects any explicit value that violates the ordering, because a peer request sent on a connection the admin server already reaped fails with EOF and falls back to origin. |
-| `peer_fetch_concurrency` | `16` | Bounds concurrent peer-fetch and peer-put RPCs per node (since v0.5.11, range 1–128; **default raised from 4 to 16 in v0.5.29** — four slots sat at the queueing knee on 3-node clusters of the 6k req/s class, where any peer-RPC slowdown cascaded into shed-runaway and origin ejections). In strong mode most cache hits are peer hits, so this semaphore sits on the hot path; raise it together with `peer_max_conns_per_host` under load to cut peer-hit tail latency. |
+| `peer_fetch_concurrency` | `64` | Bounds concurrent peer-fetch and peer-put RPCs per node (since v0.5.11, range 1–128; **default raised from 4 to 16 in v0.5.29, then from 16 to 64 in v0.6.0** — too small a pool queues peer hits behind in-flight fetches and adds tail latency on strong-mode clusters; explicit values are unaffected). In strong mode most cache hits are peer hits, so this semaphore sits on the hot path; raise it together with `peer_max_conns_per_host` under load to cut peer-hit tail latency. |
 | `peer_tcp_fast_open` | `false` | Enable outbound TCP Fast Open (`TCP_FASTOPEN_CONNECT`) on peer-bound dials — peer fetch/put and the invalidation-broadcast client (since v0.5.29). With a kernel-cached TFO cookie the first RPC bytes ride in the SYN, saving one RTT on every fresh peer connection. Opt-in, Linux 4.11+ only, no-op elsewhere; bouine↔bouine peer dials use TFO end-to-end when the dialing side sets this flag, the answering side sets `listen.tcp_fast_open`, and each peer's kernel has `net.ipv4.tcp_fastopen` including the server bit. Advisory: dials never fail because of it. |
 | `ban_ttl` | `24h` | How long a lazy invalidation ban stays in the active ban list before the reaper prunes it (since v0.5.20, must be ≥ 1s when set). RFC 9111 §4.4 exempts objects stored after the ban, so cache-lifecycle surrogate invalidations are safe at minutes scale — lower it to bound the hit-ratio damage of an over-broad ban. |
 | `join_timeout` | `120s` | Max time to wait for cluster join. In strong mode, the pod stays not-ready if join fails. In eventual mode, the pod becomes ready and retries in the background. |
@@ -218,7 +218,7 @@ A route must specify exactly one of `pool` or `static.root`. The former proxies 
 | `bypass_on_user_agent` | `[]` | User-Agent `*`-glob patterns that route matching requests entirely around the cache — no lookup, no storage, no in-flight sharing; the request proxies to origin with `X-Cache: BYPASS` (since v0.5.27). Patterns match the full UA string case-insensitively; `*` matches any run of bytes including `/`; an exact pattern matches the whole string (`*Bot*` for substring semantics). Capped at 16 entries / 256 B each. Declare once via `route_defaults.cache.bypass_on_user_agent`. See [User-Agent bypass](/docs/configuration/cache-policy/#user-agent-bypass-since-v0527). |
 | `max_object_size` | `0` | Skip caching responses whose body exceeds this size (e.g. `1MiB`). The response is still proxied. `0` = no limit. |
 | `max_response_bytes` | `64MiB` | Hard cap on bytes buffered per origin fetch. Aborts the fetch (502) when exceeded. Different from `max_object_size` which controls caching eligibility. Default derives from GOMEMLIMIT (7%) or a built-in 64 MiB floor. |
-| `max_fetch_concurrency` | `32` | Max concurrent foreground origin fetches per route (collapsed via singleflight). Excess requests wait up to `fetch_wait_timeout` for a slot, then shed. |
+| `max_fetch_concurrency` | `256` (since v0.6.0, previously 32) | Max concurrent foreground origin fetches per route (collapsed via singleflight). Excess requests wait up to `fetch_wait_timeout` for a slot, then shed. A miss holds its slot for roughly the origin latency, so a route sustains at most `slots / origin-latency` misses per second — 32 slots capped at ~640 misses/s against a 50 ms origin and shed 75% of misses above that; the 256 default sustains ~5 100 misses/s at the same latency. Size `slots × 2 × max_response_bytes` within about two thirds of `GOMEMLIMIT` on small pods. |
 | `max_variants` | `1024` (built-in) | Cap on distinct Vary variants stored per primary cache key on this route (since v0.5.25). Unset/`0` applies the built-in default; negative values are rejected; the cap cannot be disabled. When hit, further variant storage is skipped and `vary_cap_hits_total` increments — requests keep being proxied. See [Variant caps](/docs/configuration/cache-policy/#variant-caps-and-content-negotiation-bucketing). |
 | `fetch_timeout` | inherits `connect.response_header_timeout` (30s) | The authoritative per-route origin timeout (header + body), starting once a fetch slot is acquired (semantics since v0.5.11). When unset, the route inherits the pool's `connect.response_header_timeout`; when set, the value is enforced verbatim in either direction — a route may exceed the pool-wide knob to give a slow endpoint more time without raising the wait for every other route. Must stay below the 5-minute data-plane safety-net write timeout. |
 | `fetch_wait_timeout` | `100ms` | How long a foreground miss waits for an origin-fetch slot (bounded by `max_fetch_concurrency`) before shedding: stale object served if one is in scope, otherwise 503 + `Retry-After: 1`. Validated range: 0–1s. Independent of `fetch_timeout`. See [Streaming and live responses](streaming/). |
@@ -304,7 +304,19 @@ health:
 `passive.eject_for` restores passively ejected targets once the window
 elapses and re-ejects them automatically if they are still broken
 (enforced since v0.5.19; restores are counted in the
-`origin_restores_total` metric with a `source` label).
+`origin_restores_total` metric with a `source` label). **Since v0.6.1 an
+unset `eject_for` resolves to a built-in 30s window on pools that configure
+passive health** — previously the zero value ejected a single-target pool for
+the process lifetime (every miss returned an instant 502 until restart).
+There is no eject-forever configuration anymore; set a very long window to
+opt out of restore. **Since v0.6.0 a 5xx response counts toward ejection
+only once the target has stopped completing successful fetches for a 5s
+success window** — a healthy origin answering successes is never ejected by
+a 5xx burst. Connection errors are never excused by recent successes. Both
+`consecutive_5xx` and `eject_for` are hot-configurable per pool at runtime
+(`bouine config set pool:<name>.health.passive.consecutive_5xx ...` and
+`pool:<name>.health.passive.eject_for ...`; `eject_for` only when the reaper
+started at boot) — see [Hot configuration](#hot-configuration).
 
 ### `metrics`
 
@@ -376,9 +388,10 @@ Opt-in features that are not yet stable. All fields default to off. See [Experim
 
 | Field | Default | Description |
 |---|---|---|
-| `h1_fast_path` | `false` | Enable custom HTTP/1.1 parser for zero-allocation cache hits. Eliminates `*http.Request` and `http.ResponseWriter` construction on the hit path (~40% CPU reduction, 0 allocations). Misses and non-GET/HEAD requests fall through to the standard `fasthttp` handler. See [Experimental features](experimental/). |
-| `h1_reactor` | `false` | Enable the single-goroutine epoll event loop that batch-serves cache hits without per-request goroutine park/unpark (Linux only; requires `h1_fast_path`). See [Experimental features](experimental/). |
-| `h1_fast_peer_path` | `false` | Serve peer-fetched objects directly on the H1 fast path without falling through to the slow path (since v0.5.20; requires `h1_fast_path` and a strong-mode cluster; not wired under `h1_reactor`). See [Experimental features](experimental/). |
+| `h1_fast_path` | n/a (retired v0.6.0) | **Always on since v0.6.0** (ADR-0069): the zero-allocation HTTP/1.1 hit path is built whenever a store exists, with no config gate. The key still parses (strict loader keeps pre-promotion configs loading) but is ignored, and a retirement notice is logged at startup when set — there is no opt-out. Misses and non-GET/HEAD requests fall through to the standard `fasthttp` handler. See [Experimental features](experimental/). |
+| `h1_fast_peer_path` | n/a (retired v0.6.0) | **Always on since v0.6.0** in strong-mode clusters: the fast-path miss now always asks the ring owner first, the same owner-first path the slow path has always taken. The key still parses but is ignored; retirement logged at startup. |
+| `h1_reactor` | — (removed v0.6.0) | **Removed in v0.6.0** (ADR-0041 superseded by ADR-0068): configs setting `experimental.h1_reactor` now fail strict parsing with an unknown-field error — remove the key. All fast-path traffic uses the blocking h1parser path. |
+| `config_reload` | `false` | Experimental (since v0.6.0, issue #817): enable `bouine config reload` / `POST /v1/config/reload` to apply a config file to a running daemon without a restart. See [Hot configuration](#hot-configuration). |
 
 ### Top-level fields
 
@@ -506,8 +519,7 @@ All byte-size fields (`hot_max_bytes`, `warm_max_bytes`) accept any of these suf
 
 ## Config updates
 
-bouine does not support live config reload. All config changes require a
-process restart. On Kubernetes, use a rolling restart:
+Most config changes require a process restart. On Kubernetes, use a rolling restart:
 
 ```bash
 kubectl rollout restart statefulset/bouine
@@ -515,3 +527,43 @@ kubectl rollout restart statefulset/bouine
 
 For TLS certificate rotation, restart the process or use Kubernetes rolling
 restarts with cert-manager.
+
+Since v0.6.0, two runtime surfaces exist on top of the restart path:
+
+- **Hot configuration knobs** (`bouine config get/set/diff`, `GET|POST /v1/config/hot`)
+  change genuinely hot-appliable fields on a running daemon without a restart.
+  Current knobs: `cluster.ban_ttl`, `url_ring_sample_rate`, and per-pool
+  `pool:<name>.health.passive.consecutive_5xx` and `pool:<name>.health.passive.eject_for`.
+  Runtime overrides are ephemeral — lost at restart, with drift visible via
+  `bouine config diff` — and `bouine config set` fans out to every live peer
+  in strong mode (`POST /v1/peer/config/hot`), reporting honest coverage and
+  counting failures in `bouine_cluster_broadcast_failures_total{type="hot_set"}`.
+  Every attempt is audited and counted in `bouine_config_hot_sets_total`.
+- **`bouine config reload` / `POST /v1/config/reload`** (experimental, behind
+  `experimental.config_reload`) re-parses and validates a config file on a
+  running daemon, applies the hot-appliable subset, and reports applied /
+  unchanged / `NEEDS RESTART` sections with reasons. A parse or validation
+  failure leaves the running config untouched. Reload is per-node; a disabled
+  daemon answers 503 with the opt-in instructions. Audited via
+  `bouine_config_reloads_total{result}`.
+
+## Hot configuration
+
+The hot-config knob surface (since v0.6.0, issues #815/#817) lets you change
+a registry of genuinely hot-appliable fields on a running daemon:
+
+```bash
+bouine config get                          # every knob with live value and source (file / default / runtime)
+bouine config set cluster.ban_ttl 45m      # validated point mutation; always prints a not-persisted warning
+bouine config set cluster.ban_ttl 45m --dry-run   # validate and report server-side without touching live state
+bouine config diff                         # knobs a restart would lose (runtime drift)
+bouine config diff a.yaml b.yaml           # preview a deploy: diff two effective configs
+bouine config reload --file /etc/bouine/config.yaml   # experimental: apply a file, reports NEEDS RESTART
+```
+
+Runtime overrides are deliberately ephemeral (pods are cattle, no sidecar
+state) and lost at restart — drift is visible, never silent. Unknown and
+cold-only keys are rejected with precise errors; per-route keys stay
+cold-only. In strong mode, applied sets propagate to every live peer over
+`POST /v1/peer/config/hot` (never re-broadcast, so the fan-out cannot loop);
+eventual-mode clusters do not fan out, and dry runs never fan out.

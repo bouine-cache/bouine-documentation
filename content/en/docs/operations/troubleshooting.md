@@ -228,7 +228,11 @@ under extreme load:
 ### Fix
 
 1. **Set `listen.max_connections`** to bound the total concurrent
-   data-plane connections. This directly limits FD usage.
+   data-plane connections. This directly limits FD usage. The built-in cap
+   default is **65536 since v0.6.0** (previously 4096 — the old default
+   refused legitimate keep-alive populations a single CDN front produces);
+   over-limit connections get an instant `503 + Connection: close` at
+   accept, counted exactly by `bouine_conn_rejections_total`.
 
 2. **Set `upstream_pools[].connect.max_connections`** per pool to limit
    upstream connection count.

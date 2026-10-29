@@ -55,3 +55,14 @@ routes:
 - **`cluster.peer_fetch_concurrency`** — 每节点并发 peer-fetch/put RPC 上限的默认值从 4 提升到 16（v0.5.29）。
 - **`metrics.traffic_classes`** — 按主机模式声明最多 8 个命名流量群体，为数据面指标添加 `traffic_class` 标签（v0.5.27）。
 - **`ttl_override`** — 自 v0.5.29 仅作用于成功与重定向响应（status < 400）；可缓存的错误响应按负缓存 TTL 阶梯过期。
+- **`listen.max_connections`** — 默认上限自 v0.6.0 从 4096 提升到 **65536**；accept 拒绝由 `bouine_conn_rejections_total` 精确计数。
+- **H1 fast path 始终启用**（v0.6.0，ADR-0069）：`experimental.h1_fast_path` 与 `h1_fast_peer_path` 已退役（键被忽略，启动时记录提示），`experimental.h1_reactor` 已**移除**（严格解析报未知字段错误，请删除该键）。
+- **`routes[].cache.max_fetch_concurrency`** — 内置默认值自 v0.6.0 从 32 提升到 **256**。
+- **`cluster.peer_fetch_concurrency`** — 默认值自 v0.6.0 从 16 提升到 **64**。
+- **`health.passive`** — v0.6.1 起未设置 `eject_for` 时默认为 30 秒恢复窗口；v0.6.0 起 5xx 仅在目标 5 秒无成功响应后才计入驱逐；`consecutive_5xx` 与 `eject_for` 支持按 pool 热配置（v0.6.0）。
+- **热配置**（v0.6.0）：`bouine config get/set/diff`、`bouine config reload`（实验性，需 `experimental.config_reload`）、`GET|POST /v1/config/hot`、`POST /v1/config/reload`——另见 [CLI](/docs/reference/cli/) 与 [API](/docs/reference/api/)。
+- **新 CLI 命令 / API**（v0.6.0）：`bouine status`、`bouine explain`、`bouine keys find/top/recent`、`GET /v1/status`、`GET /v1/explain`、`GET /v1/keys/*`。
+- **`Set-Login`** 自 v0.6.0 起与 `Set-Cookie` 一样进入所有存储门控与存储剥离（ADR-0067）；携带客户端状态的响应不再通过 collapse 发给第二个客户端。
+- **无 include_headers 的冷 miss 合并为一次填充 flight**，从存储中服务（ADR-0066，v0.6.0）。
+- **ban 上限**自 1024 提升到 **4096**，注册 O(1)，surrogate ban 通过无锁集合执行（v0.6.0）。
+

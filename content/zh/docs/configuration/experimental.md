@@ -4,7 +4,7 @@ weight: 7
 description: "Opt-in experimental features that may become stable in future releases."
 ---
 
-Experimental features are opt-in capabilities that bypass some of bouine's standard processing paths for improved performance. They are gated behind the `experimental` config section and default to off.
+Experimental features are opt-in capabilities behind the `experimental` config section and default to off.
 
 > **Warning:** Experimental features may change or be removed between releases. Test thoroughly before enabling in production.
 
@@ -14,26 +14,40 @@ All experimental fields live under the top-level `experimental` key:
 
 ```yaml
 experimental:
-  h1_fast_path: true
-  h1_reactor: true   # Linux only; requires h1_fast_path
+  config_reload: true
 ```
 
 ## Field reference
 
 | Field | Default | Description |
-|---|---|---|
-| `h1_fast_path` | `false` | Enable the custom HTTP/1.1 parser for zero-allocation cache hits. See below. |
-| `h1_reactor` | `false` | Enable the single-goroutine epoll event loop that batch-serves cache hits (Linux only; requires `h1_fast_path`). See [H1 reactor](#h1-reactor). |
-| `h1_fast_peer_path` | `false` | Serve peer-fetched objects directly on the fast path (requires `h1_fast_path` and a strong-mode cluster). See [H1 fast peer path](#h1-fast-peer-path). |
+---|---|---|
+| `config_reload` | `false` | Enable `bouine config reload` / `POST /v1/config/reload` to apply a config file to a running daemon without a restart (since v0.6.0, issue #817, phase 1). See [Hot configuration](../#hot-configuration). |
 
-## H1 fast path
+## Retired keys (accepted but ignored, since v0.6.0)
 
-When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`internal/server/h1parser`) that bypasses `fasthttp` on cache hits. This eliminates `*http.Request` allocation, `http.ResponseWriter` wrapping, header-map operations, and tracing/metrics middleware for cacheable GET/HEAD requests.
+Three keys that gated the H1 fast path are **retired in v0.6.0** (ADR-0069).
+They still parse — any combination loads, so pre-promotion configs keep
+working — but they are ignored and a retirement notice is logged at startup
+when set. There is no opt-out.
+
+| Field | Status | Description |
+---|---|---|
+| `h1_fast_path` | always on since v0.6.0 | The zero-allocation HTTP/1.1 hit path (`internal/server/h1parser`) is now built whenever a store exists, with no config gate. |
+| `h1_fast_peer_path` | always on since v0.6.0 | The fast-path peer branch is wired on every strong-mode cluster — the same owner-first miss path the slow path has always taken, closing a consistency gap where identical traffic took different miss paths depending on the parser. |
+| `h1_reactor` | **removed** in v0.6.0 | The single-goroutine epoll event loop (ADR-0041) is deleted; configs setting it now fail strict parsing with an unknown-field error. Remove the key. All fast-path traffic uses the blocking h1parser path (one goroutine per connection). |
+
+## H1 fast path (now the default path)
+
+Since v0.6.0 the fast path is the default path. When a store exists, bouine
+uses the custom HTTP/1.1 request parser (`internal/server/h1parser`) that
+bypasses `fasthttp` on cache hits. This eliminates `*http.Request`
+allocation, `http.ResponseWriter` wrapping, header-map operations, and
+tracing/metrics middleware for cacheable GET/HEAD requests.
 
 > **Since v0.5.21 the fast path is built per route** (issue #696): fast-path
 > hits are attributed to the route's configured `upstream_pool` (previously
 > every fast-path hit was recorded with `upstream_pool="_default"`, so
-> enabling `h1_fast_path` fleet-wide made per-pool dashboard series vanish),
+> enabling the fast path fleet-wide made per-pool dashboard series vanish),
 > and run under the route's `cache.key` policy. Requests matching no route or
 > a non-cached route fall through to the slow path instead of being served
 > store-level ghost hits. Route resolution adds 0 allocs/op and ~22 ns per
@@ -42,11 +56,19 @@ When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`i
 > validator-aware no-cache, and heuristic-freshness branches now run on all
 > three paths, and its variant-key overflow falls back to the allocation
 > path instead of silently returning the primary key.
-
+>
 > **v0.5.0 context:** The entire data plane was migrated to `fasthttp` in
-> v0.5.0. The `h1_fast_path` goes one step further by bypassing
-> `fasthttp` entirely on cache hits, using a stack-allocated parser that
-> avoids all allocations on the hot path.
+> v0.5.0. The H1 fast path goes one step further by bypassing `fasthttp`
+> entirely on cache hits, using a stack-allocated parser that avoids all
+> allocations on the hot path.
+>
+> **Since v0.6.0** the fast path also grows the shutdown drain the fasthttp
+> path already had: `serveFastPath` tracks each connection's idle/in-flight
+> state through a zero-allocation h1parser conn-state hook, closes idle
+> keep-alive connections immediately on shutdown, and lets in-flight
+> responses finish (`fasthttp.Server.Shutdown` parity). Previously a shutdown
+> with open idle connections hung the listener goroutine until every idle
+> deadline expired.
 
 ### What it does
 
@@ -56,9 +78,8 @@ When `h1_fast_path` is enabled, bouine uses a custom HTTP/1.1 request parser (`i
 
 ### What stays on the standard path
 
-The following request types always go through the standard `fasthttp` handler chain regardless of the fast path setting:
+The following request types always go through the standard `fasthttp` handler chain regardless:
 
-- ~~**HTTP/2** (h2 over TLS via ALPN, or h2c upgrade preface)~~ — HTTP/2 was dropped in v0.5.0 when the data plane migrated to `fasthttp` (HTTP/1.1 only). Reintroduction is in progress as a `fasthttp`-native implementation.
 - **HTTP/1.0** requests (different keep-alive semantics)
 - **Non-GET/HEAD methods** (POST, PUT, DELETE, etc.)
 - **Conditional requests** (`If-None-Match`, `If-Modified-Since`, `If-Match`, `If-Unmodified-Since`, `If-Range`, `Range`)
@@ -66,10 +87,11 @@ The following request types always go through the standard `fasthttp` handler ch
 - **Requests with `Pragma: no-cache`**
 - **Headers exceeding 16 KiB** (fall through to the standard handler)
 - **Requests announcing `Accept: text/event-stream`** — SSE is always served as a live unbuffered stream, see [Streaming and live responses](../streaming/)
+- **Paths the fasthttp normalization would rewrite** (since v0.6.0): the fast path hashes the raw path, so dot-segment, percent-escaped, or fragment-bearing spellings can never fast-path-hit — they are declined up front instead of paying a doomed lookup. The origin-bound request-target is normalized through fasthttp's own URI parser so the origin always receives the spelling the cache key hashed (issue #847).
 
 ### Fall-through behavior
 
-When the fast path cannot serve a request (cache miss, non-cacheable method, etc.), it hands off to the standard `fasthttp` handler chain with the bytes already parsed replayed — the request is re-parsed from a buffered prefix plus the live socket, so request bodies spanning multiple TCP reads, pipelined bytes after a hit, and headers larger than the 16 KiB parser buffer are all served correctly.
+When the fast path cannot serve a request (cache miss, non-cacheable method, etc.), it hands off to the standard `fasthttp` handler chain with the bytes already parsed replayed — the request is re-parsed from a buffered prefix plus the live socket, so request bodies spanning multiple TCP reads, pipelined bytes after a hit, and headers larger than the 16 KiB parser buffer are all served correctly. `bufio.Reader`s on the fall-through paths are pooled per listener (`sync.Pool`, since v0.6.0) instead of allocated per request.
 
 The H1 parser includes HTTP request smuggling detection. Ambiguous framing (Content-Length + Transfer-Encoding, duplicate Content-Length) is rejected with `400` and connection close per RFC 9110 §6.6.2, and counted in the `bouine_http_smuggling_rejected_total` Prometheus metric.
 
@@ -86,103 +108,20 @@ pay connection churn. Fast-path hits within the same wall-clock second
 reuse a fully serialized response head stored on the object, skipping
 per-hit header appends entirely.
 
-## H1 fast peer path
+## Config reload (experimental)
 
-> Available since v0.5.20, experimental. Requires `h1_fast_path` and a
-> cluster in `strong` mode; config validation rejects the flag without
-> `h1_fast_path`, and startup logs an error if the cluster is not in
-> strong mode. Not wired under the epoll reactor (`h1_reactor`), where
-> the hit path must never block on network I/O.
+> Available since v0.6.0, experimental, off by default. Enable with
+> `experimental.config_reload: true`.
 
-Without this flag, a fast-path cache miss falls through to the slow
-path, which then performs the peer lookup — a full parser/handler
-round-trip per peer hit. With `h1_fast_peer_path` enabled, a plain-key
-miss on the fast path asks the key's ring owner first and serves the
-peer's object directly with `X-Cache-Source: peer`, without storing (the
-owner keeps ring placement authority) and without allocating. Freshness
-fields dropped by the wire codec are re-derived so peer hits are
-evaluated exactly like local hits; on any peer error the fast path falls
-through to the slow path's shed/origin machinery unchanged. On a
-definitive owner miss, the slow path skips its duplicate owner lookup
-and goes straight to origin.
+`bouine config reload` (and `POST /v1/config/reload`) applies a config file
+to a running daemon without a restart:
 
-```yaml
-experimental:
-  h1_fast_path: true
-  h1_fast_peer_path: true
-```
+1. Re-parse and validate the file — any failure leaves the running config untouched.
+2. Apply the hot-appliable subset through the hot-config knob registry (which reverts runtime drift back to the file).
+3. Report three sections: **applied** (old → new values), **unchanged**, and **NEEDS RESTART** for cold-only fields and knobs that refused, each with its reason.
 
-## H1 reactor
-
-> Available since v0.5.5, Linux only, experimental. Requires
-> `h1_fast_path`; config validation rejects `h1_reactor` without it.
-
-The reactor is a single-goroutine event loop per plaintext listener that
-serves batches of cache hits from one `epoll_wait` wakeup — parse, cache
-lookup, and `writev` flush all happen inline on raw file descriptors, with
-no goroutine park/unpark per request. This is the residual structural gap
-to nginx's worker event loop, closed.
-
-- Gate benchmark: ~129 ns and 0 allocs/op per reactor hit
-- Hit flush: one zero-copy, zero-alloc `writev` with exact-offset resume on partial writes
-- Keep-alive RTT: a bounded adaptive busy-poll after each served batch (single-client keep-alive p50 41.7 → 10.2 µs; +16% sustained throughput at equal CPU; zero CPU ticks while idle)
-
-```yaml
-experimental:
-  h1_fast_path: true
-  h1_reactor: true
-```
-
-### Bounds and handoff
-
-The reactor is bounded by design:
-
-- **4096 connections per loop** — over-cap connections fall back to the blocking parser path.
-- **Bounded handoff-spawn queue** (128 slots) — under extreme miss storms, excess miss connections are reset rather than letting the queue stall every cache hit on the listener.
-- **Handoff before any response byte**: misses, conditional requests, ranges, pipelined bodies, and oversize headers hand off to the existing blocking parser with the buffered bytes replayed, so fall-through framing, smuggling 400s, and SWR semantics are shared, not reimplemented.
-- **TLS listeners are never reactor-served.**
-- **Sweep safety nets**: a 5-minute write-timeout sweep drops clients that stop reading mid-response; an idle sweep closes keep-alive connections at `listen.idle_timeout` parity with the blocking path.
-
-### Rollback
-
-`BOUINE_REACTOR_SPIN_BUDGET=0` disables the adaptive busy-poll (A/B
-comparisons), and `experimental.h1_reactor: false` falls back to the
-blocking parser path entirely — same fast-path hit core,
-goroutine-per-connection scheduling. The spin budget defaults to 80.
-
-If the reactor is suspected mid-incident, see the
-[`51-h1-reactor` runbook](https://github.com/bouine-cache/bouine/blob/main/docs/runbook/51-h1-reactor.md)
-in the bouine repository.
-
-### Enabling in production
-
-```yaml
-listen:
-  http: ":8080"
-  admin: ":9000"
-
-storage:
-  hot_max_bytes: 2GiB
-
-upstream_pools:
-  - name: app
-    targets: ["app.default.svc:8080"]
-
-routes:
-  - match: {}
-    pool: app
-
-experimental:
-  h1_fast_path: true
-  h1_reactor: true
-```
-
-### Verifying with conformance tests
-
-Run the cache-tests conformance suite with the fast path enabled to verify no regressions:
-
-```bash
-make conformance-fastpath
-```
-
-This runs the standard `http-tests/cache-tests` harness with `experimental.h1_fast_path: true` and reports the pass rate. The fast path should match the baseline conformance score (no regressions).
+A daemon with the flag off answers 503 with the opt-in instructions.
+The CLI prints `needs_restart` loudly; rollback is operational (reload the
+previous git-tracked file). Reload is per-node — cluster-coordinated switch
+and the route/pool phase 2 land separately. Audit rides slog plus
+`bouine_config_reloads_total{result}` and the admin write rate limit.

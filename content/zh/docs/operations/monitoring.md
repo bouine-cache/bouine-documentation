@@ -15,7 +15,7 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 | `bouine_requests_total` | `status`, `cache_result`, `source`, `upstream_pool`, `traffic_class` | Total requests processed, carrying the exact status code. **This is the primary RED counter.** |
 | `bouine_request_duration_seconds` | `status` (response class), `cache_result`, `upstream_pool`, `traffic_class` | Request latency histogram. The status label carries the response class (`1xx`–`5xx`), not the exact code; exact codes stay on `bouine_requests_total`. Also exposed as a **native histogram** for high-resolution percentiles — see [below](#native-histogram-cardinality). |
 | `bouine_response_bytes_total` | `cache_result`, `source`, `upstream_pool`, `traffic_class` | Total bytes written in responses. |
-| `bouine_fetch_shed_total` | — | Foreground origin fetches shed after waiting `fetch_wait_timeout` for a fetch-semaphore slot. Non-zero rate means miss demand exceeds `max_fetch_concurrency`. See [Streaming and live responses](/docs/configuration/streaming/). |
+| `bouine_fetch_shed_total` | — | Foreground origin fetches shed after waiting `fetch_wait_timeout` for a fetch-semaphore slot. Non-zero rate means miss demand exceeds `max_fetch_concurrency` (built-in default 256 since v0.6.0, previously 32). See [Streaming and live responses](/docs/configuration/streaming/). |
 
 **`cache_result`** values: `HIT`, `MISS`, `STALE`, `REVALIDATED`, `BYPASS`.
 
@@ -171,7 +171,15 @@ bouine_hot_store_bytes / bouine_hot_store_max_bytes
 | `bouine_peer_fetch_hop_limit_hits_total` | — | `strong` |
 | `bouine_peer_fetch_duration_seconds` | — | `strong` | Peer-fetch RPC latency. Since v0.5.27 the histogram observes the untruncated duration — previously sub-millisecond fetches (the ~95% majority) floored to the zero bucket. |
 | `bouine_peer_fetch_queue_wait_seconds` | — | `strong` | Histogram of the peer-fetch semaphore wait (`cluster.peer_fetch_concurrency`), observed **before** slot acquisition — including the abandoned wait when a queued caller sheds or cancels (since v0.5.18). Compare against `bouine_peer_fetch_duration_seconds`: queue wait high with healthy RPC durations means the concurrency knob is the constraint. |
-| `bouine_peer_shed_total` | `direction` (`fetch`/`put`) | `strong` | Peer fetch/put RPCs shed after waiting 100 ms for a concurrency slot (since v0.5.20; split by direction and renamed from `bouine_peer_fetch_shed_total` in v0.5.29). Non-zero rate means `cluster.peer_fetch_concurrency` is saturated. |
+| `bouine_peer_shed_total` | `direction` (`fetch`/`put`) | `strong` | Peer fetch/put RPCs shed after waiting 100 ms for a concurrency slot (since v0.5.20; split by direction and renamed from `bouine_peer_fetch_shed_total` in v0.5.29). Non-zero rate means `cluster.peer_fetch_concurrency` (default 64 since v0.6.0) is saturated. |
+| `bouine_peer_fetch_resolver_answers_total` | `side` (`consumer`/`owner`) | `strong` | Peer-fetch resolver answers, incl. config-derived Vary resolutions (since v0.6.2, ADR-0071). |
+| `bouine_peer_fetch_derived_fallback_total` | — | `strong` | Config-derived Vary derivations that fell back to the two-step ask (since v0.6.2). |
+| `bouine_conn_rejections_total` | — | — | Connexions data-plane refusées à l'accept car `listen.max_connections` est atteint (depuis v0.6.0 ; plafond par défaut 65536 depuis v0.6.0). |
+| `bouine_fill_bypass_total` | — | — | Miss qui ont fetché leur propre réponse car un fill récent a conclu `no-store`/`private` (mémo 5 s, depuis v0.6.0). |
+| `bouine_config_hot_sets_total` | — | — | Tentatives de `config set` à chaud (depuis v0.6.0). |
+| `bouine_config_reloads_total` | `result` | — | Résultats de `config reload` (depuis v0.6.0, expérimental). |
+| `bouine_cluster_broadcast_failures_total` | `type` | `strong` | Échecs de fan-out cluster, ex. sets hot-config (depuis v0.6.0). |
+| `bouine_origin_passive_errors_total` | — | — | Chaque 5xx origine observé (la série d'éjection est fenêtrée par succès depuis v0.6.0 ; ce compteur compte toujours chaque 5xx). |
 | `bouine_rewarm_fill_total` | — | `strong` | Background cache refills scheduled after a shed foreground miss (since v0.5.20) — counted next to `bouine_fetch_shed_total`. |
 | `bouine_peer_fetch_variant_mismatch_total` | `side` (`server`/`consumer`) | `strong` | Peer-fetch variant-assertion rejections (since v0.5.19). A sustained non-zero rate indicates a mixed-version fleet or a peer serving wrong-variant content. |
 | `bouine_peer_addr_blacklisted` | — | `strong` | Gauge of peer addresses currently blacklisted by the per-address failure breaker (since v0.5.17): three consecutive transport failures trip a 30 s cooldown, during which fetches fall back to origin. |
@@ -342,6 +350,12 @@ migration — the histogram no longer carries per-observation trace IDs.
 | `/v1/refresh` | POST | ✓ | Soft-purge (mark stale) |
 | `/v1/stats` | GET | ✓ | Runtime stats (store entries, ring info) |
 | `/v1/config` | GET | ✓ | Read-only view of running configuration |
+| `/v1/config/hot` | GET/POST | ✓ | 热配置旋钮：列出数值、应用已验证的修改（自 v0.6.0 起） |
+| `/v1/config/reload` | POST | ✓ | 无需重启即可应用配置文件（自 v0.6.0 起，实验性） |
+| `/v1/status` | GET | ✓ | 节点概览：缓存、源站、集群、洞察（自 v0.6.0 起） |
+| `/v1/explain?url=...` | GET | ✓ | 单个 URL 的结构化缓存决策树（自 v0.6.0 起） |
+| `/v1/keys/find?url=...` | GET | ✓ | URL 的缓存状态（自 v0.6.0 起） |
+| `/v1/keys/top`、`/v1/keys/recent` | GET | ✓ | URL 环列表（自 v0.6.0 起） |
 | `/v1/debug/cachecheck?url=...` | GET | ✓ | Cache debug info for a URL |
 | `/debug/pprof/*` | GET | ✓ | Go pprof profiling endpoints (when `admin.pprof_enabled`) |
 | `/dashboard/` | GET | session | Operator web dashboard |

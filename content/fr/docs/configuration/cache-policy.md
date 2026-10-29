@@ -124,7 +124,7 @@ cache:
   stale_if_error: 300s
 ```
 
-- `stale_while_revalidate`: serve stale immediately and trigger a background revalidation. The next request gets a fresh `HIT` without any blocking. Concurrency is bounded to 256 simultaneous background revalidations.
+- `stale_while_revalidate`: serve stale immediately and trigger a background revalidation. The next request gets a fresh `HIT` without any blocking. Concurrency is bounded to 256 simultaneous background revalidations. **Since v0.6.0 a stale hit carrying `Authorization` or `Cookie` does not trigger the SWR refresh** (issue #846): the background refresh used to replay the triggering client's full header set — session cookie included — so a session-aware origin could render personalized content stored under the **shared** key. The stale entry is still served; the next anonymous request performs the refresh. Routes with `cache.key.cookie_presence` keep the trigger (the `Cookie` header is a declared variant dimension there). **Since v0.6.0 a body that does not read to a clean EOF is never shared or stored**: a truncated stream is published to collapse followers as unshareable and never written to the store.
 - `stale_if_error`: serve stale when the origin returns 5xx or is unreachable, up to the configured window. Unlike SWR, bouine always attempts the origin first and only falls back to stale on error.
 
 ## Stayin Alive
@@ -185,14 +185,17 @@ Keys are a single error status (`"404"`) or a class (`4xx`, `5xx`); exact codes 
 
 ## Set-Cookie caching
 
-By default, a response carrying a `Set-Cookie` header is **never cached** — even
+By default, a response carrying a `Set-Cookie` **or `Set-Login`** header is **never cached** — even
 if it has explicit freshness (`max-age`). This matches nginx's `proxy_cache`
 behaviour and prevents one user's session cookie from being replayed to other
-users (a session-fixation vector).
+users (a session-fixation vector). Since v0.6.0, `Set-Login` (WICG Sign-In Cookies)
+joins `Set-Cookie` in every storage gate, the stored-object strip, and the
+304-merge exclusion — it was previously cached unstripped and replayed to other
+clients.
 
 ```yaml
 cache:
-  allow_set_cookie: false   # default — Set-Cookie blocks caching
+  allow_set_cookie: false   # default — Set-Cookie/Set-Login blocks caching
 ```
 
 To cache such responses anyway, opt in explicitly. When enabled, bouine still
@@ -207,9 +210,15 @@ cache:
 | Upstream sends | `allow_set_cookie: false` (default) | `allow_set_cookie: true` |
 |---|---|---|
 | `Set-Cookie` + `max-age=60` | Not cached (proxied through) | Cached without `Set-Cookie` |
+| `Set-Login` + `max-age=60` | Not cached (since v0.6.0) | Cached without `Set-Login` (since v0.6.0) |
 | `Set-Cookie` + `no-store` | Not cached | Not cached |
 | No `Set-Cookie` | Cached normally | Cached normally |
 
+> **Since v0.6.0, client-state responses are never served to a second client
+> through collapse either** (ADR-0067): a leader response carrying `Set-Cookie`
+> or `Set-Login` publishes the unshareable sentinel, so byte-handoff followers
+> and shared singleflight callers each fetch their own response.
+>
 > **Only enable `allow_set_cookie` on routes where the `Set-Cookie` is not
 > user-specific** (e.g. a non-personalised A/B cookie). Never enable it on
 > authentication or session routes.
@@ -612,6 +621,19 @@ receive. Warm flights keep the lookup key; cold flights on a declared
 route extend the key with the declared headers; cold flights on an
 include-free route are refused (one extra origin fetch per concurrent
 caller, first fill only).
+
+**Since v0.6.0 cold include-free misses collapse onto one fill flight
+(ADR-0066).** A burst of concurrent anonymous cold misses on a route
+without `include_headers` now parks on one leader fill; each follower is
+then served **from the store — never from the leader's fetched bytes** —
+through the same gates as a sequential request, or fetches its own when the
+fill stored nothing usable for it. Measured (32 concurrent cold misses,
+2 ms origin RTT, 4 fetch slots): origin fetches 32 → 1, p50 9.1 ms → 2.3 ms.
+Requests carrying `Authorization` or `Cookie` and unsafe methods still
+never share any flight. Flights are method-split since v0.6.0 (a HEAD-led
+flight never hands its bodyless result to a GET follower), and a fill that
+settles `no-store`/`private` is memoized for 5 s so the next anonymous cold
+miss fetches its own immediately (`bouine_fill_bypass_total` counts those).
 
 ### Vary drift detection (since v0.5.27)
 

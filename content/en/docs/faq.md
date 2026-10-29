@@ -108,9 +108,12 @@ cache-of-caches) is a v1.2+ roadmap item.
 
 ### Can I reload config without restarting?
 
-No. bouine does not support live config reload. Config changes are
-applied by rolling the pod (standard Kubernetes rolling update). This
-avoids race conditions between reloadable and non-reloadable components.
+Mostly no — config changes are applied by rolling the pod (standard
+Kubernetes rolling update). Since v0.6.0, two exceptions exist: hot-config
+knobs (`bouine config set`, e.g. `cluster.ban_ttl`, per-pool passive-health
+knobs) change on a running daemon and are lost at restart, and experimental
+`bouine config reload` (behind `experimental.config_reload`) applies a config
+file without a restart and reports what still needs one.
 
 ### Does bouine support environment variable interpolation in config?
 
