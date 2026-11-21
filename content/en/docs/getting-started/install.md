@@ -1,6 +1,6 @@
 ---
 title: "Install"
-weight: 1
+weight: 2
 description: "Install bouine from Docker Hub, GitHub release binaries, or source, and understand requirements for each method."
 ---
 

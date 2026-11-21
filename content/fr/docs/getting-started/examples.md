@@ -251,7 +251,7 @@ routes:
   on the original path, so `/api/v1/users` and `/api/v2/users` never collide.
 - Empty/omitted `methods` matches all methods (the default).
 
-See the [routes field reference](/docs/configuration/#routes) for all options.
+See the [routes field reference](/docs/reference/config/#routes) for all options.
 
 ## Wildcard hosts, regex paths, and forwarded headers
 
@@ -292,6 +292,6 @@ routes:
 Regexes compile once at startup — route resolution never pays compile
 cost. A later route fully covered by an earlier one (host, path, and
 methods) is dead config and is reported at Error level at boot while
-boot proceeds. See [Configuration](/docs/configuration/#routes) for the
-matching rules and [Forwarded headers](/docs/configuration/#forwarded-headers)
+boot proceeds. See [Configuration](/docs/reference/config/#routes) for the
+matching rules and [Forwarded headers](/docs/reference/config/#forwarded-headers)
 for the four YAML shapes of the `forwarded` block.

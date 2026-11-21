@@ -1,6 +1,6 @@
 ---
 title: "安装"
-weight: 1
+weight: 2
 description: "从 Docker Hub、GitHub release 二进制文件或源码安装 bouine，了解每种方法的要求。"
 ---
 

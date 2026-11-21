@@ -25,7 +25,7 @@ description: "Migrate from NGINX proxy_cache to bouine by mapping directives, ca
 | `proxy_cache_lock_timeout 5s` | Built-in | Subscribers wait for leader fetch |
 | `proxy_cache_min_uses 3` | Not needed | bouine caches on first response (RFC 9111) |
 | `add_header X-Cache-Status $upstream_cache_status` | Built-in | `X-Cache` header (HIT, MISS, STALE, BYPASS, REVALIDATED) |
-| `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for` (with `X-Forwarded-Proto`, `X-Forwarded-Host`, `Via`) | `routes[].request.forwarded: standard` (v0.5.27) | Client-identity injection on origin-bound fetches; declare once with `route_defaults.request.forwarded`. See [Forwarded headers](/docs/configuration/#forwarded-headers) |
+| `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for` (with `X-Forwarded-Proto`, `X-Forwarded-Host`, `Via`) | `routes[].request.forwarded: standard` (v0.5.27) | Client-identity injection on origin-bound fetches; declare once with `route_defaults.request.forwarded`. See [Forwarded headers](/docs/reference/config/#forwarded-headers) |
 | `proxy_set_header Host $host` | `upstream_pools[].connect.preserve_host: true` (v0.5.28) | Keep the client's Host on the wire; the dial target stays the configured pool target |
 | `server_name *.example.com;` | `match: { host: "*.example.com" }` (v0.5.27) | Leading-`*.` suffix match anchored on the label boundary |
 | `location ~ ^/api/...$ { ... }` | `match: { path: "^/api/...$" }` (v0.5.27) | Anchored RE2 pattern; mutually exclusive with `path_prefix` |

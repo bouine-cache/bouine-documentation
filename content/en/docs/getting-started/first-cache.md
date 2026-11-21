@@ -1,6 +1,6 @@
 ---
 title: "Quick start"
-weight: 2
+weight: 1
 description: "Start a small origin server, put bouine in front of it, and verify MISS then HIT behavior through headers and metrics."
 ---
 

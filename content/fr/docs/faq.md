@@ -90,7 +90,7 @@ prevent cache poisoning via uncontrolled header variation.
   only. Best for read-heavy workloads where peer-fetch latency is
   unacceptable.
 
-See the [cluster modes guide](../operations/cluster-modes/) for details.
+See the [clustering guide](/docs/configuration/cluster-modes/) for details.
 
 ### What happens when a node joins or leaves?
 

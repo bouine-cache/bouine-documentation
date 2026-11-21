@@ -1,6 +1,6 @@
 ---
 title: "Installation"
-weight: 1
+weight: 2
 description: "Installez bouine depuis Docker Hub, les binaires de releases GitHub ou les sources, et comprenez les prérequis de chaque méthode."
 ---
 

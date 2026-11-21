@@ -112,7 +112,7 @@ per-pool `pool:<name>.health.passive.consecutive_5xx` and
 started at boot). Per-route keys are cold-only and rejected with an
 explanation. Unknown keys are rejected with precise errors. Every attempt is
 audited (slog key/old→new/dry-run + `bouine_config_hot_sets_total`) and rides
-the admin write rate limit. See [Hot configuration](/docs/configuration/#hot-configuration).
+the admin write rate limit. See [Hot configuration](/docs/reference/config/#hot-configuration).
 
 ## config reload (experimental, since v0.6.0)
 

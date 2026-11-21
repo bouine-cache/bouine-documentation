@@ -1,8 +1,10 @@
 ---
-title: "Supervision"
+title: "Supervision et alerting"
 weight: 4
-description: "Prometheus metrics, access log fields, OpenTelemetry tracing, and admin API endpoints for observing bouine."
+description: "Métriques Prometheus, champs des journaux d'accès, tracing OpenTelemetry, endpoints de l'API d'administration, dashboard Grafana et règles d'alerte."
 ---
+
+Tout ce que bouine expose pour l'observer à l'exécution : métriques, logs, traces, endpoints d'admin, dashboard Grafana livré et règles d'alerte prêtes à l'emploi. Pour *déployer* une stack complète métriques/logs/traces (Prometheus, Loki, Tempo, Grafana Alloy), voir le [guide d'observabilité](observability/).
 
 ## Prometheus metrics
 
@@ -23,7 +25,7 @@ All metrics are exposed at `GET /metrics` on the admin port (default `:9000`) in
 
 **`upstream_pool`** label: the matched route's upstream pool name (a small config-bounded set — "which upstream is slow or 5xx-ing"). Pool-less routes (static files, catch-all) and unmatched traffic land on `_default`. The dashboard rings keep per-route attribution, so per-route views lose nothing.
 
-**`traffic_class`** label (since v0.5.27): always present; values come exclusively from the configured [`metrics.traffic_classes`](/docs/configuration/#metrics) set plus the `unclassified` fallback for requests matching no class. See [Traffic classes](#traffic-classes).
+**`traffic_class`** label (since v0.5.27): always present; values come exclusively from the configured [`metrics.traffic_classes`](/docs/reference/config/#metrics) set plus the `unclassified` fallback for requests matching no class. See [Traffic classes](#traffic-classes).
 
 > **v0.5.8 changes:** the `method` label was dropped from the data-plane RED metrics (no dashboard or SLO query used it; the access log keeps the method), and the duration histogram dropped its `source` axis — the histogram footprint shrank ~90 %. Update any dashboard queries that filtered on `method` or `source`.
 >
@@ -62,7 +64,7 @@ sum by (traffic_class) (rate(bouine_requests_total[5m]))
 ### Traffic classes
 
 Since v0.5.27, `metrics.traffic_classes` (see
-[Configuration](/docs/configuration/#metrics)) declares up to 8 named
+[Configuration](/docs/reference/config/#metrics)) declares up to 8 named
 traffic populations matched by request-host patterns. The `traffic_class`
 label is added — always present, values exclusively from the configured
 set plus the `unclassified` fallback — to `bouine_requests_total`,

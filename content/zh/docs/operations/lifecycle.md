@@ -78,7 +78,7 @@ kubectl rollout restart statefulset/bouine
 ```
 
 Since v0.6.0, two narrower runtime surfaces exist on top of the restart
-path — the [hot-config knobs](/docs/configuration/#hot-configuration)
+path — the [hot-config knobs](/docs/reference/config/#hot-configuration)
 (`bouine config set`, e.g. `cluster.ban_ttl`) and experimental
 `bouine config reload` (behind `experimental.config_reload`), which applies
 a config file to a running daemon and reports what still needs a restart.
