@@ -28,7 +28,7 @@ summarylength = 30
       languageTag = "fr-FR"
     [[languages.fr.menus.main]]
       name = 'Docs'
-      url = '/docs/getting-started/install/'
+      url = '/docs/getting-started/first-cache/'
       weight = 10
     [[languages.fr.menus.main]]
       name = 'Configuration'
@@ -58,7 +58,7 @@ summarylength = 30
       languageTag = "zh-CN"
     [[languages.zh.menus.main]]
       name = '文档'
-      url = '/docs/getting-started/install/'
+      url = '/docs/getting-started/first-cache/'
       weight = 10
     [[languages.zh.menus.main]]
       name = '配置'
@@ -94,7 +94,7 @@ summarylength = 30
     navbarSticky = true
     containerBreakpoint = 'fluid'
     navBarButton = true
-    navBarButtonUrl = '/docs/getting-started/install/'
+    navBarButtonUrl = '/docs/getting-started/first-cache/'
 
     flexSearch = true
     searchExclKinds = []
@@ -184,7 +184,7 @@ summarylength = 30
 
 [[menu.main]]
   name = 'Docs'
-  url = '/docs/getting-started/install/'
+  url = '/docs/getting-started/first-cache/'
   weight = 10
 
 [[menu.main]]

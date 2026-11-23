@@ -1,6 +1,6 @@
 ---
 title: "Démarrage rapide"
-weight: 2
+weight: 1
 description: "Démarrez un petit serveur d'origine, placez bouine devant celui-ci et vérifiez le comportement MISS puis HIT via les en-têtes et les métriques."
 ---
 

@@ -331,7 +331,7 @@ background, so the effective miss rate stays low even after a cold start.
 
 **Q: Can I use the same backend health checks?**
 A: bouine supports active HTTP probes and passive outlier detection. See
-[upstream pool configuration](/docs/configuration/#health-checks) for details. The
+[upstream pool configuration](/docs/reference/config/#health-checks) for details. The
 `consecutive_5xx` threshold replaces Varnish's `probe` block.
 
 **Q: Will my Varnish stats dashboards work?**

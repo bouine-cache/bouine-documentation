@@ -7,15 +7,15 @@ description: "Install bouine, run it locally, cache your first response, deploy 
 
 This section gets you from zero to a working cache. You will:
 
-1. Install or run bouine.
-2. Start a small origin server.
-3. Put bouine in front of it.
-4. Verify `MISS`, then `HIT`.
+1. Start a small origin server.
+2. Put bouine in front of it.
+3. Verify `MISS`, then `HIT`.
+4. Install or run bouine your way.
 
 ## Pages
 
-- [Install](install/) — Docker, binaries, and source builds.
 - [Quick start](first-cache/) — start an origin, configure bouine, and verify cache hits.
+- [Install](install/) — Docker, binaries, and source builds.
 - [Docker](docker/) — run and build images.
 - [Kubernetes](kubernetes/) — deploy with Helm and StatefulSet gossip.
 - [Example configurations](examples/) — static site, API gateway, and e-commerce examples.

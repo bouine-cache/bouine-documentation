@@ -17,7 +17,7 @@ storage:
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `hot_max_bytes` | — (required) | Maximum RAM for cached objects. See [size units](/docs/configuration/#size-units). |
+| `hot_max_bytes` | — (required) | Maximum RAM for cached objects. See [size units](/docs/reference/config/#size-units). |
 
 ### How SIEVE works
 

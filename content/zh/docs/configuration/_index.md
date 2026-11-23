@@ -36,12 +36,13 @@ routes:
 
 - [缓存策略](cache-policy/) — TTL 选择、覆盖、stale-while-revalidate、负缓存、抖动、缓存键。
 - [流式与实时响应](streaming/) — SSE、流式 miss、fetch 槽位卸载与内存上限。
-- [集群模式](cluster-modes/) — strong、eventual；headless Service；gossip。
+- [集群模式](cluster-modes/) — strong、eventual；headless Service；gossip；验证与排障。
 - [Helm Chart](helm/) — Helm chart 可配置值。
 - [静态文件服务](static-files/) — 无需源站从磁盘服务文件。
 - [存储](storage/) — hot（RAM）和 warm（mmap）层、SIEVE 淘汰。
 - [TLS](tls/) — TLS 终止、peer 间 mTLS、证书。
 - [实验性功能](experimental/) — 可能变更的 opt-in 功能。
+- [YAML 配置参考](/docs/reference/config/) — 每个顶层配置键的详细字段参考。
 
 ## v0.5.27–v0.5.29 新增配置
 
